@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextResponse } from 'next/server'
 
 const PLACE_ID = 'ChIJJxIZZNn1MW0Rk4kIt7fYHOc'

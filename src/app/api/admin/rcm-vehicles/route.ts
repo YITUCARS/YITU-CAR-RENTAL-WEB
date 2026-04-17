@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 // ── Supabase SQL (run once in Supabase SQL editor) ────────────────────────────
 //
 // CREATE TABLE IF NOT EXISTS rcm_featured (

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { rcmStep3, toRCMDate, LOCATION_IDS } from '@/lib/rcm'
 

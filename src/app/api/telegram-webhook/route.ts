@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { ChatMessage, extractSessionId, getAgentJoinedReply } from '@/lib/chat'
 import { appendMessages, ensureChatSession, incrementUnread } from '@/lib/chat-store'
