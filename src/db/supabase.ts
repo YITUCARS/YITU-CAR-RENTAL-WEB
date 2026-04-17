@@ -1,14 +1,16 @@
 import { createClient } from '@supabase/supabase-js'
 import type { VehicleRecord, VehicleRepository } from './repository'
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) throw new Error('Missing Supabase environment variables')
+  return createClient(url, key)
+}
 
 export const vehicleRepo: VehicleRepository = {
     async getAll() {
-        const { data, error } = await supabase
+        const { data, error } = await getSupabase()
             .from('vehicles')
             .select('*')
             .order('created_at', { ascending: false })
@@ -17,7 +19,7 @@ export const vehicleRepo: VehicleRepository = {
     },
 
     async getActive() {
-        const { data, error } = await supabase
+        const { data, error } = await getSupabase()
             .from('vehicles')
             .select('*')
             .eq('active', true)
@@ -27,7 +29,7 @@ export const vehicleRepo: VehicleRepository = {
     },
 
     async getById(id) {
-        const { data, error } = await supabase
+        const { data, error } = await getSupabase()
             .from('vehicles')
             .select('*')
             .eq('id', id)
@@ -37,7 +39,7 @@ export const vehicleRepo: VehicleRepository = {
     },
 
     async create(data) {
-        const { data: created, error } = await supabase
+        const { data: created, error } = await getSupabase()
             .from('vehicles')
             .insert(data)
             .select()
@@ -47,7 +49,7 @@ export const vehicleRepo: VehicleRepository = {
     },
 
     async update(id, data) {
-        const { data: updated, error } = await supabase
+        const { data: updated, error } = await getSupabase()
             .from('vehicles')
             .update(data)
             .eq('id', id)
@@ -58,7 +60,7 @@ export const vehicleRepo: VehicleRepository = {
     },
 
     async delete(id) {
-        const { error } = await supabase
+        const { error } = await getSupabase()
             .from('vehicles')
             .delete()
             .eq('id', id)
@@ -66,6 +68,7 @@ export const vehicleRepo: VehicleRepository = {
     },
 
     async uploadImage(file) {
+        const supabase = getSupabase()
         const ext = file.name.split('.').pop()
         const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
         const { error } = await supabase.storage
