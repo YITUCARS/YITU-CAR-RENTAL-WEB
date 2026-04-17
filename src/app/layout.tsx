@@ -27,7 +27,7 @@ export const metadata: Metadata = {
       'New Zealand\'s trusted car rental since 2011. Unlimited KM, clean modern fleet, four locations nationwide. Auckland, Christchurch, Queenstown, Wellington.',
   keywords: 'car rental New Zealand, Auckland car hire, Christchurch rental, NZ road trip',
   icons: {
-    icon: '/YITU LOGO.png',
+    icon: '/YITU LOGO.PNG',
   },
   openGraph: {
     title: 'YITU Car Rental — New Zealand',
