@@ -1,16 +1,16 @@
 import { FieldValue } from 'firebase-admin/firestore'
-import { adminDb } from '@/lib/firebase-admin'
+import { getAdminDb } from '@/lib/firebase-admin'
 import { ChatMessage, ChatSession, ChatStatus, getInitialBotMessage } from '@/lib/chat'
 
 export async function getChatSession(sessionId: string) {
-    const ref = adminDb.collection('chats').doc(sessionId)
+    const ref = getAdminDb().collection('chats').doc(sessionId)
     const snapshot = await ref.get()
     if (!snapshot.exists) return null
     return snapshot.data() as ChatSession
 }
 
 export async function ensureChatSession(sessionId: string) {
-    const ref = adminDb.collection('chats').doc(sessionId)
+    const ref = getAdminDb().collection('chats').doc(sessionId)
     const snapshot = await ref.get()
 
     if (!snapshot.exists) {
@@ -33,7 +33,7 @@ export async function ensureChatSession(sessionId: string) {
 }
 
 export async function appendMessages(sessionId: string, messages: ChatMessage[], updates?: Partial<ChatSession>) {
-    const ref = adminDb.collection('chats').doc(sessionId)
+    const ref = getAdminDb().collection('chats').doc(sessionId)
     await ref.set({
         sessionId,
         updatedAt: Date.now(),
@@ -43,7 +43,7 @@ export async function appendMessages(sessionId: string, messages: ChatMessage[],
 }
 
 export async function incrementUnread(sessionId: string, amount = 1) {
-    const ref = adminDb.collection('chats').doc(sessionId)
+    const ref = getAdminDb().collection('chats').doc(sessionId)
     await ref.set({
         unreadCount: FieldValue.increment(amount),
         updatedAt: Date.now(),
@@ -51,7 +51,7 @@ export async function incrementUnread(sessionId: string, amount = 1) {
 }
 
 export async function clearUnread(sessionId: string) {
-    const ref = adminDb.collection('chats').doc(sessionId)
+    const ref = getAdminDb().collection('chats').doc(sessionId)
     await ref.set({
         unreadCount: 0,
         updatedAt: Date.now(),
@@ -59,7 +59,7 @@ export async function clearUnread(sessionId: string) {
 }
 
 export async function updateChatStatus(sessionId: string, status: ChatStatus, updates?: Partial<ChatSession>) {
-    const ref = adminDb.collection('chats').doc(sessionId)
+    const ref = getAdminDb().collection('chats').doc(sessionId)
     await ref.set({
         status,
         updatedAt: Date.now(),
