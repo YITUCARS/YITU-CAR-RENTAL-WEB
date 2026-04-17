@@ -1,0 +1,145 @@
+import type { Vehicle, Deal, Location } from '@/types'
+
+export const VEHICLES: Vehicle[] = [
+  {
+    id: 'corolla-hybrid',
+    brand: 'Toyota',
+    model: 'Corolla Hybrid',
+    category: 'sedan',
+    seats: 5,
+    bags: 3,
+    fuel: 'Hybrid',
+    drive: 'FWD',
+    pricePerDay: 69,
+    tags: ['CarPlay', 'Cruise', 'A/C'],
+    image: 'https://www.arentalscar.com/media/2025/04/2.TOYOTA-COROLLA-H-632x336.jpg',
+  },
+  {
+    id: 'rav4-hybrid',
+    brand: 'Toyota',
+    model: 'RAV4 Hybrid',
+    category: 'suv',
+    seats: 5,
+    bags: 4,
+    fuel: 'Hybrid',
+    drive: 'AWD',
+    pricePerDay: 89,
+    tags: ['CarPlay', 'Cruise', 'A/C'],
+    image: 'https://www.arentalscar.com/media/2025/04/3.TOYOTA-RAV4-H-632x336.jpg',
+  },
+  {
+    id: 'forester-xmode',
+    brand: 'Subaru',
+    model: 'Forester X-Mode',
+    category: 'suv',
+    seats: 5,
+    bags: 4,
+    fuel: 'Petrol',
+    drive: 'AWD',
+    pricePerDay: 99,
+    tags: ['X-Mode', 'CarPlay', 'Snow-ready'],
+    image: 'https://www.arentalscar.com/media/2025/04/7.SUBARU-FORESTER2023-632x336.jpg',
+  },
+  {
+    id: 'alphard-hybrid',
+    brand: 'Toyota',
+    model: 'Alphard Hybrid',
+    category: 'mpv',
+    seats: 7,
+    bags: 3,
+    fuel: 'Hybrid',
+    drive: 'AWD',
+    pricePerDay: 129,
+    tags: ['Premium', 'Leather', 'CarPlay'],
+    image: 'https://www.arentalscar.com/media/2025/04/10.TOYOTA-ALPHARD-632x336.jpg',
+  },
+  {
+    id: 'staria-premium',
+    brand: 'Hyundai',
+    model: 'Staria Premium AWD',
+    category: 'mpv',
+    seats: 8,
+    bags: 4,
+    fuel: 'Diesel',
+    drive: 'AWD',
+    pricePerDay: 139,
+    tags: ['8-Seater', 'CarPlay', 'Cruise'],
+    image: 'https://www.arentalscar.com/media/2025/04/14.HYUNDAI-STARIA-632x336.jpg',
+  },
+  {
+    id: 'hiace',
+    brand: 'Toyota',
+    model: 'Hiace or Similar',
+    category: 'van',
+    seats: 12,
+    bags: 6,
+    fuel: 'Diesel',
+    drive: 'RWD',
+    pricePerDay: 159,
+    tags: ['Group Travel', 'Bluetooth', 'A/C'],
+    image: 'https://www.arentalscar.com/media/2025/04/17.TOYOTA-HIACE-632x336.jpg',
+  },
+  {
+    id: 'sprinter',
+    brand: 'Mercedes',
+    model: 'Sprinter (New)',
+    category: 'van',
+    seats: 12,
+    bags: 8,
+    fuel: 'Diesel',
+    drive: 'RWD',
+    pricePerDay: 199,
+    tags: ['Luxury', 'Group Travel', 'A/C'],
+    image: 'https://www.arentalscar.com/media/2025/04/16.MERCEDES-BENZ-SPRINTER2019-24-632x336.jpg',
+  },
+]
+
+export const DEALS: Deal[] = [
+  {
+    id: 'easter',
+    title: 'Easter Sale',
+    description: 'Fuel subsidy on every rental day',
+    value: '$6.6',
+    unit: '/day',
+    badge: 'Get Offer',
+    image: 'https://www.arentalscar.com/media/2025/01/1-632x422.jpg',
+  },
+  {
+    id: 'autumn',
+    title: 'Autumn Sale',
+    description: 'Discount on all vehicle categories',
+    value: '10%',
+    badge: 'Get Offer',
+    image: 'https://www.arentalscar.com/media/2024/12/2025_Autum_En-632x422.jpg',
+  },
+]
+
+export const LOCATIONS: Location[] = [
+ // { id: 'auckland', city: 'Auckland', address: '27 Aintree Avenue', suburb: 'Mangere, Auckland' },
+  { id: 'christchurch', city: 'Christchurch', address: '222 Main south Road', suburb: 'Hornby' },
+  { id: 'queenstown', city: 'Queenstown', address: '1 Gray Street', suburb: 'Frankton' },
+]
+
+export const NAV_LINKS = [
+  { href: '#home', label: 'Home' },
+  { href: '#fleet', label: 'Vehicles' },
+  { href: '/gallery', label: 'Gallery' },
+  { href: '#locations', label: 'Locations' },
+  { href: '#deals', label: 'Hot Deals' },
+  { href: '#contact', label: 'Contact' },
+]
+
+export const VEHICLE_CATEGORIES = [
+  { value: 'all', label: 'All' },
+  { value: 'sedan', label: 'Sedan' },
+  { value: 'suv', label: 'SUV' },
+  { value: 'mpv', label: 'MPV' },
+  { value: 'van', label: 'Van' },
+]
+
+export const PICKUP_LOCATIONS = [
+  'Auckland Airport',
+  'Christchurch Airport',
+  'Queenstown Airport',
+  'Wellington Airport',
+]
