@@ -23,5 +23,11 @@ export async function GET() {
         return NextResponse.json([], { headers: { 'Cache-Control': 'no-store' } })
     }
 
-    return NextResponse.json(data ?? [], { headers: { 'Cache-Control': 'no-store' } })
-}
+    return NextResponse.json(data ?? [], { 
+        headers: { 
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+          'Pragma': 'no-cache'
+        } 
+      })
+
+
