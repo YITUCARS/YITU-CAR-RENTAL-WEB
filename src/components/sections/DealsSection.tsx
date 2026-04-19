@@ -27,7 +27,6 @@ export default function DealsSection({ initialDeals }: { initialDeals?: DealItem
 
     // Client-side fallback: if SSR provided no deals, fetch from API
     useEffect(() => {
-        if (deals.length > 0) return
         fetch('/api/public/deals')
             .then(r => r.json())
             .then((data: DealItem[]) => { if (data.length > 0) setDeals(data) })
