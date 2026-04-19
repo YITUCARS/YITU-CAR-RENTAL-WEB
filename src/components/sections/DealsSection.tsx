@@ -1,6 +1,6 @@
 'use client'
 
-
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Tag, ArrowRight } from 'lucide-react'
 import { DEALS } from '@/lib/data'
@@ -21,8 +21,20 @@ const FALLBACK: DealItem[] = DEALS.map(d => ({ ...d, slug: d.id, image_url: d.im
 
 export default function DealsSection({ initialDeals }: { initialDeals?: DealItem[] }) {
     const router = useRouter()
-    // Use server-provided data directly; fall back to hardcoded only if nothing came from server
-    const displayDeals = (initialDeals && initialDeals.length > 0) ? initialDeals : FALLBACK
+    const [deals, setDeals] = useState<DealItem[]>(
+        initialDeals && initialDeals.length > 0 ? initialDeals : []
+    )
+
+    // Client-side fallback: if SSR provided no deals, fetch from API
+    useEffect(() => {
+        if (deals.length > 0) return
+        fetch('/api/public/deals')
+            .then(r => r.json())
+            .then((data: DealItem[]) => { if (data.length > 0) setDeals(data) })
+            .catch(() => setDeals(FALLBACK))
+    }, [])
+
+    const displayDeals = deals.length > 0 ? deals : FALLBACK
 
     return (
         <section id="deals" className="py-20 px-4 sm:px-10 bg-off-white border-t border-black/10">

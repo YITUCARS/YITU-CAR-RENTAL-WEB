@@ -55,6 +55,15 @@ export default function HeroSection({ initialDeals }: { initialDeals?: any[] }) 
   function prev() { setCurrent(c => (c - 1 + ads.length) % ads.length) }
   function goTo(i: number) { setCurrent(i) }
 
+  // Client-side fallback: if SSR provided no deals, fetch from API
+  useEffect(() => {
+    if (ads.length > 0) return
+    fetch('/api/public/deals')
+      .then(r => r.json())
+      .then((data: any[]) => { if (data.length > 0) setAds(dealsToAds(data)) })
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     if (paused || ads.length <= 1) return
     timerRef.current = setTimeout(next, 5000)
