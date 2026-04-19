@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+
 import { useRouter } from 'next/navigation'
 import { Tag, ArrowRight } from 'lucide-react'
 import { DEALS } from '@/lib/data'
@@ -19,21 +19,13 @@ interface DealItem {
 
 const FALLBACK: DealItem[] = DEALS.map(d => ({ ...d, slug: d.id, image_url: d.image }))
 
-export default function DealsSection() {
+export default function DealsSection({ initialDeals }: { initialDeals?: DealItem[] }) {
     const router = useRouter()
-    const [deals, setDeals] = useState<DealItem[]>(FALLBACK)
-
-    useEffect(() => {
-        fetch('/api/public/deals')
-            .then(r => r.json())
-            .then((data: DealItem[]) => {
-                if (Array.isArray(data) && data.length > 0) setDeals(data)
-            })
-            .catch(() => {})
-    }, [])
+    // Use server-provided data directly; fall back to hardcoded only if nothing came from server
+    const displayDeals = (initialDeals && initialDeals.length > 0) ? initialDeals : FALLBACK
 
     return (
-        <section id="deals" className="py-20 px-10 bg-off-white border-t border-black/10">
+        <section id="deals" className="py-20 px-4 sm:px-10 bg-off-white border-t border-black/10">
             <div className="max-w-[1100px] mx-auto">
                 {/* Header */}
                 <div className="mb-9">
@@ -47,7 +39,7 @@ export default function DealsSection() {
 
                 {/* Deals grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {deals.map((deal) => {
+                    {displayDeals.map((deal) => {
                         const img = deal.image_url || deal.image || ''
                         return (
                             <div

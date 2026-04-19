@@ -18,9 +18,11 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     if (!auth(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const body = await req.json()
     const supabase = getSupabase()
+    // Strip primary key and auto-managed columns — Supabase rejects updates to these
+    const { id: _id, created_at: _cat, ...updateFields } = body
     const { data, error } = await supabase
         .from('banners')
-        .update(body)
+        .update(updateFields)
         .eq('id', params.id)
         .select()
         .single()

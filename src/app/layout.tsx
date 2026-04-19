@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { Syne, DM_Sans, Montserrat } from 'next/font/google'
 import ChatWidget from '@/components/ChatWidget'
@@ -20,6 +20,11 @@ const montserrat = Montserrat({
   variable: '--font-montserrat',
   weight: ['600','700', '800', '900'],
 })
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+}
 
 export const metadata: Metadata = {
   title: 'YITU Car Rental — New Zealand',

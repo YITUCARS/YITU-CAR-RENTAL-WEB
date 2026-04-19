@@ -514,8 +514,30 @@ export default function VehiclesPage() {
                     <section>
                         {loading && (
                             <div className="flex flex-col gap-4">
-                                {[1, 2, 3].map(i => (
-                                    <div key={i} className="bg-white border border-black/10 rounded-card h-48 animate-pulse" />
+                                {Array.from({ length: 6 }).map((_, i) => (
+                                    <div key={i} className="bg-white border border-black/10 rounded-card overflow-hidden flex flex-col sm:flex-row animate-pulse">
+                                        <div className="sm:w-64 flex-shrink-0 bg-gray-200 h-48 sm:h-auto sm:min-h-[180px]" />
+                                        <div className="flex-1 p-6 flex flex-col justify-between gap-4">
+                                            <div>
+                                                <div className="flex gap-2 mb-3">
+                                                    <div className="h-3 bg-gray-200 rounded w-24" />
+                                                    <div className="h-3 bg-gray-200 rounded w-12" />
+                                                </div>
+                                                <div className="h-6 bg-gray-200 rounded w-2/3 mb-3" />
+                                                <div className="flex gap-4">
+                                                    <div className="h-3 bg-gray-200 rounded w-20" />
+                                                    <div className="h-3 bg-gray-200 rounded w-28" />
+                                                </div>
+                                            </div>
+                                            <div className="flex items-end justify-between pt-4 border-t border-black/[0.07]">
+                                                <div>
+                                                    <div className="h-3 bg-gray-200 rounded w-36 mb-2" />
+                                                    <div className="h-8 bg-gray-200 rounded w-28" />
+                                                </div>
+                                                <div className="h-10 bg-gray-200 rounded-xl w-24" />
+                                            </div>
+                                        </div>
+                                    </div>
                                 ))}
                             </div>
                         )}
@@ -547,7 +569,20 @@ export default function VehiclesPage() {
                                     )}
                                 </div>
 
-                                {filteredVehicles.length === 0 ? (
+                                {vehicles.length === 0 ? (
+                                    <div className="bg-white border border-black/10 rounded-card p-8 text-center">
+                                        <h3 className="font-syne font-bold text-navy text-lg">No vehicles available</h3>
+                                        <p className="text-muted text-[14px] mt-2">
+                                            No vehicles are available for your selected dates and locations. Try adjusting your pick-up or drop-off times.
+                                        </p>
+                                        <button
+                                            onClick={() => loadVehicles(searchForm)}
+                                            className="mt-4 text-orange underline text-sm"
+                                        >
+                                            Search again
+                                        </button>
+                                    </div>
+                                ) : filteredVehicles.length === 0 ? (
                                     <div className="bg-white border border-black/10 rounded-card p-8 text-center">
                                         <h3 className="font-syne font-bold text-navy text-lg">No vehicles match these filters</h3>
                                         <p className="text-muted text-[14px] mt-2">

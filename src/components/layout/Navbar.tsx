@@ -39,7 +39,7 @@ export default function Navbar({ onManageBooking }: NavbarProps) {
   return (
     <>
       {/* Top bar */}
-      <div className="fixed top-0 left-0 right-0 z-[60] bg-navy h-8 flex items-center justify-center gap-8 px-10">
+      <div className="fixed top-0 left-0 right-0 z-[60] bg-navy h-8 flex items-center justify-center gap-2 sm:gap-8 px-4 sm:px-10">
         <a
             href="tel:+6421234567"
             className="flex items-center gap-1.5 text-white/70 hover:text-white text-[12px] font-medium transition-colors"
@@ -47,20 +47,20 @@ export default function Navbar({ onManageBooking }: NavbarProps) {
           📞 +64 800 948 888
         </a>
 
-        <span className="text-white/20 text-[10px]">|</span>
+        <span className="hidden sm:inline text-white/20 text-[10px]">|</span>
 
         <a
             href="mailto:info@yitucarrental.co.nz"
-            className="flex items-center gap-1.5 text-white/70 hover:text-white text-[12px] font-medium transition-colors"
+            className="hidden sm:flex items-center gap-1.5 text-white/70 hover:text-white text-[12px] font-medium transition-colors"
         >
           ✉️ booking@yiturentalcars.co.nz
         </a>
 
-        <span className="text-white/20 text-[10px]">|</span>
+        <span className="hidden sm:inline text-white/20 text-[10px]">|</span>
 
         <a
             href="mailto:info@yitucarrental.co.nz"
-            className="flex items-center gap-1.5 text-white/70 hover:text-white text-[12px] font-medium transition-colors"
+            className="hidden sm:flex items-center gap-1.5 text-white/70 hover:text-white text-[12px] font-medium transition-colors"
         >
           ⏰ Monday - Sunday 08:30 - 17:30
         </a>

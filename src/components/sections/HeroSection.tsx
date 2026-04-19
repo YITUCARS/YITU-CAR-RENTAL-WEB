@@ -6,6 +6,10 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import faviconMark from '@/app/icon.png/android-chrome-512x512.png'
 
+// 10 px gray placeholder — shown while the first carousel image loads
+const BLUR_DATA_URL =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFklEQVR42mNkYPhfDwAEgAGAWjR9awAAAABJRU5ErkJggg=='
+
 const STATS = [
   { value: '100', suffix: '+', label: 'Vehicles Fleet' },
   { value: '15', suffix: '+', label: 'Years of Service' },
@@ -20,51 +24,27 @@ interface BannerItem {
   label: string
 }
 
-interface DealItem {
-  id?: string
-  slug?: string
-  title: string
-  description?: string
-  badge?: string
-  image_url?: string
-  image?: string
+
+function dealsToAds(deals: any[]): BannerItem[] {
+  return deals
+    .filter((d) => Boolean(d.image_url || d.image))
+    .map((d) => ({
+      id: `deal-${d.id || d.slug || d.title}`,
+      slug: d.slug || String(d.id ?? ''),
+      image_url: d.image_url || d.image || '',
+      title: d.title,
+      label: d.description || d.badge || 'Hot Deal',
+    }))
 }
 
-export default function HeroSection() {
-  const [ads, setAds] = useState<BannerItem[]>([])
+export default function HeroSection({ initialDeals }: { initialDeals?: any[] }) {
+  const [ads, setAds] = useState<BannerItem[]>(() =>
+    initialDeals && initialDeals.length > 0 ? dealsToAds(initialDeals) : []
+  )
   const [current, setCurrent] = useState(0)
   const [paused, setPaused] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const router = useRouter()
-
-  function fetchHeroAds() {
-    fetch('/api/public/deals?t=' + Date.now())
-        .then(r => r.json())
-        .then((dealData: DealItem[]) => {
-          const deals = Array.isArray(dealData)
-              ? dealData
-                  .filter((deal) => Boolean(deal.image_url || deal.image))
-                  .map((deal) => ({
-                    id: `deal-${deal.id || deal.slug || deal.title}`,
-                    slug: deal.slug || String(deal.id ?? ''),
-                    image_url: deal.image_url || deal.image || '',
-                    title: deal.title,
-                    label: deal.description || deal.badge || 'Hot Deal',
-                  }))
-              : []
-
-          setAds(deals)
-          setCurrent(0)
-        })
-        .catch(() => {
-          setAds([])
-          setCurrent(0)
-        })
-  }
-
-  useEffect(() => {
-    fetchHeroAds()
-  }, [])
 
   const scrollToBooking = () =>
       document.getElementById('booking')?.scrollIntoView({ behavior: 'smooth' })
@@ -86,7 +66,7 @@ export default function HeroSection() {
   return (
       <section
           id="home"
-          className="relative min-h-screen pt-[120px] pb-[60px] px-10 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center overflow-hidden"
+          className="relative min-h-screen pt-[120px] pb-[60px] px-5 sm:px-10 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center overflow-hidden"
       >
         <div
             className="absolute left-[2%] bottom-[5%] h-[260px] w-[40%] opacity-[0.28] pointer-events-none z-0"
@@ -118,27 +98,37 @@ export default function HeroSection() {
 
         {/* 轮播图 — 与蓝色背景完全重叠 */}
         <div
-            className={`hidden lg:block absolute right-0 top-0 bottom-0 w-[62%] z-[1] ${ad?.slug ? 'cursor-pointer' : ''}`}
+            className={`hidden lg:block absolute right-0 top-0 bottom-0 w-[62%] z-[1] bg-gray-100 ${ad?.slug ? 'cursor-pointer' : ''}`}
             style={{ clipPath: 'polygon(30% 0,100% 0,100% 100%,0 100%)' }}
             onMouseEnter={() => setPaused(true)}
             onMouseLeave={() => setPaused(false)}
             onClick={() => ad?.slug && router.push(`/deals/${ad.slug}`)}
         >
           {ads.length > 0 ? (
-            <div className="absolute inset-0">
-              {ads.map((item, index) => (
-                <img
+            <div className="absolute inset-0 bg-gray-100">
+              {ads.map((item, index) => {
+                const isFirst = index === 0
+                return (
+                  <Image
                     key={item.id ?? `${item.image_url}-${index}`}
                     src={item.image_url}
                     alt={item.title}
-                    className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
+                    fill
+                    quality={80}
+                    sizes="(max-width: 1024px) 0vw, 62vw"
+                    className={`object-cover transition-opacity duration-700 ${
                         index === current ? 'opacity-100' : 'opacity-0'
                     }`}
-                />
-              ))}
+                    {...(isFirst
+                      ? { priority: true, placeholder: 'blur' as const, blurDataURL: BLUR_DATA_URL }
+                      : { loading: 'lazy' as const }
+                    )}
+                  />
+                )
+              })}
             </div>
           ) : (
-            <div className="h-full w-full bg-[linear-gradient(135deg,#1a2b6b_0%,#243580_55%,#0f172a_100%)]" />
+            <div className="h-full w-full bg-gray-100" />
           )}
 
           {/* 渐变遮罩 — 左下角和底部加深 */}
@@ -205,17 +195,17 @@ export default function HeroSection() {
         </div>
 
         {/* 左侧内容 */}
-        <div className="relative z-10 ml-[10%] max-w-[500px]">
+        <div className="relative z-10 ml-0 lg:ml-[10%] max-w-[500px]">
           <div className="inline-flex items-center gap-2 bg-orange/12 border border-orange/30 text-orange text-[12px] font-medium px-3.5 py-1.5 rounded-full mb-2">
             <MapPin size={12} />
             Start your journey with us
           </div>
 
           <h1
-              className="font-montserrat font-extrabold italic text-navy leading-[1.04] mb-5 text-[clamp(2.5rem,4vw,4.1rem)] -ml-2"
+              className="font-montserrat font-extrabold italic text-navy leading-[1.04] mb-5 text-[clamp(1.6rem,5vw,4.1rem)] -ml-2"
           >
-            <span className="block whitespace-nowrap">Explore New Zealand</span>
-            <span className="block pl-[8%] whitespace-nowrap text-orange">The Better Choice</span>
+            <span className="block">Explore New Zealand</span>
+            <span className="block pl-0 sm:pl-[8%] text-orange">The Better Choice</span>
           </h1>
 
           <div className="flex gap-3.5 flex-wrap">

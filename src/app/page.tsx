@@ -1,83 +1,63 @@
-'use client'
-
-import { useState, useEffect } from 'react'
-import Navbar from '@/components/layout/Navbar'
-import Footer from '@/components/layout/Footer'
-import ManageBookingModal from '@/components/ui/ManageBookingModal'
+import { createClient } from '@supabase/supabase-js'
+import HomeClient from './HomeClient'
 import HeroSection from '@/components/sections/HeroSection'
 import BookingSection from '@/components/sections/BookingSection'
 import StatsStrip from '@/components/sections/StatsStrip'
 import FleetSection from '@/components/sections/FleetSection'
 import DealsSection from '@/components/sections/DealsSection'
-import TrustSection from '@/components/sections/TrustSection'
 import LocationsSection from '@/components/sections/LocationsSection'
 import ContactSection from '@/components/sections/ContactSection'
 import CTASplitSection from '@/components/sections/CTASplitSection'
-//顶部 import 区加上
 import ReviewsSection from '@/components/sections/ReviewsSection'
 
-export default function HomePage() {
-  const [modalOpen, setModalOpen] = useState(false)
+// Always fetch fresh data from Supabase on every request
+export const dynamic = 'force-dynamic'
 
-  // Scroll-reveal observer
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) entry.target.classList.add('in')
-        })
-      },
-      { threshold: 0.1 }
+async function getDeals() {
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
-    document.querySelectorAll('.reveal').forEach((el) => observer.observe(el))
-    return () => observer.disconnect()
-  }, [])
+    const { data, error } = await supabase
+      .from('deals')
+      .select('id, slug, title, description, value, unit, badge, image_url, content')
+      .eq('active', true)
+      .order('display_order')
+    if (error) console.error('[page] getDeals error:', error.message)
+    return data ?? []
+  } catch (err: any) {
+    console.error('[page] getDeals failed:', err.message)
+    return []
+  }
+}
+
+export default async function HomePage() {
+  const deals = await getDeals()
 
   return (
-    <>
-      <Navbar onManageBooking={() => setModalOpen(true)} />
-      <ManageBookingModal open={modalOpen} onClose={() => setModalOpen(false)} />
-
-      <main>
-        {/* Hero */}
-        <HeroSection />
-        {/* Booking form */}
-        <BookingSection />
-
-        {/* Stats strip */}
-        <StatsStrip />
-
-        {/* Fleet */}
-        <div className="reveal">
-          <FleetSection />
-        </div>
-
-        {/* Hot Deals */}
-        <div className="reveal">
-          <DealsSection />
-        </div>
-
-        {/* 加在这里 👇 */}
-        <div className="reveal">
-          <ReviewsSection />
-        </div>
-
-        <div className="reveal">
-          <LocationsSection />
-        </div>
-
-        {/* Contact / WeChat */}
-        <div className="reveal">
-          <ContactSection />
-        </div>
-
-        {/* CTA split */}
-        <div className="reveal">
-          <CTASplitSection />
-        </div>
-      </main>
-
-      <Footer onManageBooking={() => setModalOpen(true)} />
-    </>
+    <HomeClient>
+      <HeroSection initialDeals={deals} />
+      <BookingSection />
+      <StatsStrip />
+      <div className="reveal">
+        <FleetSection />
+      </div>
+      <div className="reveal">
+        <DealsSection initialDeals={deals} />
+      </div>
+      <div className="reveal">
+        <ReviewsSection />
+      </div>
+      <div className="reveal">
+        <LocationsSection />
+      </div>
+      <div className="reveal">
+        <ContactSection />
+      </div>
+      <div className="reveal">
+        <CTASplitSection />
+      </div>
+    </HomeClient>
   )
 }

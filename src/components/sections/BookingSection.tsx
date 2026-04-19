@@ -87,7 +87,7 @@ export default function BookingSection() {
   }
 
   return (
-    <section id="booking" className="relative z-20 px-10" style={{ marginTop: '-90px' }}>
+    <section id="booking" className="relative z-20 px-4 sm:px-10" style={{ marginTop: '-90px' }}>
       <div className="animate-floating max-w-[1400px] mx-auto">
         <div className="rounded-2xl p-2" style={{
           background: 'rgba(255,255,255,0.15)',
@@ -194,7 +194,7 @@ export default function BookingSection() {
                     onChange={e => setPromoCode(e.target.value.toUpperCase())}
                     onKeyDown={e => e.key === 'Enter' && handleSearch()}
                     placeholder="Enter promo code"
-                    className="bg-transparent text-[13px] font-syne font-bold text-navy placeholder:text-muted/50 outline-none tracking-widest w-[160px]"
+                    className="bg-transparent text-[13px] font-syne font-bold text-navy placeholder:text-muted/50 outline-none tracking-widest w-full min-w-0"
                     maxLength={20}
                   />
                   {promoCode && (

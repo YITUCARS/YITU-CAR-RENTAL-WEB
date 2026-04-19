@@ -16,6 +16,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
@@ -23,6 +24,7 @@ body {
   background: #ffffff;
   color: #0b1220;
   overflow-x: hidden;
+  min-width: 320px;
 }
 
 @layer utilities {
