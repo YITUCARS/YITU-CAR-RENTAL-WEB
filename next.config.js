@@ -3,7 +3,7 @@ const nextConfig = {
   images: {
     remotePatterns: [
       // Supabase Storage — deal/banner images uploaded via admin
-      { protocol: 'https', hostname: 'ytcdxpqfhnstgeqdzckv.supabase.co', pathname: '/storage/v1/object/public/**' },
+      { protocol: 'https', hostname: 'ytcdxpqfhnstgeqdzckv.supabase.co' },
       // Fallback / hardcoded deal images
       { protocol: 'https', hostname: 'www.arentalscar.com' },
       // External image URLs pasted in admin

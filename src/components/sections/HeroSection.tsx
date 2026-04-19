@@ -204,8 +204,8 @@ export default function HeroSection({ initialDeals }: { initialDeals?: any[] }) 
           <h1
               className="font-montserrat font-extrabold italic text-navy leading-[1.04] mb-5 text-[clamp(1.6rem,5vw,4.1rem)] -ml-2"
           >
-            <span className="block">Explore New Zealand</span>
-            <span className="block pl-0 sm:pl-[8%] text-orange">The Better Choice</span>
+            <span className="block sm:whitespace-nowrap">Explore New Zealand</span>
+            <span className="block pl-0 sm:pl-[8%] sm:whitespace-nowrap text-orange">The Better Choice</span>
           </h1>
 
           <div className="flex gap-3.5 flex-wrap">
