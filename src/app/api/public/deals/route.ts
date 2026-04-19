@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-export const dynamic = 'force-dynamic'
+
+export const revalidate = 60
 
 function getSupabase() {
   return createClient(
@@ -19,18 +20,8 @@ export async function GET() {
 
   if (error) {
     console.error('[public/deals]', error)
-    return NextResponse.json([], {
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-        'Pragma': 'no-cache'
-      }
-    })
+    return NextResponse.json([])
   }
 
-  return NextResponse.json(data ?? [], {
-    headers: {
-      'Cache-Control': 'no-store, no-cache, must-revalidate',
-      'Pragma': 'no-cache'
-    }
-  })
+  return NextResponse.json(data ?? [])
 }
