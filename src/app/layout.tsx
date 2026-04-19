@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import '@fortawesome/fontawesome-free/css/all.min.css'
 import { Syne, DM_Sans, Montserrat } from 'next/font/google'
 import ChatWidget from '@/components/ChatWidget'
 

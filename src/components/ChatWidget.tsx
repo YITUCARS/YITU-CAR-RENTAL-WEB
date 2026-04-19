@@ -173,13 +173,15 @@ export default function ChatWidget() {
         setError('')
 
         try {
-            const response = await fetch('/api/send-message', {
+            const messageToSend = requestHuman
+                ? `Customer requested human support from the website chat. Session: ${sessionId}`
+                : `Session: ${sessionId}\n${text}`
+
+            const response = await fetch('/api/chat/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    sessionId,
-                    text,
-                    requestHuman,
+                    message: messageToSend,
                 }),
             })
 
@@ -188,12 +190,16 @@ export default function ChatWidget() {
                 throw new Error(data.error || 'Unable to send message.')
             }
 
-            if (Array.isArray(data.messages)) {
-                setMessages(current => mergeMessages(current, data.messages as ChatMessage[]))
-                const newest = sortMessages(data.messages as ChatMessage[]).at(-1)
-                latestTimestampRef.current = Math.max(latestTimestampRef.current, newest?.timestamp ?? 0)
+            // Add user message locally
+            const now = Date.now()
+            const userMessage: ChatMessage = {
+                sender: 'user',
+                text: text.trim(),
+                timestamp: now,
             }
-            setSupportOffered(Boolean(data.supportOffered))
+            setMessages(current => mergeMessages(current, [userMessage]))
+            latestTimestampRef.current = Math.max(latestTimestampRef.current, now)
+
             if (requestHuman) {
                 setStatus('human')
             }

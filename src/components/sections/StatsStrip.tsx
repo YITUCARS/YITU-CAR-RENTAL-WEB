@@ -1,7 +1,7 @@
 import { Users, MapPin, Infinity } from 'lucide-react'
 
 const STATS = [
-  { icon: Users, value: '50,000', suffix: '+', label: 'Happy Customers' },
+  { icon: Users, value: '10,000', suffix: '+', label: 'Happy Customers' },
   { icon: Infinity, value: 'Unlimited', suffix: '', label: 'Kilometres Included' },
   { icon: MapPin, value: '3', suffix: ' Cities', label: 'NZ Locations' },
 ]

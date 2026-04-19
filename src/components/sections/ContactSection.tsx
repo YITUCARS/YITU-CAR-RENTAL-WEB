@@ -14,7 +14,7 @@ const CONTACT_BTNS = [
   {
     icon: Phone,
     small: 'Call us',
-    strong: '+64 027 3922 666',
+    strong: '0800 948 888',
     iconColor: 'text-navy',
   },
   {

@@ -2,6 +2,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Phone, Mail, Clock, CalendarCheck } from 'lucide-react'
 import { NAV_LINKS } from '@/lib/data'
+import XiaohongshuRednoteIcon from '@/components/ui/XiaohongshuRednoteIcon'
 
 interface FooterProps {
   onManageBooking: () => void
@@ -26,17 +27,21 @@ export default function Footer({ onManageBooking }: FooterProps) {
             </p>
             <div className="flex gap-2.5">
               {[
-                { icon: 'fab fa-facebook-f', href: '#' },
                 { icon: 'fab fa-instagram', href: '#' },
-                { icon: 'fab fa-youtube', href: '#' },
-                { icon: 'fab fa-weixin', href: '#' },
+                { icon: 'fab fa-tiktok', href: '#' },
+                { icon: 'custom-xiaohongshu', href: 'https://xhslink.com/m/8Tm4GeTZ88i' },
+                { icon: 'fab fa-facebook-f', href: '#' },
               ].map((s) => (
                 <a
                   key={s.icon}
                   href={s.href}
                   className="w-9 h-9 rounded-lg bg-black/5 border border-black/10 flex items-center justify-center text-muted transition-all hover:bg-orange hover:border-orange hover:text-white"
                 >
-                  <i className={`${s.icon} text-xs`} />
+                  {s.icon === 'custom-xiaohongshu' ? (
+                    <XiaohongshuRednoteIcon size={14} color="currentColor" strokeWidth={3} />
+                  ) : (
+                    <i className={`${s.icon} text-xs`} />
+                  )}
                 </a>
               ))}
             </div>
@@ -70,13 +75,13 @@ export default function Footer({ onManageBooking }: FooterProps) {
               <div className="flex items-center gap-2.5 text-[13.5px] text-muted">
                 <Phone size={12} className="text-orange flex-shrink-0" />
                 <a href="tel:+64273922666" className="hover:text-orange transition-colors">
-                  +64 027 3922 666
+                  0800 948 888
                 </a>
               </div>
               <div className="flex items-center gap-2.5 text-[13.5px] text-muted">
                 <Phone size={12} className="text-orange flex-shrink-0" />
                 <a href="tel:0800948888" className="hover:text-orange transition-colors">
-                  0800 948 888
+                +64 27 3922 666
                 </a>
               </div>
               <div className="flex items-center gap-2.5 text-[13.5px] text-muted">
