@@ -1,15 +1,5 @@
 export const dynamic = 'force-dynamic'
 
-// ── Supabase SQL (run once in Supabase SQL editor) ────────────────────────────
-//
-// CREATE TABLE IF NOT EXISTS rcm_featured (
-//   slot        INT PRIMARY KEY,   -- 1 to 6  (homepage position)
-//   vehicle_json JSONB NOT NULL,
-//   updated_at  TIMESTAMPTZ DEFAULT NOW()
-// );
-//
-// ─────────────────────────────────────────────────────────────────────────────
-
 import { NextRequest, NextResponse } from 'next/server'
 import { rcmCall, toRCMDate } from '@/lib/rcm'
 

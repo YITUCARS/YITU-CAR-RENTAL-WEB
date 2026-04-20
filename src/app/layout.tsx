@@ -45,6 +45,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
       <html lang="en">
+      <head>
+        <meta name="google-site-verification" content="6jSbpSDcCqS3noZzwqtphT5k5Gae8v6Unzy9pl6b0b0" />
+      </head>
       <body className={`${syne.variable} ${dmSans.variable} ${montserrat.variable}`}>
       {children}
       <ChatWidget />

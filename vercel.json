@@ -1,0 +1,9 @@
+{
+  "redirects": [
+    {
+      "source": "https://yiturentalcars.co.nz/(.*)",
+      "destination": "https://www.yiturentalcars.co.nz/$1",
+      "permanent": true
+    }
+  ]
+}
