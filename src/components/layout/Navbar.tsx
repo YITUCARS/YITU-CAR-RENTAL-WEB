@@ -91,9 +91,9 @@ export default function Navbar({ onManageBooking }: NavbarProps) {
           <Image
             src="/YITU CAR RENTAL logo.svg"
             alt="YITU Car Rental"
-            width={180}
-            height={36}
-            className="h-9 w-auto brightness-110"
+            width={200}
+            height={40}
+            className="h-10 w-auto brightness-110"
             priority
           />
         </Link>
@@ -194,9 +194,9 @@ export default function Navbar({ onManageBooking }: NavbarProps) {
               <Image
                 src="/YITU CAR RENTAL logo.svg"
                 alt="YITU"
-                width={120}
-                height={28}
-                className="h-7 w-auto"
+                width={140}
+                height={32}
+                className="h-8 w-auto"
               />
               <button
                 onClick={() => setMobileOpen(false)}

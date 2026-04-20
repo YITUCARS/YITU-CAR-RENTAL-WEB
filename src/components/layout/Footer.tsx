@@ -18,9 +18,9 @@ export default function Footer({ onManageBooking }: FooterProps) {
             <Image
               src="/YITU CAR RENTAL logo.svg"
               alt="YITU Car Rental"
-              width={160}
-              height={32}
-              className="h-8 w-auto mb-4"
+              width={180}
+              height={36}
+              className="h-9 w-auto mb-4"
             />
             <p className="text-muted text-[13.5px] leading-[1.75] max-w-[260px] mb-[22px]">
               New Zealand&apos;s trusted car rental since 2011. Unlimited KM, clean modern fleet, four locations nationwide.
