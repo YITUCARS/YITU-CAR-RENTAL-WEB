@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
     try {
         const chat = await getChatSession(sessionId)
         return NextResponse.json({ ok: true, chat })
-    } catch {
+    } catch (error) {
+        console.error('[chat-session] error:', error)
         return NextResponse.json({ error: 'Unable to load chat session.' }, { status: 500 })
     }
 }

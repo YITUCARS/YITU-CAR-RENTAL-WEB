@@ -4,7 +4,9 @@ import { ChatMessage, ChatSession, ChatStatus, getInitialBotMessage } from '@/li
 
 export async function getChatSession(sessionId: string) {
     const ref = getAdminDb().collection('chats').doc(sessionId)
+    console.log('[chat-store] getting session:', sessionId)
     const snapshot = await ref.get()
+    console.log('[chat-store] got snapshot:', snapshot.exists)
     if (!snapshot.exists) return null
     return snapshot.data() as ChatSession
 }

@@ -12,7 +12,7 @@ export function getAdminDb() {
                     privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
                 }),
             })
-        return getFirestore(app)
+        return getFirestore(app, '(default)')
     } catch (error) {
         console.error('[firebase-admin] init error:', error)
         throw error
