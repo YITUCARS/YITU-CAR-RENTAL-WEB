@@ -16,11 +16,11 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-        // Search CHC→CHC next week to get a representative fleet list
+        // Search CHC→CHC 30 days out — near-term dates return incomplete vehicle data (no imageurl/names)
         const pickup = new Date()
-        pickup.setDate(pickup.getDate() + 1)
+        pickup.setDate(pickup.getDate() + 30)
         const dropoff = new Date()
-        dropoff.setDate(dropoff.getDate() + 8)
+        dropoff.setDate(dropoff.getDate() + 37)
 
         const result = await rcmCall('step2', {
             vehiclecategorytypeid: '0',
@@ -34,11 +34,6 @@ export async function GET(req: NextRequest) {
         })
 
         const vehicles: any[] = result?.availablecars ?? []
-        console.log('[rcm-vehicles] raw result keys:', result ? Object.keys(result) : 'null')
-        console.log('[rcm-vehicles] vehicle count:', vehicles.length)
-        if (vehicles.length > 0) {
-            console.log('[rcm-vehicles] first vehicle sample:', JSON.stringify(vehicles[0], null, 2))
-        }
         return NextResponse.json({ success: true, vehicles })
     } catch (err: any) {
         return NextResponse.json({ success: false, error: err.message }, { status: 500 })
