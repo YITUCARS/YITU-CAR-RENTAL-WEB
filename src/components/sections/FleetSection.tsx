@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { ArrowRight, Users, Briefcase } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -16,19 +16,11 @@ interface FeaturedVehicle {
     category: string
 }
 
-export default function FleetSection() {
-    const [vehicles, setVehicles] = useState<FeaturedVehicle[]>([])
-    const [loading, setLoading] = useState(true)
+export default function FleetSection({ initialVehicles = [] }: { initialVehicles?: FeaturedVehicle[] }) {
     const [imgScales, setImgScales] = useState<Record<number, number>>({})
     const router = useRouter()
 
-    useEffect(() => {
-        fetch('/api/public/featured-vehicles', { cache: 'no-store' })
-            .then(r => r.json())
-            .then(data => setVehicles(Array.isArray(data) ? data : []))
-            .catch(() => setVehicles([]))
-            .finally(() => setLoading(false))
-    }, [])
+    const vehicles = initialVehicles
 
     // When an image loads, read its natural aspect ratio and compute a normalizing scale.
     // Baseline is 2.5:1 (typical landscape car photo). Wider images appear shorter under
@@ -66,13 +58,7 @@ export default function FleetSection() {
                 </div>
 
                 {/* Vehicle Grid */}
-                {loading ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[18px]">
-                        {[1, 2, 3, 4, 5, 6].map(i => (
-                            <div key={i} className="bg-white border border-black/10 rounded-card h-64 animate-pulse" />
-                        ))}
-                    </div>
-                ) : filtered.length === 0 ? (
+                {filtered.length === 0 ? (
                     <div className="text-center py-16 text-muted text-[14px]">
                         暂无车辆数据，请在管理后台配置首页展示车型。
                     </div>

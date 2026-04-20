@@ -13,6 +13,24 @@ import ReviewsSection from '@/components/sections/ReviewsSection'
 // Always fetch fresh data from Supabase on every request
 export const dynamic = 'force-dynamic'
 
+async function getFeaturedVehicles() {
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+    const { data, error } = await supabase
+      .from('rcm_featured')
+      .select('slot, vehicle_json')
+      .order('slot')
+    if (error) console.error('[page] getFeaturedVehicles error:', error.message)
+    return (data ?? []).map((r: any) => ({ slot: r.slot, ...r.vehicle_json }))
+  } catch (err: any) {
+    console.error('[page] getFeaturedVehicles failed:', err.message)
+    return []
+  }
+}
+
 async function getDeals() {
   try {
     const supabase = createClient(
@@ -33,7 +51,7 @@ async function getDeals() {
 }
 
 export default async function HomePage() {
-  const deals = await getDeals()
+  const [deals, featuredVehicles] = await Promise.all([getDeals(), getFeaturedVehicles()])
 
   return (
     <HomeClient>
@@ -41,7 +59,7 @@ export default async function HomePage() {
       <BookingSection />
       <StatsStrip />
       <div className="reveal">
-        <FleetSection />
+        <FleetSection initialVehicles={featuredVehicles} />
       </div>
       <div className="reveal">
         <DealsSection initialDeals={deals} />
