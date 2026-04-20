@@ -19,12 +19,15 @@ function CallbackContent() {
         // Priority 1: URL param — VostroPay echoes it back via our successurl
         // Priority 2: sessionStorage — written synchronously before VostroPay redirect
         let reservationRef = params.get('reservationRef') || ''
-        if (!reservationRef) {
-            try {
-                const raw = sessionStorage.getItem('yitu-booking')
-                if (raw) reservationRef = JSON.parse(raw).reservationRef || ''
-            } catch {}
-        }
+        let reservationNo = ''
+        try {
+            const raw = sessionStorage.getItem('yitu-booking')
+            if (raw) {
+                const parsed = JSON.parse(raw)
+                if (!reservationRef) reservationRef = parsed.reservationRef || ''
+                reservationNo = parsed.reservationNo || ''
+            }
+        } catch {}
 
         // ── VostroPay payscenario=1 (hosted payment page) ───────────────────────
         // VostroPay communicates directly with RCM when the card is charged,
@@ -46,9 +49,10 @@ function CallbackContent() {
         // Payment confirmed by VostroPay — navigate to confirmation
         setStatus('success')
         setTimeout(() => {
-            router.push(
-                `/booking/confirmation?ref=${encodeURIComponent(reservationRef)}`,
-            )
+            const query = new URLSearchParams()
+            if (reservationRef) query.set('ref', reservationRef)
+            if (reservationNo) query.set('no', reservationNo)
+            router.push(`/booking/confirmation?${query.toString()}`)
         }, 2000)
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])

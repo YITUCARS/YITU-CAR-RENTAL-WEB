@@ -95,6 +95,7 @@ function PaymentContent() {
             const bookingData = await bookingRes.json()
             if (!bookingData.success) throw new Error(bookingData.error || 'Failed to create booking')
             const reservationRef = bookingData.reservationRef
+            const reservationNo = bookingData.reservationNo
 
             // ── Step 2: Create payment transaction on the (possibly reused) reservation
             const paymentRes = await fetch('/api/rcm/create-payment', {
@@ -113,7 +114,7 @@ function PaymentContent() {
 
             // Persist to sessionStorage synchronously before navigating away —
             // React state updates won't flush before window.location.href leaves.
-            const updatedBooking = { ...freshBooking, reservationRef, paymentType }
+            const updatedBooking = { ...freshBooking, reservationRef, reservationNo, paymentType }
             try { sessionStorage.setItem('yitu-booking', JSON.stringify(updatedBooking)) } catch {}
             setBooking(_ => updatedBooking)
 

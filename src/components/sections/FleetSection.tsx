@@ -19,6 +19,7 @@ interface FeaturedVehicle {
 export default function FleetSection() {
     const [vehicles, setVehicles] = useState<FeaturedVehicle[]>([])
     const [loading, setLoading] = useState(true)
+    const [imgScales, setImgScales] = useState<Record<number, number>>({})
     const router = useRouter()
 
     useEffect(() => {
@@ -28,6 +29,18 @@ export default function FleetSection() {
             .catch(() => setVehicles([]))
             .finally(() => setLoading(false))
     }, [])
+
+    // When an image loads, read its natural aspect ratio and compute a normalizing scale.
+    // Baseline is 2.5:1 (typical landscape car photo). Wider images appear shorter under
+    // object-contain, so we scale them up to compensate. Cap at 1.8x to avoid over-cropping.
+    const handleImageLoad = (id: number, e: React.SyntheticEvent<HTMLImageElement>) => {
+        const { naturalWidth: w, naturalHeight: h } = e.currentTarget
+        if (!h) return
+        const ratio = w / h
+        const baseRatio = 2.5
+        const scale = ratio > baseRatio ? Math.min(ratio / baseRatio, 1.8) : 1
+        setImgScales(prev => ({ ...prev, [id]: scale }))
+    }
 
     const filtered = vehicles.slice(0, 6)
 
@@ -71,13 +84,22 @@ export default function FleetSection() {
                                 className="bg-white border border-black/10 rounded-card overflow-hidden hover:border-orange/30 hover:shadow-card transition-all group"
                             >
                                 {/* Image */}
-                                <div className="relative bg-off-white h-44 flex items-center justify-center overflow-hidden">
+                                <div className="relative bg-off-white h-48 flex items-center justify-center overflow-hidden">
                                     {vehicle.image_url ? (
-                                        <img
-                                            src={vehicle.image_url}
-                                            alt={vehicle.name}
-                                            className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-105"
-                                        />
+                                        <>
+                                            {/* Outer div applies adaptive aspect-ratio scale; inner img applies hover scale */}
+                                            <div
+                                                style={{ transform: `scale(${imgScales[vehicle.rcm_category_id] ?? 1})` }}
+                                                className="w-full h-full flex items-center justify-center transition-transform duration-700"
+                                            >
+                                                <img
+                                                    src={vehicle.image_url}
+                                                    alt={vehicle.name}
+                                                    onLoad={(e) => handleImageLoad(vehicle.rcm_category_id, e)}
+                                                    className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
+                                                />
+                                            </div>
+                                        </>
                                     ) : (
                                         <div className="text-muted/30 text-sm">No image</div>
                                     )}

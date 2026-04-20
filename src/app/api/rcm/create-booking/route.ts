@@ -68,6 +68,9 @@ export async function POST(req: NextRequest) {
       remark: notes || '',
     })
 
+    console.log('[create-booking] RCM result keys:', Object.keys(result || {}))
+    console.log('[create-booking] RCM result:', JSON.stringify(result, null, 2))
+
     return NextResponse.json({
       success: true,
       reservationRef: result?.reservationref,

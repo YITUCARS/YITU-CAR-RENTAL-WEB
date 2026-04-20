@@ -27,7 +27,7 @@ const CONTACT_BTNS = [
     icon: null,
     wechat: true,
     small: 'WeChat',
-    strong: '微信预订',
+    strong: 'YituPrestigeCar',
     iconColor: 'text-[#07c160]',
   },
 ]

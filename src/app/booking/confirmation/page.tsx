@@ -8,7 +8,8 @@ import Navbar from '@/components/layout/Navbar'
 
 function ConfirmationContent() {
     const params = useSearchParams()
-    const ref = params.get('ref')
+    const ref = params.get('ref')   // long reservationref
+    const no  = params.get('no')    // short reservationno (numeric)
 
     return (
         <>
@@ -24,13 +25,31 @@ function ConfirmationContent() {
                     <p className="text-muted text-[15px] leading-relaxed mb-6">
                         Your reservation has been successfully created. A confirmation email will be sent to you shortly.
                     </p>
-                    {ref && (
-                        <div className="bg-off-white border border-black/10 rounded-xl px-6 py-4 mb-6">
-                            <div className="text-[11px] text-muted uppercase tracking-wider mb-1">
-                                Reservation Reference
-                            </div>
-                            <div className="font-syne font-extrabold text-navy text-[1.4rem]">
-                                {ref}
+                    {(ref || no) && (
+                        <div className="bg-off-white border border-black/10 rounded-xl px-6 py-5 mb-6 text-left space-y-3">
+                            {no && (
+                                <div>
+                                    <div className="text-[11px] text-muted uppercase tracking-wider mb-1">
+                                        Booking Number
+                                    </div>
+                                    <div className="font-syne font-extrabold text-navy text-[1.6rem]">
+                                        {no}
+                                    </div>
+                                </div>
+                            )}
+                            {ref && (
+                                <div>
+                                    <div className="text-[11px] text-muted uppercase tracking-wider mb-1">
+                                        Reservation Reference
+                                    </div>
+                                    <div className="font-mono text-[13px] text-muted break-all">
+                                        {ref}
+                                    </div>
+                                </div>
+                            )}
+                            <div className="flex items-start gap-2 bg-orange/[0.07] border border-orange/20 rounded-lg px-3 py-2.5 text-[12px] text-orange/90 leading-[1.5]">
+                                <span className="mt-px">💡</span>
+                                <span>Save this reference — you&apos;ll need it with your last name to view or cancel your booking via <strong>My Booking</strong>.</span>
                             </div>
                         </div>
                     )}
