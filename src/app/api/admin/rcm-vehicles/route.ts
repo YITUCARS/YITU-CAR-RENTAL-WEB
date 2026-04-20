@@ -34,6 +34,11 @@ export async function GET(req: NextRequest) {
         })
 
         const vehicles: any[] = result?.availablecars ?? []
+        console.log('[rcm-vehicles] raw result keys:', result ? Object.keys(result) : 'null')
+        console.log('[rcm-vehicles] vehicle count:', vehicles.length)
+        if (vehicles.length > 0) {
+            console.log('[rcm-vehicles] first vehicle sample:', JSON.stringify(vehicles[0], null, 2))
+        }
         return NextResponse.json({ success: true, vehicles })
     } catch (err: any) {
         return NextResponse.json({ success: false, error: err.message }, { status: 500 })
