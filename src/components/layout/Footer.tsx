@@ -16,7 +16,7 @@ export default function Footer({ onManageBooking }: FooterProps) {
           {/* Brand column */}
           <div>
             <Image
-              src="/YITU_CAR_RENTAL_Logo.png"
+              src="/YITU CAR RENTAL logo.svg"
               alt="YITU Car Rental"
               width={120}
               height={32}

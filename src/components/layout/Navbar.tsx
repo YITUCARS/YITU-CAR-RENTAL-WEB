@@ -89,7 +89,7 @@ export default function Navbar({ onManageBooking }: NavbarProps) {
         {/* Logo */}
         <Link href="/" className="flex items-center">
           <Image
-            src="/YITU_CAR_RENTAL_Logo.png"
+            src="/YITU CAR RENTAL logo.svg"
             alt="YITU Car Rental"
             width={120}
             height={36}
@@ -192,7 +192,7 @@ export default function Navbar({ onManageBooking }: NavbarProps) {
             {/* Drawer header */}
             <div className="flex items-center justify-between px-5 py-[18px] border-b border-black/10">
               <Image
-                src="/YITU_CAR_RENTAL_Logo.png"
+                src="/YITU CAR RENTAL logo.svg"
                 alt="YITU"
                 width={90}
                 height={28}
