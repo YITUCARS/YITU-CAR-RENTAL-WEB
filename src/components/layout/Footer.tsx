@@ -18,7 +18,7 @@ export default function Footer({ onManageBooking }: FooterProps) {
             <Image
               src="/YITU CAR RENTAL logo.svg"
               alt="YITU Car Rental"
-              width={120}
+              width={160}
               height={32}
               className="h-8 w-auto mb-4"
             />

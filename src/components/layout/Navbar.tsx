@@ -91,7 +91,7 @@ export default function Navbar({ onManageBooking }: NavbarProps) {
           <Image
             src="/YITU CAR RENTAL logo.svg"
             alt="YITU Car Rental"
-            width={120}
+            width={180}
             height={36}
             className="h-9 w-auto brightness-110"
             priority
@@ -194,7 +194,7 @@ export default function Navbar({ onManageBooking }: NavbarProps) {
               <Image
                 src="/YITU CAR RENTAL logo.svg"
                 alt="YITU"
-                width={90}
+                width={120}
                 height={28}
                 className="h-7 w-auto"
               />
