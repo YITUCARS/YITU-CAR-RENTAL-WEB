@@ -19,9 +19,16 @@ export async function GET() {
 
     if (error) {
         console.error('[featured-vehicles]', error)
-        return NextResponse.json([])
+        return NextResponse.json([], {
+            headers: { 'Cache-Control': 'no-store' },
+        })
     }
 
     const vehicles = (data ?? []).map(r => ({ slot: r.slot, ...r.vehicle_json }))
-    return NextResponse.json(vehicles)
+    return NextResponse.json(vehicles, {
+        headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate',
+            'Surrogate-Control': 'no-store',
+        },
+    })
 }

@@ -23,7 +23,7 @@ export default function FleetSection() {
     const router = useRouter()
 
     useEffect(() => {
-        fetch('/api/public/featured-vehicles')
+        fetch('/api/public/featured-vehicles', { cache: 'no-store' })
             .then(r => r.json())
             .then(data => setVehicles(Array.isArray(data) ? data : []))
             .catch(() => setVehicles([]))
