@@ -77,6 +77,6 @@ export function buildTelegramMessage(sessionId: string, text: string) {
 
 export function extractSessionId(text?: string | null) {
     if (!text) return null
-    const match = text.match(/sessionId:\s*([a-zA-Z0-9-]+)/i)
+    const match = text.match(/(?:sessionId|Session):\s*([a-zA-Z0-9-]+)/i)
     return match?.[1] ?? null
 }
