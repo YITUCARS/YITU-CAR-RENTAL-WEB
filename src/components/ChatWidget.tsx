@@ -200,6 +200,13 @@ export default function ChatWidget() {
             setMessages(current => mergeMessages(current, [userMessage]))
             latestTimestampRef.current = Math.max(latestTimestampRef.current, now)
 
+            // Persist user message to Firestore
+            await fetch('/api/chat/user-message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId, text: text.trim() }),
+            })
+
             if (requestHuman) {
                 setStatus('human')
             }
