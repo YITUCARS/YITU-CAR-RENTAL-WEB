@@ -1,13 +1,16 @@
 import { Check } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 const STEPS = [
-    { n: 1, label: 'Search' },
-    { n: 2, label: 'Choose Vehicle' },
-    { n: 3, label: 'Extras' },
-    { n: 4, label: 'Your Details' },
+    { n: 1, labelKey: 'BookingSteps.search' },
+    { n: 2, labelKey: 'BookingSteps.chooseVehicle' },
+    { n: 3, labelKey: 'BookingSteps.extras' },
+    { n: 4, labelKey: 'BookingSteps.yourDetails' },
 ]
 
 export default function BookingSteps({ current }: { current: number }) {
+    const t = useTranslations()
+
     return (
         <div className="flex items-center gap-0 w-full max-w-xl mx-auto">
             {STEPS.map((step, i) => {
@@ -22,7 +25,7 @@ export default function BookingSteps({ current }: { current: number }) {
                             </div>
                             <span className={`text-[10.5px] font-medium whitespace-nowrap
                 ${active ? 'text-navy font-bold' : done ? 'text-orange' : 'text-muted'}`}>
-                {step.label}
+                {t(step.labelKey)}
               </span>
                         </div>
                         {i < STEPS.length - 1 && (

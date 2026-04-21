@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { ArrowLeft, Search } from 'lucide-react'
 import { vehicleRepo } from '@/lib/db'
 import type { VehicleRecord } from '@/lib/db'
@@ -11,8 +11,10 @@ import VehicleCard from '@/components/ui/VehicleCard'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import ManageBookingModal from '@/components/ui/ManageBookingModal'
+import { useRouter } from '@/i18n/navigation'
 
 export default function FleetPage() {
+    const t = useTranslations()
     const router = useRouter()
     const [vehicles, setVehicles] = useState<VehicleRecord[]>([])
     const [activeCategory, setActiveCategory] = useState('all')
@@ -47,16 +49,16 @@ export default function FleetPage() {
                         onClick={() => router.push('/')}
                         className="flex items-center gap-1.5 text-white/60 hover:text-white text-sm mb-6 transition-colors"
                     >
-                        <ArrowLeft size={14} /> Back to Home
+                        <ArrowLeft size={14} /> {t('FleetPage.backToHome')}
                     </button>
                     <div className="flex items-center gap-2 text-[11.5px] text-orange uppercase tracking-[2.5px] font-bold mb-3 before:content-[''] before:w-5 before:h-0.5 before:bg-orange">
-                        Our Fleet
+                        {t('FleetSection.kicker')}
                     </div>
                     <h1 className="font-syne font-extrabold text-white text-[clamp(2rem,4vw,3rem)] leading-tight mb-3">
-                        All <span className="text-orange">Vehicles</span>
+                        {t('FleetPage.titlePrefix')} <span className="text-orange">{t('FleetPage.titleAccent')}</span>
                     </h1>
                     <p className="text-white/60 text-[15px] max-w-[500px]">
-                        {vehicles.length} vehicles available — unlimited kilometres, comprehensive insurance included.
+                        {t('FleetPage.available', {count: vehicles.length})}
                     </p>
                 </div>
             </div>
@@ -66,7 +68,7 @@ export default function FleetPage() {
                 <div className="max-w-[1100px] mx-auto flex flex-wrap items-center gap-3">
                     {/* Category filters */}
                     <div className="flex gap-1.5 flex-wrap">
-                        {VEHICLE_CATEGORIES.map(({ value, label }) => (
+                        {VEHICLE_CATEGORIES.map(({ value, labelKey }) => (
                             <button
                                 key={value}
                                 onClick={() => setActiveCategory(value)}
@@ -75,7 +77,7 @@ export default function FleetPage() {
                                     activeCategory === value && 'bg-orange border-orange text-white font-semibold'
                                 )}
                             >
-                                {label}
+                                {t(labelKey)}
                             </button>
                         ))}
                     </div>
@@ -85,7 +87,7 @@ export default function FleetPage() {
                         <Search size={13} className="text-muted" />
                         <input
                             type="text"
-                            placeholder="Search brand or model..."
+                            placeholder={t('FleetPage.searchPlaceholder')}
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="bg-transparent text-[13px] text-navy outline-none w-48 placeholder:text-muted"
@@ -94,7 +96,7 @@ export default function FleetPage() {
 
                     {/* Result count */}
                     <div className="text-[12px] text-muted">
-                        {filtered.length} vehicles
+                        {t('FleetPage.vehiclesCount', {count: filtered.length})}
                     </div>
                 </div>
             </div>
@@ -113,7 +115,7 @@ export default function FleetPage() {
                     </div>
                 ) : (
                     <div className="text-center py-20 text-muted">
-                        No vehicles found.
+                        {t('FleetPage.noVehiclesFound')}
                     </div>
                 )}
             </main>

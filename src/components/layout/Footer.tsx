@@ -1,19 +1,28 @@
+'use client'
+
 import Image from 'next/image'
-import Link from 'next/link'
-import { Phone, Mail, Clock, CalendarCheck } from 'lucide-react'
-import { NAV_LINKS } from '@/lib/data'
+import {Phone, Mail, Clock, CalendarCheck} from 'lucide-react'
+import {useTranslations} from 'next-intl'
+import {NAV_LINKS} from '@/lib/data'
+import {Link} from '@/i18n/navigation'
 import XiaohongshuRednoteIcon from '@/components/ui/XiaohongshuRednoteIcon'
 
 interface FooterProps {
   onManageBooking: () => void
 }
 
-export default function Footer({ onManageBooking }: FooterProps) {
+export default function Footer({onManageBooking}: FooterProps) {
+  const t = useTranslations()
+
+  const resolveHref = (href: string) => {
+    if (href.startsWith('#')) return `/${href}`
+    return href
+  }
+
   return (
     <footer className="bg-white border-t border-black/10 pt-[60px]">
       <div className="max-w-[1100px] mx-auto px-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr] gap-14 pb-12 border-b border-black/10">
-          {/* Brand column */}
           <div>
             <Image
               src="/YITU CAR RENTAL logo.svg"
@@ -23,15 +32,15 @@ export default function Footer({ onManageBooking }: FooterProps) {
               className="h-9 w-auto mb-4"
             />
             <p className="text-muted text-[13.5px] leading-[1.75] max-w-[260px] mb-[22px]">
-              New Zealand&apos;s trusted car rental since 2011. Unlimited KM, clean modern fleet, four locations nationwide.
+              {t('Footer.description')}
             </p>
             <div className="flex gap-2.5">
               {[
-                { icon: 'fab fa-instagram', href: '#' },
-                { icon: 'fab fa-tiktok', href: '#' },
-                { icon: 'custom-xiaohongshu', href: 'https://xhslink.com/m/8Tm4GeTZ88i' },
-                { icon: 'fab fa-facebook-f', href: '#' },
-              ].map((s) => (
+                {icon: 'fab fa-instagram', href: '#'},
+                {icon: 'fab fa-tiktok', href: '#'},
+                {icon: 'custom-xiaohongshu', href: 'https://xhslink.com/m/8Tm4GeTZ88i'},
+                {icon: 'fab fa-facebook-f', href: '#'},
+              ].map(s => (
                 <a
                   key={s.icon}
                   href={s.href}
@@ -47,29 +56,27 @@ export default function Footer({ onManageBooking }: FooterProps) {
             </div>
           </div>
 
-          {/* Quick Links */}
           <div>
             <h4 className="font-syne font-bold text-[13px] text-navy mb-[18px] uppercase tracking-[0.9px]">
-              Quick Links
+              {t('Footer.quickLinks')}
             </h4>
             <ul className="space-y-2.5">
-              {NAV_LINKS.map((link) => (
+              {NAV_LINKS.map(link => (
                 <li key={link.href}>
-                  <a
-                    href={link.href}
+                  <Link
+                    href={resolveHref(link.href)}
                     className="text-[13.5px] text-muted transition-colors hover:text-orange"
                   >
-                    {link.label}
-                  </a>
+                    {t(link.labelKey)}
+                  </Link>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* Contact */}
           <div>
             <h4 className="font-syne font-bold text-[13px] text-navy mb-[18px] uppercase tracking-[0.9px]">
-              Contact
+              {t('Footer.contact')}
             </h4>
             <div className="space-y-[11px]">
               <div className="flex items-center gap-2.5 text-[13.5px] text-muted">
@@ -81,7 +88,7 @@ export default function Footer({ onManageBooking }: FooterProps) {
               <div className="flex items-center gap-2.5 text-[13.5px] text-muted">
                 <Phone size={12} className="text-orange flex-shrink-0" />
                 <a href="tel:0800948888" className="hover:text-orange transition-colors">
-                +64 27 3922 666/+64 21 873 789
+                  +64 27 3922 666/+64 21 873 789
                 </a>
               </div>
               <div className="flex items-center gap-2.5 text-[13.5px] text-muted">
@@ -92,7 +99,7 @@ export default function Footer({ onManageBooking }: FooterProps) {
               </div>
               <div className="flex items-center gap-2.5 text-[13.5px] text-muted">
                 <Clock size={12} className="text-orange flex-shrink-0" />
-                <span>Mon - Sun 8.30 - 17.30</span>
+                <span>{t('Footer.hours')}</span>
               </div>
             </div>
             <div className="mt-[18px]">
@@ -101,21 +108,20 @@ export default function Footer({ onManageBooking }: FooterProps) {
                 className="flex items-center gap-1.5 bg-orange hover:bg-orange-dark text-white font-syne font-bold text-[12.5px] px-[18px] py-2.5 rounded-lg transition-colors"
               >
                 <CalendarCheck size={13} />
-                Manage Booking
+                {t('Footer.manageBooking')}
               </button>
             </div>
           </div>
         </div>
 
-        {/* Bottom bar */}
         <div className="flex flex-wrap justify-between items-center gap-2.5 py-[18px] text-[12px] text-muted/70">
-          <span>© 2026 YITU Car Rental. All rights reserved.</span>
+          <span>{t('Footer.copyright')}</span>
           <div>
             <Link href="/terms-conditions" className="text-muted/70 ml-3.5 hover:text-orange transition-colors">
-              Terms &amp; Conditions
+              {t('Navigation.terms')}
             </Link>
             <Link href="/privacy-policy" className="text-muted/70 ml-3.5 hover:text-orange transition-colors">
-              Privacy Policy
+              {t('Navigation.privacy')}
             </Link>
           </div>
         </div>

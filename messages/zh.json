@@ -1,0 +1,222 @@
+{
+  "LocaleSwitcher": {
+    "en": "EN",
+    "zh": "中文"
+  },
+  "Common": {
+    "close": "关闭",
+    "back": "返回",
+    "cancel": "取消",
+    "search": "搜索",
+    "noImage": "暂无图片",
+    "perDay": "/天"
+  },
+  "Navigation": {
+    "home": "首页",
+    "vehicles": "车辆",
+    "gallery": "图库",
+    "locations": "门店",
+    "hotDeals": "优惠活动",
+    "contact": "联系我们",
+    "aboutUs": "关于我们",
+    "blog": "博客",
+    "terms": "条款与条件",
+    "privacy": "隐私政策",
+    "wearAndTear": "磨损说明"
+  },
+  "Navbar": {
+    "hours": "周一至周日 08:30 - 17:30",
+    "myBooking": "我的预订",
+    "bookNow": "立即预订",
+    "openMenu": "打开菜单"
+  },
+  "Footer": {
+    "description": "自 2011 年起值得信赖的新西兰租车品牌。不限公里、车况优良、全国多地取还车。",
+    "quickLinks": "快速链接",
+    "contact": "联系方式",
+    "hours": "周一至周日 8:30 - 17:30",
+    "manageBooking": "管理预订",
+    "copyright": "© 2026 YITU Car Rental. 版权所有。"
+  },
+  "Legal": {
+    "contents": "目录",
+    "returnHome": "返回 YITU 首页"
+  },
+  "Hero": {
+    "brandLabel": "YITU Car Rental",
+    "carouselFallbackTitle": "探索新西兰\n更好的出行选择",
+    "learnMore": "了解更多",
+    "kicker": "与我们一起启程",
+    "titleLine1": "探索新西兰",
+    "titleLine2": "更好的选择",
+    "viewFleet": "查看车队",
+    "trustedRoadTrips": "安心自驾之选",
+    "trustedCopy": "不限公里、响应迅速的支持服务，以及覆盖新西兰多地的顺畅取车体验。",
+    "stats": {
+      "vehiclesFleet": "车队规模",
+      "yearsOfService": "服务年限",
+      "nzLocations": "新西兰门店"
+    }
+  },
+  "FleetSection": {
+    "kicker": "精选车队",
+    "titlePrefix": "选择你的",
+    "titleAccent": "车辆",
+    "subtitle": "从省油混动车到高端多人座车型，每台车都包含不限公里与全面保险。",
+    "empty": "暂时还没有首页精选车型，请先在后台配置。",
+    "adults": "{count} 位乘客",
+    "bags": "{large} 大箱 + {small} 小箱",
+    "viewAll": "查看全部车辆"
+  },
+  "DealsSection": {
+    "kicker": "限时优惠",
+    "titlePrefix": "热门",
+    "titleAccent": "优惠",
+    "viewDeal": "查看优惠"
+  },
+  "LocationsSection": {
+    "kicker": "门店位置",
+    "titlePrefix": "我们的",
+    "titleAccent": "门店",
+    "subtitle": "新西兰多地便捷取还车，部分路线支持异地还车。"
+  },
+  "Locations": {
+    "names": {
+      "Christchurch": "基督城",
+      "Queenstown": "皇后镇",
+      "Auckland": "奥克兰"
+    },
+    "cards": {
+      "christchurch": {
+        "city": "基督城",
+        "address": "222 Main South Road",
+        "suburb": "Hornby"
+      },
+      "queenstown": {
+        "city": "皇后镇",
+        "address": "1 Gray Street",
+        "suburb": "Frankton"
+      }
+    }
+  },
+  "ContactSection": {
+    "kicker": "保持联系",
+    "titlePrefix": "随时随地",
+    "titleAccent": "轻松预订",
+    "subtitle": "中文客户可直接通过微信联系我们，我们会在一个工作日内确认你的预订。",
+    "callUs": "电话咨询",
+    "email": "电子邮箱",
+    "scanToChat": "扫码微信咨询",
+    "scanDescription": "快速解答预订、付款与行程相关问题。",
+    "addNow": "立即添加",
+    "wechatContact": "微信联系",
+    "wechatId": "微信号",
+    "features": {
+      "notifications": "实时预订通知",
+      "bilingualSupport": "中英双语支持",
+      "confirmation": "即时预订确认",
+      "airportPickup": "支持机场取车"
+    },
+    "wechatFeatures": {
+      "chineseSupport": "中文客服",
+      "quickReply": "快速回复",
+      "bookingHelp": "预订协助",
+      "paymentSupport": "付款支持"
+    }
+  },
+  "CTA": {
+    "primaryTitleLine1": "不止是一辆车",
+    "primaryTitleLine2": "你的自驾旅程从这里开始",
+    "primaryCopy": "无论海岸公路还是高山隘口，完美旅程都从合适的车辆开始。",
+    "getStarted": "立即开始",
+    "secondaryTitle": "异地还车，轻松安排",
+    "secondaryCopy": "从基督城出发，到皇后镇结束，灵活还车更省心。",
+    "statsTitle": "随时可出发的车辆",
+    "statsCopy": "所有车辆维护完善，现已在新西兰多地门店待命。"
+  },
+  "BookingSearch": {
+    "pickupLocation": "取车地点",
+    "dropoffLocation": "还车地点",
+    "pickupDate": "取车日期",
+    "pickupTime": "取车时间",
+    "dropoffDate": "还车日期",
+    "dropoffTime": "还车时间",
+    "driverAge": "驾驶员年龄",
+    "under26": "26 岁以下",
+    "havePromoCode": "有优惠码吗？",
+    "enterPromoCode": "输入优惠码",
+    "appliedOnSearch": "✓ 搜索时生效"
+  },
+  "BookingSteps": {
+    "search": "搜索",
+    "chooseVehicle": "选择车辆",
+    "extras": "附加项",
+    "yourDetails": "填写信息"
+  },
+  "AboutPage": {
+    "kicker": "关于我们",
+    "titlePrefix": "关于",
+    "titleAccent": "YITU",
+    "titleSuffix": "租车",
+    "subtitle": "值得信赖的新西兰租车伙伴，为你提供可靠、舒适且实惠的出行选择。",
+    "ourStory": "我们的故事",
+    "story": {
+      "p1": "YITU Car Rental 是一家立足新西兰的租车公司，致力于提供可靠、舒适且价格合理的出行方案。我们拥有从紧凑型轿车到宽敞 SUV 的多样化车型，适用于个人旅行与商务出行。",
+      "p2": "我们的使命是让每一段旅程都更加轻松愉快。以客户满意为核心，我们提供灵活的租赁方案、透明的价格以及友好的服务支持，让你从预订到还车都能顺畅无忧。",
+      "p3": "无论你是来探索新西兰的壮丽风景，还是因工作需要出行，YITU Car Rental 都会陪你安心上路。"
+    },
+    "values": {
+      "reliability": {
+        "title": "可靠",
+        "body": "每一台车辆在交付前都会经过细致维护和检查，让你安心驾驶。"
+      },
+      "transparency": {
+        "title": "透明",
+        "body": "没有隐藏费用。预订时看到的价格，就是你实际支付的价格。"
+      },
+      "customerFirst": {
+        "title": "以客户为先",
+        "body": "从预订到还车，始终提供友好支持，在你需要时及时响应。"
+      }
+    },
+    "getInTouch": "联系我们",
+    "phone": "电话",
+    "email": "邮箱",
+    "address": "地址",
+    "addressValue": "222 Main South Road, Hornby, Christchurch 8042",
+    "bookVehicle": "立即预订车辆"
+  },
+  "FleetPage": {
+    "backToHome": "返回首页",
+    "titlePrefix": "全部",
+    "titleAccent": "车辆",
+    "available": "共 {count} 台可选车辆，包含不限公里与全面保险。",
+    "searchPlaceholder": "搜索品牌或车型…",
+    "vehiclesCount": "{count} 台车辆",
+    "noVehiclesFound": "未找到符合条件的车辆。"
+  },
+  "Gallery": {
+    "kicker": "真实车辆图库",
+    "titlePrefix": "查看",
+    "titleAccent": "实车照片",
+    "subtitle": "展示我们真实车队的照片，让客户在新西兰出行前先了解实际车辆状况。",
+    "photosCount": "{count} 张照片",
+    "emptyTitle": "暂时还没有图库照片",
+    "emptyCopy": "在后台上传真实车辆照片后，这里会自动展示。",
+    "label": "YITU 图库",
+    "vehiclePhoto": "车辆照片"
+  },
+  "VehicleCategories": {
+    "all": "全部",
+    "sedan": "轿车",
+    "suv": "SUV",
+    "mpv": "MPV",
+    "van": "面包车"
+  },
+  "VehicleCard": {
+    "favourite": "收藏",
+    "seats": "{count} 座",
+    "bags": "{count} 件行李",
+    "startFrom": "起价"
+  }
+}

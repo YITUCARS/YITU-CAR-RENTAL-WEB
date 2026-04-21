@@ -8,7 +8,7 @@ import BookingFlowHeader from '@/components/booking/BookingFlowHeader'
 import Navbar from '@/components/layout/Navbar'
 import {
   toYMD, parseYMD, nextTimeSlot, getNZMinPickup,
-  DateTimePicker, LocationSelect,
+  DateTimePicker, LocationSelect, TimeSelect,
 } from '@/components/booking/DateTimePicker'
 
 interface RCMVehicle {
@@ -26,6 +26,12 @@ interface RCMVehicle {
     imageurl: string
     available: number
     availablemessage: string
+}
+
+interface RCMCategoryType {
+    id: number
+    vehiclecategorytype: string
+    displayorder?: number | string | null
 }
 
 type DriverAge = 'over26' | 'under26'
@@ -48,12 +54,37 @@ const DROPOFF_RULES: Record<string, string[]> = {
     Auckland: ['Auckland'],
 }
 
-function inferVehicleType(vehicle: RCMVehicle) {
-    const text = `${vehicle.vehiclecategory} ${vehicle.categoryfriendlydescription}`.toLowerCase()
-    if (text.includes('van') || vehicle.numberofadults >= 10) return 'van'
-    if (text.includes('alphard') || text.includes('staria') || text.includes('people mover') || vehicle.numberofadults >= 7) return 'mpv'
-    if (text.includes('suv') || text.includes('rav4') || text.includes('forester')) return 'suv'
-    return 'sedan'
+function sortCategoryTypes(types: RCMCategoryType[]) {
+    return [...types].sort((a, b) => {
+        const aOrder = Number(a.displayorder)
+        const bOrder = Number(b.displayorder)
+        const aHasOrder = Number.isFinite(aOrder) && a.displayorder !== '' && a.displayorder !== null
+        const bHasOrder = Number.isFinite(bOrder) && b.displayorder !== '' && b.displayorder !== null
+
+        if (aHasOrder && bHasOrder && aOrder !== bOrder) return aOrder - bOrder
+        if (aHasOrder !== bHasOrder) return aHasOrder ? -1 : 1
+        return a.vehiclecategorytype.localeCompare(b.vehiclecategorytype)
+    })
+}
+
+function getVehicleTypeLabel(vehicle: RCMVehicle, categoryTypeMap: Map<number, string>) {
+    return categoryTypeMap.get(vehicle.vehiclecategorytypeid) || `Type ${vehicle.vehiclecategorytypeid}`
+}
+
+function normalizeAvailabilityStatus(vehicle: RCMVehicle) {
+    return (vehicle.availablemessage || '').trim().toLowerCase()
+}
+
+function isVehicleSelectable(vehicle: RCMVehicle) {
+    return normalizeAvailabilityStatus(vehicle) === 'available' || vehicle.available === 1
+}
+
+function getAvailabilityRank(vehicle: RCMVehicle) {
+    const status = normalizeAvailabilityStatus(vehicle)
+    if (status === 'available' || vehicle.available === 1) return 0
+    if (status === 'fully booked') return 1
+    if (status === 'unavailable for selected dates') return 2
+    return 3
 }
 
 function roundMoney(value: number) {
@@ -85,6 +116,7 @@ function VehicleSearchCard({
     setMaxPrice,
     vehicleType,
     setVehicleType,
+    vehicleTypeOptions,
     promoCode,
     setPromoCode,
     compact = false,
@@ -96,6 +128,7 @@ function VehicleSearchCard({
     setMaxPrice: (value: number) => void
     vehicleType: string
     setVehicleType: (value: string) => void
+    vehicleTypeOptions: RCMCategoryType[]
     promoCode: string
     setPromoCode: (value: string) => void
     compact?: boolean
@@ -149,8 +182,8 @@ function VehicleSearchCard({
                 </div>
             </div>
 
-            {/* ── Location + Date/Time fields ── */}
-            <div className={`grid ${compact ? 'grid-cols-1 gap-2' : 'grid-cols-1 xl:grid-cols-2 gap-3'}`}>
+            {/* ── Location fields ── */}
+            <div className={`grid ${compact ? 'grid-cols-1 gap-2' : 'grid-cols-1 sm:grid-cols-2 gap-3'} ${compact ? '' : 'mb-3'}`}>
                 <LocationSelect
                     label="Pick-up Location"
                     value={form.pickupLocation}
@@ -163,15 +196,29 @@ function VehicleSearchCard({
                     options={allowedDropoffs}
                     onChange={v => updateField('dropoffLocation', v)}
                 />
+            </div>
+
+            {/* ── Date/Time fields ── */}
+            <div className={`grid ${compact ? 'grid-cols-1 gap-2' : 'grid-cols-2 xl:grid-cols-4 gap-3'}`}>
                 <DateTimePicker
                     label="Pick-up Date"
                     value={form.pickupDate}
+                    rangeEnd={form.dropoffDate}
                     time={form.pickupTime}
                     minDate={nzMin.minDate}
                     minTime={pickupMinTime}
                     onChange={d => updateField('pickupDate', d)}
+                    onRangeEndChange={d => updateField('dropoffDate', d)}
                     onTimeChange={t => updateField('pickupTime', t)}
                     timeLabel="Pick-up Time"
+                    showTime={false}
+                    enableRangeSelection
+                />
+                <TimeSelect
+                    label="Pick-up Time"
+                    value={form.pickupTime}
+                    minTime={pickupMinTime}
+                    onChange={t => updateField('pickupTime', t)}
                 />
                 <DateTimePicker
                     label="Drop-off Date"
@@ -182,6 +229,13 @@ function VehicleSearchCard({
                     onChange={d => updateField('dropoffDate', d)}
                     onTimeChange={t => updateField('dropoffTime', t)}
                     timeLabel="Drop-off Time"
+                    showTime={false}
+                />
+                <TimeSelect
+                    label="Drop-off Time"
+                    value={form.dropoffTime}
+                    minTime={dropoffMinTime}
+                    onChange={t => updateField('dropoffTime', t)}
                 />
             </div>
 
@@ -211,10 +265,11 @@ function VehicleSearchCard({
                         className={`w-full rounded-xl border border-black/10 bg-off-white px-4 ${compact ? 'py-2' : 'py-3'} text-[14px] text-navy outline-none focus:border-orange`}
                     >
                         <option value="all">All types</option>
-                        <option value="sedan">Sedan</option>
-                        <option value="suv">SUV</option>
-                        <option value="mpv">MPV</option>
-                        <option value="van">Van</option>
+                        {vehicleTypeOptions.map(option => (
+                            <option key={option.id} value={String(option.id)}>
+                                {option.vehiclecategorytype}
+                            </option>
+                        ))}
                     </select>
                 </label>
 
@@ -294,9 +349,9 @@ export default function VehiclesPage() {
     const initialPickupLocation = params.get('pickupLocation') || booking.pickupLocation || 'Christchurch'
     const initialDropoffLocation = params.get('dropoffLocation') || booking.dropoffLocation || 'Christchurch'
     const initialPickupDate = params.get('pickupDate') || booking.pickupDate || getNZMinPickup().minDate
-    const initialPickupTime = params.get('pickupTime') || booking.pickupTime || getNZMinPickup().minHour
+    const initialPickupTime = params.get('pickupTime') || '10:00'
     const initialDropoffDate = params.get('dropoffDate') || booking.dropoffDate || getNZMinPickup().minDate
-    const initialDropoffTime = params.get('dropoffTime') || booking.dropoffTime || '10:00'
+    const initialDropoffTime = params.get('dropoffTime') || '10:00'
     const initialDriverAge = (params.get('driverAge') as DriverAge) || booking.driverAge || 'over26'
     const initialPromoCode = params.get('promoCode') || booking.promoCode || ''
 
@@ -375,18 +430,6 @@ export default function VehiclesPage() {
             } : {}),
         }))
 
-        const query = new URLSearchParams({
-            pickupLocation: form.pickupLocation,
-            dropoffLocation: form.dropoffLocation,
-            pickupDate: form.pickupDate,
-            pickupTime: form.pickupTime,
-            dropoffDate: form.dropoffDate,
-            dropoffTime: form.dropoffTime,
-            driverAge: form.driverAge,
-        })
-        if (activePromoCode) query.set('promoCode', activePromoCode)
-        router.replace(`/booking/vehicles?${query.toString()}`)
-
         try {
             const response = await fetch('/api/rcm/search', {
                 method: 'POST',
@@ -406,12 +449,24 @@ export default function VehiclesPage() {
             if (result.success && result.data?.availablecars) {
                 setVehicles(result.data.availablecars)
                 setSearchResults(result.data)
+                const query = new URLSearchParams({
+                    pickupLocation: form.pickupLocation,
+                    dropoffLocation: form.dropoffLocation,
+                    pickupDate: form.pickupDate,
+                    pickupTime: form.pickupTime,
+                    dropoffDate: form.dropoffDate,
+                    dropoffTime: form.dropoffTime,
+                    driverAge: form.driverAge,
+                })
+                if (activePromoCode) query.set('promoCode', activePromoCode)
+                router.replace(`/booking/vehicles?${query.toString()}`)
             } else {
                 setVehicles([])
                 setSearchResults(null)
-                setError('Unable to load available vehicles. Please try again.')
+                setError(result.error || 'Unable to load available vehicles. Please try again.')
             }
-        } catch {
+        } catch (error) {
+            console.error('Vehicle search request failed:', error)
             setVehicles([])
             setSearchResults(null)
             setError('Network error. Please try again.')
@@ -425,17 +480,46 @@ export default function VehiclesPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
+    const vehicleTypeOptions = useMemo(() => {
+        const availableTypeIds = new Set(vehicles.map(vehicle => vehicle.vehiclecategorytypeid))
+        const categoryTypes = Array.isArray(searchResults?.categorytypes) ? searchResults.categorytypes as RCMCategoryType[] : []
+        return sortCategoryTypes(categoryTypes).filter(type => availableTypeIds.has(type.id))
+    }, [searchResults, vehicles])
+
+    const vehicleTypeMap = useMemo(() => {
+        return new Map(vehicleTypeOptions.map(type => [type.id, type.vehiclecategorytype]))
+    }, [vehicleTypeOptions])
+
+    useEffect(() => {
+        if (vehicleType !== 'all' && !vehicleTypeOptions.some(option => String(option.id) === vehicleType)) {
+            setVehicleType('all')
+        }
+    }, [vehicleType, vehicleTypeOptions])
+
     const filteredVehicles = useMemo(() => {
-        return vehicles.filter(vehicle => {
-            const type = inferVehicleType(vehicle)
-            const pricing = getVehiclePricing(vehicle, days)
-            const matchesType = vehicleType === 'all' || type === vehicleType
-            const matchesPrice = pricing.effectivePerDay <= maxPrice
-            return matchesType && matchesPrice
-        })
+        return vehicles
+            .filter(vehicle => {
+                const pricing = getVehiclePricing(vehicle, days)
+                const matchesType = vehicleType === 'all' || String(vehicle.vehiclecategorytypeid) === vehicleType
+                const matchesPrice = pricing.effectivePerDay <= maxPrice
+                return matchesType && matchesPrice
+            })
+            .sort((a, b) => {
+                const rankDiff = getAvailabilityRank(a) - getAvailabilityRank(b)
+                if (rankDiff !== 0) return rankDiff
+
+                const priceDiff = getVehiclePricing(a, days).effectivePerDay - getVehiclePricing(b, days).effectivePerDay
+                if (priceDiff !== 0) return priceDiff
+
+                return (a.categoryfriendlydescription || a.vehiclecategory).localeCompare(
+                    b.categoryfriendlydescription || b.vehiclecategory
+                )
+            })
     }, [vehicles, vehicleType, maxPrice, days])
 
     function selectVehicle(vehicle: RCMVehicle) {
+        if (!isVehicleSelectable(vehicle)) return
+
         const pricing = getVehiclePricing(vehicle, days)
         const vehicleInsurance = (searchResults?.insuranceoptions || [])
             .filter((ins: any) => ins.vehiclecategoryid === vehicle.vehiclecategoryid)
@@ -502,6 +586,7 @@ export default function VehiclesPage() {
                     setMaxPrice={setMaxPrice}
                     vehicleType={vehicleType}
                     setVehicleType={setVehicleType}
+                    vehicleTypeOptions={vehicleTypeOptions}
                     promoCode={promoCode}
                     setPromoCode={setPromoCode}
                 />
@@ -593,6 +678,7 @@ export default function VehiclesPage() {
                                     <div className="flex flex-col gap-4">
                                         {filteredVehicles.map(vehicle => {
                                             const pricing = getVehiclePricing(vehicle, days)
+                                            const selectable = isVehicleSelectable(vehicle)
                                             return (
                                             <div
                                                 key={vehicle.vehiclecategoryid}
@@ -620,7 +706,7 @@ export default function VehiclesPage() {
                                                                 {vehicle.vehiclecategory}
                                                             </div>
                                                             <span className="text-[10px] rounded-full bg-sky-50 text-sky-700 px-2.5 py-1 font-bold uppercase tracking-[0.14em]">
-                                                                {inferVehicleType(vehicle)}
+                                                                {getVehicleTypeLabel(vehicle, vehicleTypeMap)}
                                                             </span>
                                                         </div>
                                                         <h3 className="font-syne font-bold text-xl text-navy mb-3">
@@ -638,7 +724,7 @@ export default function VehiclesPage() {
                                                         </div>
                                                         {vehicle.availablemessage && (
                                                             <span className={`text-[11px] px-2.5 py-1 rounded-full font-medium ${
-                                                                vehicle.available === 1 ? 'bg-green-50 text-green-700' : 'bg-orange/10 text-orange'
+                                                                selectable ? 'bg-green-50 text-green-700' : 'bg-orange/10 text-orange'
                                                             }`}>
                                                                 {vehicle.availablemessage}
                                                             </span>
@@ -647,30 +733,44 @@ export default function VehiclesPage() {
 
                                                     <div className="flex items-end justify-between mt-5 pt-4 border-t border-black/[0.07] gap-4">
                                                         <div>
-                                                            <div className="text-[11px] text-muted mb-0.5">
-                                                                ${pricing.effectivePerDay.toLocaleString()}/day × {days} days
-                                                                {searchForm.driverAge === 'under26' && (
-                                                                    <span className="text-orange ml-1">+ Young Driver Fee</span>
-                                                                )}
-                                                            </div>
-                                                            {pricing.promoDiscount > 0 && (
-                                                                <div className="text-[11px] text-green-700 font-medium mb-1">
-                                                                    Promo {promoCode} applied · save ${pricing.promoDiscount.toLocaleString()}
-                                                                </div>
-                                                            )}
-                                                            <div className="font-syne font-extrabold text-[1.8rem] text-navy leading-none">
-                                                                ${pricing.discountedTotal.toLocaleString()}
-                                                                <span className="text-[13px] font-normal text-muted ml-1">total</span>
-                                                            </div>
-                                                            {pricing.promoDiscount > 0 && (
-                                                                <div className="text-[11px] text-muted line-through mt-1">
-                                                                    ${pricing.baseTotal.toLocaleString()} original
+                                                            {selectable ? (
+                                                                <>
+                                                                    <div className="text-[11px] text-muted mb-0.5">
+                                                                        ${pricing.effectivePerDay.toLocaleString()}/day × {days} days
+                                                                        {searchForm.driverAge === 'under26' && (
+                                                                            <span className="text-orange ml-1">+ Young Driver Fee</span>
+                                                                        )}
+                                                                    </div>
+                                                                    {pricing.promoDiscount > 0 && (
+                                                                        <div className="text-[11px] text-green-700 font-medium mb-1">
+                                                                            Promo {promoCode} applied · save ${pricing.promoDiscount.toLocaleString()}
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="font-syne font-extrabold text-[1.8rem] text-navy leading-none">
+                                                                        ${pricing.discountedTotal.toLocaleString()}
+                                                                        <span className="text-[13px] font-normal text-muted ml-1">total</span>
+                                                                    </div>
+                                                                    {pricing.promoDiscount > 0 && (
+                                                                        <div className="text-[11px] text-muted line-through mt-1">
+                                                                            ${pricing.baseTotal.toLocaleString()} original
+                                                                        </div>
+                                                                    )}
+                                                                </>
+                                                            ) : (
+                                                                <div className="text-[13px] text-muted font-medium">
+                                                                    Price unavailable
                                                                 </div>
                                                             )}
                                                         </div>
                                                         <button
+                                                            type="button"
+                                                            disabled={!selectable}
                                                             onClick={() => selectVehicle(vehicle)}
-                                                            className="flex items-center gap-2 bg-orange hover:bg-orange-dark text-white font-syne font-bold text-[14px] px-6 py-3 rounded-xl transition-all hover:scale-[1.02] shadow-orange-glow"
+                                                            className={`flex items-center gap-2 text-white font-syne font-bold text-[14px] px-6 py-3 rounded-xl transition-all ${
+                                                                selectable
+                                                                    ? 'bg-orange hover:bg-orange-dark hover:scale-[1.02] shadow-orange-glow'
+                                                                    : 'bg-gray-300 text-white/90 cursor-not-allowed shadow-none'
+                                                            }`}
                                                         >
                                                             Select <ArrowRight size={15} />
                                                         </button>
@@ -701,6 +801,7 @@ export default function VehiclesPage() {
                         setMaxPrice={setMaxPrice}
                         vehicleType={vehicleType}
                         setVehicleType={setVehicleType}
+                        vehicleTypeOptions={vehicleTypeOptions}
                         promoCode={promoCode}
                         setPromoCode={setPromoCode}
                         compact

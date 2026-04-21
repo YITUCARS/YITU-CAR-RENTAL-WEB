@@ -1,0 +1,222 @@
+{
+  "LocaleSwitcher": {
+    "en": "EN",
+    "zh": "中文"
+  },
+  "Common": {
+    "close": "Close",
+    "back": "Back",
+    "cancel": "Cancel",
+    "search": "Search",
+    "noImage": "No image",
+    "perDay": "/day"
+  },
+  "Navigation": {
+    "home": "Home",
+    "vehicles": "Vehicles",
+    "gallery": "Gallery",
+    "locations": "Locations",
+    "hotDeals": "Hot Deals",
+    "contact": "Contact",
+    "aboutUs": "About Us",
+    "blog": "Blog",
+    "terms": "Terms & Conditions",
+    "privacy": "Privacy Policy",
+    "wearAndTear": "Wear and Tear"
+  },
+  "Navbar": {
+    "hours": "Monday - Sunday 08:30 - 17:30",
+    "myBooking": "My Booking",
+    "bookNow": "Book Now",
+    "openMenu": "Open menu"
+  },
+  "Footer": {
+    "description": "New Zealand's trusted car rental since 2011. Unlimited KM, clean modern fleet, four locations nationwide.",
+    "quickLinks": "Quick Links",
+    "contact": "Contact",
+    "hours": "Mon - Sun 8.30 - 17.30",
+    "manageBooking": "Manage Booking",
+    "copyright": "© 2026 YITU Car Rental. All rights reserved."
+  },
+  "Legal": {
+    "contents": "Contents",
+    "returnHome": "Return to YITU Home"
+  },
+  "Hero": {
+    "brandLabel": "YITU Car Rental",
+    "carouselFallbackTitle": "Explore New Zealand\nThe Better Way",
+    "learnMore": "Learn More",
+    "kicker": "Start your journey with us",
+    "titleLine1": "Explore New Zealand",
+    "titleLine2": "The Better Choice",
+    "viewFleet": "View Fleet",
+    "trustedRoadTrips": "Trusted Road Trips",
+    "trustedCopy": "Unlimited kilometres, responsive support, and smooth pick-up across our New Zealand locations.",
+    "stats": {
+      "vehiclesFleet": "Vehicles Fleet",
+      "yearsOfService": "Years of Service",
+      "nzLocations": "NZ Locations"
+    }
+  },
+  "FleetSection": {
+    "kicker": "Our Fleet",
+    "titlePrefix": "Choose Your",
+    "titleAccent": "Vehicle",
+    "subtitle": "From compact hybrids to premium vans — every vehicle includes unlimited kilometres and comprehensive insurance.",
+    "empty": "No featured vehicles yet. Please configure homepage vehicles in the admin panel.",
+    "adults": "{count} Adults",
+    "bags": "{large} Large + {small} Small",
+    "viewAll": "View All Vehicles"
+  },
+  "DealsSection": {
+    "kicker": "Limited Time",
+    "titlePrefix": "Hot",
+    "titleAccent": "Deals",
+    "viewDeal": "View Deal"
+  },
+  "LocationsSection": {
+    "kicker": "Where To Find Us",
+    "titlePrefix": "Our",
+    "titleAccent": "Locations",
+    "subtitle": "Conveniently located branches across New Zealand. One-way rentals are available on selected routes."
+  },
+  "Locations": {
+    "names": {
+      "Christchurch": "Christchurch",
+      "Queenstown": "Queenstown",
+      "Auckland": "Auckland"
+    },
+    "cards": {
+      "christchurch": {
+        "city": "Christchurch",
+        "address": "222 Main South Road",
+        "suburb": "Hornby"
+      },
+      "queenstown": {
+        "city": "Queenstown",
+        "address": "1 Gray Street",
+        "suburb": "Frankton"
+      }
+    }
+  },
+  "ContactSection": {
+    "kicker": "Stay Connected",
+    "titlePrefix": "Book From",
+    "titleAccent": "Anywhere",
+    "subtitle": "Chinese-speaking customers can book directly via WeChat — our team will confirm your reservation within one business day.",
+    "callUs": "Call us",
+    "email": "Email",
+    "scanToChat": "Scan To Chat On WeChat",
+    "scanDescription": "Fast support for bookings, payments, and travel questions.",
+    "addNow": "Add Now",
+    "wechatContact": "WeChat Contact",
+    "wechatId": "WeChat ID",
+    "features": {
+      "notifications": "Real-time booking notifications",
+      "bilingualSupport": "Bilingual support (EN & ZH)",
+      "confirmation": "Instant reservation confirmation",
+      "airportPickup": "Airport pick-up available"
+    },
+    "wechatFeatures": {
+      "chineseSupport": "Chinese Support",
+      "quickReply": "Quick Reply",
+      "bookingHelp": "Booking Help",
+      "paymentSupport": "Payment Support"
+    }
+  },
+  "CTA": {
+    "primaryTitleLine1": "More Than a Car —",
+    "primaryTitleLine2": "Your Road Trip Starts Here",
+    "primaryCopy": "Coastal highways or alpine passes — the perfect drive begins with the perfect vehicle.",
+    "getStarted": "Get Started",
+    "secondaryTitle": "One-Way Trips, No Problem",
+    "secondaryCopy": "Start in Christchurch, finish in Queenstown — flexible drop-off made simple.",
+    "statsTitle": "Vehicles Ready to Go",
+    "statsCopy": "Fully maintained and available across all New Zealand locations, right now."
+  },
+  "BookingSearch": {
+    "pickupLocation": "Pick-up Location",
+    "dropoffLocation": "Drop-off Location",
+    "pickupDate": "Pick-up Date",
+    "pickupTime": "Pick-up Time",
+    "dropoffDate": "Drop-off Date",
+    "dropoffTime": "Drop-off Time",
+    "driverAge": "Driver Age",
+    "under26": "Under 26",
+    "havePromoCode": "Have a promo code?",
+    "enterPromoCode": "Enter promo code",
+    "appliedOnSearch": "✓ Applied on search"
+  },
+  "BookingSteps": {
+    "search": "Search",
+    "chooseVehicle": "Choose Vehicle",
+    "extras": "Extras",
+    "yourDetails": "Your Details"
+  },
+  "AboutPage": {
+    "kicker": "Who We Are",
+    "titlePrefix": "About",
+    "titleAccent": "YITU",
+    "titleSuffix": "Car Rental",
+    "subtitle": "New Zealand's trusted partner for reliable, comfortable and affordable car rental.",
+    "ourStory": "Our Story",
+    "story": {
+      "p1": "YITU Car Rental is a New Zealand-based car rental company dedicated to providing reliable, comfortable, and affordable transportation solutions. We offer a wide range of well-maintained vehicles, from compact cars to spacious SUVs, suitable for both personal travel and business needs.",
+      "p2": "Our mission is to make every journey smooth and enjoyable. With a focus on customer satisfaction, we provide flexible rental options, transparent pricing, and friendly support to ensure a hassle-free experience from booking to return.",
+      "p3": "Whether you are exploring the beauty of New Zealand or traveling for work, YITU Car Rental is here to get you on the road with confidence."
+    },
+    "values": {
+      "reliability": {
+        "title": "Reliability",
+        "body": "Every vehicle is thoroughly maintained and inspected before each rental — so you can drive with peace of mind."
+      },
+      "transparency": {
+        "title": "Transparency",
+        "body": "No hidden fees. What you see at booking is what you pay. Clear pricing, honest terms."
+      },
+      "customerFirst": {
+        "title": "Customer First",
+        "body": "Friendly support from reservation to return — we are always here when you need us."
+      }
+    },
+    "getInTouch": "Get in Touch",
+    "phone": "Phone",
+    "email": "Email",
+    "address": "Address",
+    "addressValue": "222 Main South Road, Hornby, Christchurch 8042",
+    "bookVehicle": "Book a Vehicle"
+  },
+  "FleetPage": {
+    "backToHome": "Back to Home",
+    "titlePrefix": "All",
+    "titleAccent": "Vehicles",
+    "available": "{count} vehicles available — unlimited kilometres, comprehensive insurance included.",
+    "searchPlaceholder": "Search brand or model...",
+    "vehiclesCount": "{count} vehicles",
+    "noVehiclesFound": "No vehicles found."
+  },
+  "Gallery": {
+    "kicker": "Real Vehicle Gallery",
+    "titlePrefix": "See The",
+    "titleAccent": "Actual Cars",
+    "subtitle": "Real photos from our fleet, so customers can preview the vehicles they will actually travel in across New Zealand.",
+    "photosCount": "{count} photos",
+    "emptyTitle": "No gallery photos yet",
+    "emptyCopy": "Upload real vehicle photos in the admin panel and they will appear here automatically.",
+    "label": "YITU Gallery",
+    "vehiclePhoto": "Vehicle Photo"
+  },
+  "VehicleCategories": {
+    "all": "All",
+    "sedan": "Sedan",
+    "suv": "SUV",
+    "mpv": "MPV",
+    "van": "Van"
+  },
+  "VehicleCard": {
+    "favourite": "Favourite",
+    "seats": "{count} Seats",
+    "bags": "{count} Bags",
+    "startFrom": "Start from"
+  }
+}

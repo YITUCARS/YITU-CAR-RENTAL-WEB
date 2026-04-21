@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { ChevronRight } from 'lucide-react'
+import { Link } from '@/i18n/navigation'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import ManageBookingModal from '@/components/ui/ManageBookingModal'
@@ -31,6 +32,7 @@ export default function LegalPageLayout({
   tocLinks,
 }: LegalPageLayoutProps) {
   const [modalOpen, setModalOpen] = useState(false)
+  const t = useTranslations()
 
   return (
     <>
@@ -63,7 +65,7 @@ export default function LegalPageLayout({
         <aside className="hidden lg:block w-[220px] flex-shrink-0 sticky top-[130px]">
           <div className="bg-off-white border border-black/10 rounded-card p-5">
             <div className="text-[11px] font-bold text-muted uppercase tracking-[1.5px] mb-4">
-              Contents
+              {t('Legal.contents')}
             </div>
             <nav className="flex flex-col gap-1">
               {tocLinks.map((link) => (
@@ -98,7 +100,7 @@ export default function LegalPageLayout({
               href="/"
               className="inline-flex items-center gap-2 bg-navy text-white font-syne font-bold text-[13px] px-6 py-3 rounded-full hover:bg-navy-mid transition-colors"
             >
-              ← Return to YITU Home
+              ← {t('Legal.returnHome')}
             </Link>
           </div>
         </main>

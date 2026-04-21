@@ -121,20 +121,21 @@ export const LOCATIONS: Location[] = [
 ]
 
 export const NAV_LINKS = [
-  { href: '#home', label: 'Home' },
-  { href: '#fleet', label: 'Vehicles' },
-  { href: '/gallery', label: 'Gallery' },
-  { href: '#locations', label: 'Locations' },
-  { href: '#deals', label: 'Hot Deals' },
-  { href: '#contact', label: 'Contact' },
+  { href: '#home', labelKey: 'Navigation.home' },
+  { href: '#fleet', labelKey: 'Navigation.vehicles' },
+  { href: '/gallery', labelKey: 'Navigation.gallery' },
+  { href: '/blog', labelKey: 'Navigation.blog' },
+  { href: '#locations', labelKey: 'Navigation.locations' },
+  { href: '#deals', labelKey: 'Navigation.hotDeals' },
+  { href: '#contact', labelKey: 'Navigation.contact' },
 ]
 
 export const VEHICLE_CATEGORIES = [
-  { value: 'all', label: 'All' },
-  { value: 'sedan', label: 'Sedan' },
-  { value: 'suv', label: 'SUV' },
-  { value: 'mpv', label: 'MPV' },
-  { value: 'van', label: 'Van' },
+  { value: 'all', labelKey: 'VehicleCategories.all' },
+  { value: 'sedan', labelKey: 'VehicleCategories.sedan' },
+  { value: 'suv', labelKey: 'VehicleCategories.suv' },
+  { value: 'mpv', labelKey: 'VehicleCategories.mpv' },
+  { value: 'van', labelKey: 'VehicleCategories.van' },
 ]
 
 export const PICKUP_LOCATIONS = [

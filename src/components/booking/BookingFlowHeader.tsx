@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { ArrowLeft } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import BookingSteps from '@/components/booking/BookingSteps'
 
 interface BookingFlowHeaderProps {
@@ -13,10 +14,12 @@ interface BookingFlowHeaderProps {
 
 export default function BookingFlowHeader({
     current,
-    backLabel = 'Back',
+    backLabel,
     onBack,
     summary,
 }: BookingFlowHeaderProps) {
+    const t = useTranslations()
+
     return (
         <div className="pt-[80px] relative overflow-hidden border-b border-black/8 bg-[linear-gradient(180deg,#f7fbff_0%,#eef4fb_100%)]">
             <div className="absolute inset-0 pointer-events-none">
@@ -30,7 +33,7 @@ export default function BookingFlowHeader({
                         onClick={onBack}
                         className="flex items-center gap-1.5 text-navy/60 hover:text-navy text-sm mb-6 transition-colors"
                     >
-                        <ArrowLeft size={13} /> {backLabel}
+                        <ArrowLeft size={13} /> {backLabel || t('Common.back')}
                     </button>
                 )}
 

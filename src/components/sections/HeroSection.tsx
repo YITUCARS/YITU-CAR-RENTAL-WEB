@@ -3,18 +3,13 @@
 import Image from 'next/image'
 import { ArrowRight, Play, MapPin, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
+import { useRouter } from '@/i18n/navigation'
 import faviconMark from '@/app/icon.png/android-chrome-512x512.png'
 
 // 10 px gray placeholder — shown while the first carousel image loads
 const BLUR_DATA_URL =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFklEQVR42mNkYPhfDwAEgAGAWjR9awAAAABJRU5ErkJggg=='
-
-const STATS = [
-  { value: '100', suffix: '+', label: 'Vehicles Fleet' },
-  { value: '15', suffix: '+', label: 'Years of Service' },
-  { value: '3', suffix: '', label: 'NZ Locations' },
-]
 
 interface BannerItem {
   id?: string
@@ -38,6 +33,7 @@ function dealsToAds(deals: any[]): BannerItem[] {
 }
 
 export default function HeroSection({ initialDeals }: { initialDeals?: any[] }) {
+  const t = useTranslations()
   const [ads, setAds] = useState<BannerItem[]>(() =>
     initialDeals && initialDeals.length > 0 ? dealsToAds(initialDeals) : []
   )
@@ -70,7 +66,12 @@ export default function HeroSection({ initialDeals }: { initialDeals?: any[] }) 
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
   }, [current, paused, ads.length])
 
-  const ad = ads[current] ?? null
+const ad = ads[current] ?? null
+  const stats = [
+    { value: '100', suffix: '+', label: t('Hero.stats.vehiclesFleet') },
+    { value: '15', suffix: '+', label: t('Hero.stats.yearsOfService') },
+    { value: '3', suffix: '', label: t('Hero.stats.nzLocations') },
+  ]
 
   return (
       <section
@@ -144,7 +145,7 @@ export default function HeroSection({ initialDeals }: { initialDeals?: any[] }) 
           <div
               className="absolute inset-0"
               style={{
-                background:
+              background:
                     'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.3) 35%, transparent 60%), linear-gradient(to right, rgba(0,0,0,0.5) 0%, transparent 50%)',
               }}
           />
@@ -152,19 +153,19 @@ export default function HeroSection({ initialDeals }: { initialDeals?: any[] }) 
           {/* 文字 + 按钮 — 固定在底部 30%，不随图片内容移动 */}
           <div className="absolute bottom-[22%] left-0 right-0 flex flex-col items-center text-center px-[15%]">
             <div className="text-white/60 text-[14px] uppercase tracking-[3px] font-medium mb-3">
-              {ad?.label || 'YITU Car Rental'}
+              {ad?.label || t('Hero.brandLabel')}
             </div>
             <div
                 className="text-white font-syne font-extrabold leading-tight mb-8 whitespace-pre-line drop-shadow-lg"
                 style={{ fontSize: 'clamp(2rem, 3.5vw, 3.2rem)' }}
             >
-              {ad?.title || 'Explore New Zealand\nThe Better Way'}
+              {ad?.title || t('Hero.carouselFallbackTitle')}
             </div>
             <button
                 onClick={e => { e.stopPropagation(); ad?.slug ? router.push(`/deals/${ad.slug}`) : scrollToBooking() }}
                 className="flex items-center gap-3 bg-orange hover:bg-orange-dark text-white font-syne font-bold text-[16px] px-10 py-4 rounded-full transition-colors shadow-lg"
             >
-              Learn More <ArrowRight size={18} />
+              {t('Hero.learnMore')} <ArrowRight size={18} />
             </button>
           </div>
 
@@ -207,14 +208,14 @@ export default function HeroSection({ initialDeals }: { initialDeals?: any[] }) 
         <div className="relative z-10 ml-0 lg:ml-[10%] max-w-[500px]">
           <div className="inline-flex items-center gap-2 bg-orange/12 border border-orange/30 text-orange text-[12px] font-medium px-3.5 py-1.5 rounded-full mb-2">
             <MapPin size={12} />
-            Start your journey with us
+            {t('Hero.kicker')}
           </div>
 
           <h1
               className="font-montserrat font-extrabold italic text-navy leading-[1.04] mb-5 text-[clamp(1.6rem,5vw,4.1rem)] -ml-2"
           >
-            <span className="block sm:whitespace-nowrap">Explore New Zealand</span>
-            <span className="block pl-0 sm:pl-[8%] sm:whitespace-nowrap text-orange">The Better Choice</span>
+            <span className="block sm:whitespace-nowrap">{t('Hero.titleLine1')}</span>
+            <span className="block pl-0 sm:pl-[8%] sm:whitespace-nowrap text-orange">{t('Hero.titleLine2')}</span>
           </h1>
 
           <div className="flex gap-3.5 flex-wrap">
@@ -222,14 +223,14 @@ export default function HeroSection({ initialDeals }: { initialDeals?: any[] }) 
                 onClick={() => router.push('/booking/vehicles')}
                 className="flex items-center gap-2 bg-orange hover:bg-orange-dark text-white font-syne font-bold text-[15px] px-[30px] py-3.5 rounded-full shadow-orange-glow transition-all hover:-translate-y-0.5"
             >
-              Book Now <ArrowRight size={16} />
+              {t('Navbar.bookNow')} <ArrowRight size={16} />
             </button>
             <button
                 onClick={scrollToFleet}
                 className="flex items-center gap-2 bg-navy/[0.06] border-[1.5px] border-black/[0.18] text-navy font-syne font-bold text-[15px] px-7 py-3.5 rounded-full transition-all hover:bg-navy/10 hover:border-navy/25"
             >
               <Play size={14} />
-              View Fleet
+              {t('Hero.viewFleet')}
             </button>
           </div>
 
@@ -244,15 +245,15 @@ export default function HeroSection({ initialDeals }: { initialDeals?: any[] }) 
               />
             </div>
             <div className="max-w-[360px]">
-              <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-muted">Trusted Road Trips</div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-muted">{t('Hero.trustedRoadTrips')}</div>
               <div className="mt-1 text-[13px] leading-[1.6] text-navy/80">
-                Unlimited kilometres, responsive support, and smooth pick-up across our New Zealand locations.
+                {t('Hero.trustedCopy')}
               </div>
             </div>
           </div>
 
           <div className="flex gap-9 mt-12 pt-8 border-t border-black/10 flex-wrap">
-            {STATS.map((s) => (
+            {stats.map((s) => (
                 <div key={s.label}>
                   <strong className="font-syne font-extrabold text-[2.2rem] text-navy leading-none block">
                     {s.value}<em className="text-orange not-italic">{s.suffix}</em>

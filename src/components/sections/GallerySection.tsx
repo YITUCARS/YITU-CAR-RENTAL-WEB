@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Camera, Expand } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 interface GalleryImage {
   name: string
@@ -11,6 +12,7 @@ interface GalleryImage {
 }
 
 export default function GallerySection() {
+  const t = useTranslations()
   const [images, setImages] = useState<GalleryImage[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null)
@@ -29,18 +31,18 @@ export default function GallerySection() {
         <div className="flex items-end justify-between gap-5 mb-10 flex-wrap">
           <div>
             <div className="flex items-center gap-2 text-[11.5px] text-orange uppercase tracking-[2.5px] font-bold mb-2.5 before:content-[''] before:w-5 before:h-0.5 before:bg-orange">
-              Real Vehicle Gallery
+              {t('Gallery.kicker')}
             </div>
             <h2 className="font-montserrat font-extrabold italic text-[clamp(1.8rem,3vw,2.8rem)] text-navy leading-[1.1]">
-              See The <span className="text-orange">Actual Cars</span>
+              {t('Gallery.titlePrefix')} <span className="text-orange">{t('Gallery.titleAccent')}</span>
             </h2>
             <p className="text-muted text-[14.5px] leading-[1.75] max-w-[560px] mt-2.5">
-              Real photos from our fleet, so customers can preview the vehicles they will actually travel in across New Zealand.
+              {t('Gallery.subtitle')}
             </p>
           </div>
           <div className="flex items-center gap-2 rounded-full border border-orange/20 bg-white px-4 py-2 text-[12px] font-semibold text-navy shadow-sm">
             <Camera size={14} className="text-orange" />
-            {images.length} photos
+            {t('Gallery.photosCount', {count: images.length})}
           </div>
         </div>
 
@@ -55,9 +57,9 @@ export default function GallerySection() {
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-orange/10">
               <Camera size={20} className="text-orange" />
             </div>
-            <p className="text-[15px] font-semibold text-navy">No gallery photos yet</p>
+            <p className="text-[15px] font-semibold text-navy">{t('Gallery.emptyTitle')}</p>
             <p className="mt-1 text-[13px] text-muted">
-              Upload real vehicle photos in the admin panel and they will appear here automatically.
+              {t('Gallery.emptyCopy')}
             </p>
           </div>
         ) : (
@@ -79,9 +81,9 @@ export default function GallerySection() {
                   <div className="absolute inset-0 bg-gradient-to-t from-navy/60 via-transparent to-transparent opacity-90" />
                   <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-4">
                     <div className="text-white">
-                      <div className="text-[10px] uppercase tracking-[0.24em] text-white/70">YITU Gallery</div>
+                      <div className="text-[10px] uppercase tracking-[0.24em] text-white/70">{t('Gallery.label')}</div>
                       <div className="mt-1 text-[13px] font-semibold">
-                        Vehicle Photo {String(index + 1).padStart(2, '0')}
+                        {t('Gallery.vehiclePhoto')} {String(index + 1).padStart(2, '0')}
                       </div>
                     </div>
                     <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white backdrop-blur-sm">

@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Search, User, Tag, X } from 'lucide-react'
+import { useRouter } from '@/i18n/navigation'
 import {
   toYMD, parseYMD, nextTimeSlot, getNZMinPickup,
   DateTimePicker, LocationSelect,
@@ -22,6 +23,7 @@ const DROPOFF_RULES: Record<string, string[]> = {
 
 export default function BookingSection() {
   const router = useRouter()
+  const t = useTranslations()
 
   const [pickupLocation, setPickupLocation]   = useState('Christchurch')
   const [dropoffLocation, setDropoffLocation] = useState('Christchurch')
@@ -74,12 +76,16 @@ export default function BookingSection() {
   const pickupMinTime = pickupDate === nzMin.minDate ? nzMin.minHour : undefined
   const sameDay = dropoffDate === pickupDate
   const dropoffMinTime = sameDay ? pickupTime : undefined
+  const locationOptions = LOCATIONS.map(location => ({
+    value: location,
+    label: t(`Locations.names.${location}`),
+  }))
 
   function handleSearch() {
     const params = new URLSearchParams({
       pickupLocation, dropoffLocation,
-      pickupDate, pickupTime,
-      dropoffDate, dropoffTime,
+      pickupDate,
+      dropoffDate,
       driverAge,
     })
     if (promoCode.trim()) params.set('promoCode', promoCode.trim().toUpperCase())
@@ -101,46 +107,50 @@ export default function BookingSection() {
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto] gap-1.5 items-stretch rounded-xl p-1.5"
             style={{ background: 'rgba(255,255,255,0.12)' }}
           >
-
             <LocationSelect
-              label="Pick-up Location"
+              label={t('BookingSearch.pickupLocation')}
               value={pickupLocation}
-              options={LOCATIONS}
+              options={locationOptions}
               onChange={handlePickupLocationChange}
             />
             <LocationSelect
-              label="Drop-off Location"
+              label={t('BookingSearch.dropoffLocation')}
               value={dropoffLocation}
-              options={allowedDropoffs}
+              options={allowedDropoffs.map(location => ({
+                value: location,
+                label: t(`Locations.names.${location}`),
+              }))}
               onChange={setDropoffLocation}
             />
-
             <DateTimePicker
-              label="Pick-up Date"
+              label={t('BookingSearch.pickupDate')}
               value={pickupDate}
+              rangeEnd={dropoffDate}
               time={pickupTime}
               minDate={nzMin.minDate}
               minTime={pickupMinTime}
               onChange={handlePickupDateChange}
+              onRangeEndChange={handleDropoffDateChange}
               onTimeChange={setPickupTime}
-              timeLabel="Pick-up Time"
+              timeLabel={t('BookingSearch.pickupTime')}
+              showTime={false}
+              enableRangeSelection
             />
-
             <DateTimePicker
-              label="Drop-off Date"
+              label={t('BookingSearch.dropoffDate')}
               value={dropoffDate}
               time={dropoffTime}
               minDate={pickupDate || nzMin.minDate}
               minTime={dropoffMinTime}
               onChange={handleDropoffDateChange}
               onTimeChange={setDropoffTime}
-              timeLabel="Drop-off Time"
+              timeLabel={t('BookingSearch.dropoffTime')}
+              showTime={false}
             />
 
-            {/* Driver Age */}
             <div className="px-4 py-4 bg-white rounded-[10px] border border-black/10 flex flex-col justify-center">
               <div className="flex items-center gap-1.5 text-[10.5px] text-muted uppercase tracking-[0.8px] mb-2 font-medium">
-                <User size={10} className="text-orange" /> Driver Age
+                <User size={10} className="text-orange" /> {t('BookingSearch.driverAge')}
               </div>
               <div className="flex gap-1.5">
                 <button
@@ -159,21 +169,19 @@ export default function BookingSection() {
                       ? 'bg-orange border-orange text-white'
                       : 'border-black/15 text-muted hover:border-orange hover:text-orange'}`}
                 >
-                  Under 26
+                  {t('BookingSearch.under26')}
                 </button>
               </div>
             </div>
 
-            {/* Search */}
             <button
               onClick={handleSearch}
               className="flex items-center justify-center gap-2 bg-orange hover:bg-orange-dark text-white font-syne font-bold text-[15px] px-8 rounded-xl h-full min-h-[72px] transition-all hover:scale-[1.03] whitespace-nowrap shadow-orange-glow"
             >
-              <Search size={18} /> Search
+              <Search size={18} /> {t('Common.search')}
             </button>
           </div>
 
-          {/* ── Promo code ── */}
           <div className="px-3 pb-2.5 pt-1.5">
             {!promoOpen ? (
               <button
@@ -181,7 +189,7 @@ export default function BookingSection() {
                 className="flex items-center gap-1.5 text-[12px] text-navy/50 hover:text-orange transition-colors font-medium"
               >
                 <Tag size={12} className="text-orange/70" />
-                Have a promo code?
+                {t('BookingSearch.havePromoCode')}
               </button>
             ) : (
               <div className="flex items-center gap-2 flex-wrap">
@@ -193,7 +201,7 @@ export default function BookingSection() {
                     value={promoCode}
                     onChange={e => setPromoCode(e.target.value.toUpperCase())}
                     onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                    placeholder="Enter promo code"
+                    placeholder={t('BookingSearch.enterPromoCode')}
                     className="bg-transparent text-[13px] font-syne font-bold text-navy placeholder:text-muted/50 outline-none tracking-widest w-full min-w-0"
                     maxLength={20}
                   />
@@ -205,14 +213,14 @@ export default function BookingSection() {
                 </div>
                 {promoCode && (
                   <span className="text-[11px] text-orange font-semibold">
-                    ✓ Applied on search
+                    {t('BookingSearch.appliedOnSearch')}
                   </span>
                 )}
                 <button
                   onClick={() => { setPromoOpen(false); setPromoCode('') }}
                   className="text-[11px] text-muted/60 hover:text-navy transition-colors"
                 >
-                  Cancel
+                  {t('Common.cancel')}
                 </button>
               </div>
             )}
