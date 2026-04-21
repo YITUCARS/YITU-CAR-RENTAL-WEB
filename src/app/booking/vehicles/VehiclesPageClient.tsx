@@ -136,8 +136,8 @@ function VehicleSearchCard({
     }
 
     return (
-        <div className={`rounded-[28px] border border-black/10 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.08)] ${compact ? 'p-4' : 'p-5'}`}>
-            <div className={`flex items-center justify-between gap-3 ${compact ? 'mb-4' : 'mb-5'}`}>
+        <div className={`rounded-[28px] border border-black/10 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.08)] ${compact ? 'p-3' : 'p-5'}`}>
+            <div className={`flex items-center justify-between gap-3 ${compact ? 'mb-2' : 'mb-5'}`}>
                 <div>
                     <div className="text-[11px] uppercase tracking-[0.18em] text-muted font-bold">Refine Search</div>
                     <h3 className={`font-syne text-navy ${compact ? 'text-[1rem] font-bold' : 'text-[1.1rem] font-extrabold'}`}>
@@ -150,7 +150,7 @@ function VehicleSearchCard({
             </div>
 
             {/* ── Location + Date/Time fields ── */}
-            <div className={`grid ${compact ? 'grid-cols-1 gap-3' : 'grid-cols-1 xl:grid-cols-2 gap-3'}`}>
+            <div className={`grid ${compact ? 'grid-cols-1 gap-2' : 'grid-cols-1 xl:grid-cols-2 gap-3'}`}>
                 <LocationSelect
                     label="Pick-up Location"
                     value={form.pickupLocation}
@@ -186,7 +186,7 @@ function VehicleSearchCard({
             </div>
 
             {/* ── Filters row ── */}
-            <div className={`mt-4 grid ${compact ? 'grid-cols-1 gap-3' : 'grid-cols-1 xl:grid-cols-4 gap-4'} items-end`}>
+            <div className={`${compact ? 'mt-2' : 'mt-4'} grid ${compact ? 'grid-cols-1 gap-2' : 'grid-cols-1 xl:grid-cols-4 gap-4'} items-end`}>
                 <div>
                     <div className="flex items-center justify-between gap-3 mb-1.5">
                         <span className="text-[10.5px] text-muted uppercase tracking-[0.14em] font-bold">Max Price / Day</span>
@@ -208,7 +208,7 @@ function VehicleSearchCard({
                     <select
                         value={vehicleType}
                         onChange={e => setVehicleType(e.target.value)}
-                        className="w-full rounded-xl border border-black/10 bg-off-white px-4 py-3 text-[14px] text-navy outline-none focus:border-orange"
+                        className={`w-full rounded-xl border border-black/10 bg-off-white px-4 ${compact ? 'py-2' : 'py-3'} text-[14px] text-navy outline-none focus:border-orange`}
                     >
                         <option value="all">All types</option>
                         <option value="sedan">Sedan</option>
@@ -222,7 +222,7 @@ function VehicleSearchCard({
                     <span className="flex items-center gap-1.5 text-[10.5px] text-muted uppercase tracking-[0.14em] font-bold mb-1.5">
                         <Tag size={11} className="text-orange" /> Promo Code
                     </span>
-                    <div className="rounded-xl border border-black/10 bg-off-white px-4 py-3 flex items-center gap-2">
+                    <div className={`rounded-xl border border-black/10 bg-off-white px-4 ${compact ? 'py-2' : 'py-3'} flex items-center gap-2`}>
                         <input
                             type="text"
                             value={promoCode}
@@ -252,10 +252,10 @@ function VehicleSearchCard({
                     <div className="flex items-center gap-2 mb-1.5">
                         <span className="text-[10.5px] text-muted uppercase tracking-[0.14em] font-bold">Driver Age</span>
                     </div>
-                    <div className="flex gap-2 mb-3">
+                    <div className={`flex gap-2 ${compact ? 'mb-2' : 'mb-3'}`}>
                         <button
                             onClick={() => updateField('driverAge', 'over26')}
-                            className={`flex-1 rounded-xl border px-3 py-2 text-[12px] font-syne font-bold transition-all ${
+                            className={`flex-1 rounded-xl border px-3 ${compact ? 'py-1.5' : 'py-2'} text-[12px] font-syne font-bold transition-all ${
                                 form.driverAge === 'over26'
                                     ? 'bg-orange border-orange text-white'
                                     : 'border-black/10 text-muted hover:border-orange hover:text-orange'
@@ -265,7 +265,7 @@ function VehicleSearchCard({
                         </button>
                         <button
                             onClick={() => updateField('driverAge', 'under26')}
-                            className={`flex-1 rounded-xl border px-3 py-2 text-[12px] font-syne font-bold transition-all ${
+                            className={`flex-1 rounded-xl border px-3 ${compact ? 'py-1.5' : 'py-2'} text-[12px] font-syne font-bold transition-all ${
                                 form.driverAge === 'under26'
                                     ? 'bg-orange border-orange text-white'
                                     : 'border-black/10 text-muted hover:border-orange hover:text-orange'
@@ -276,7 +276,7 @@ function VehicleSearchCard({
                     </div>
                     <button
                         onClick={onSearch}
-                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-orange hover:bg-orange-dark text-white font-syne font-bold text-[14px] px-5 py-3 shadow-orange-glow transition-all"
+                        className={`w-full inline-flex items-center justify-center gap-2 rounded-xl bg-orange hover:bg-orange-dark text-white font-syne font-bold text-[14px] px-5 ${compact ? 'py-2' : 'py-3'} shadow-orange-glow transition-all`}
                     >
                         <Search size={16} /> Update Results
                     </button>
@@ -516,7 +516,7 @@ export default function VehiclesPage() {
                             <div className="flex flex-col gap-4">
                                 {Array.from({ length: 6 }).map((_, i) => (
                                     <div key={i} className="bg-white border border-black/10 rounded-card overflow-hidden flex flex-col sm:flex-row animate-pulse">
-                                        <div className="sm:w-64 flex-shrink-0 bg-gray-200 h-48 sm:h-auto sm:min-h-[180px]" />
+                                        <div className="sm:w-56 flex-shrink-0 bg-gray-200 aspect-[5/3] sm:aspect-[5/3]" />
                                         <div className="flex-1 p-6 flex flex-col justify-between gap-4">
                                             <div>
                                                 <div className="flex gap-2 mb-3">
@@ -598,15 +598,16 @@ export default function VehiclesPage() {
                                                 key={vehicle.vehiclecategoryid}
                                                 className="bg-white border border-black/10 rounded-card overflow-hidden flex flex-col sm:flex-row hover:border-orange/30 hover:shadow-card transition-all"
                                             >
-                                                <div className="sm:w-64 flex-shrink-0 bg-off-white flex items-center justify-center sm:min-h-[180px]">
+                                                <div className="sm:w-56 flex-shrink-0 bg-white flex items-center justify-center sm:self-stretch min-h-[160px]">
                                                     {vehicle.imageurl ? (
                                                         <img
                                                             src={vehicle.imageurl.startsWith('//') ? `https:${vehicle.imageurl}` : vehicle.imageurl}
                                                             alt={vehicle.vehiclecategory}
-                                                            className="w-full h-48 sm:h-full object-contain p-3"
+                                                            className="w-full h-full object-contain"
+                                                            style={{ objectPosition: '50% 60%' }}
                                                         />
                                                     ) : (
-                                                        <div className="w-full h-48 sm:h-full flex items-center justify-center text-muted text-sm">
+                                                        <div className="w-full py-12 flex items-center justify-center text-muted text-sm">
                                                             No image
                                                         </div>
                                                     )}
@@ -688,7 +689,7 @@ export default function VehiclesPage() {
 
             <div className="hidden lg:block">
                 <div
-                    className={`fixed left-[max(12px,calc((100vw-1260px)/2+4px))] top-[140px] z-40 w-[280px] transition-all duration-300 ${
+                    className={`fixed left-[max(12px,calc((100vw-1260px)/2+4px))] top-[140px] z-40 w-[280px] max-h-[calc(100vh-160px)] overflow-y-auto rounded-[28px] transition-all duration-300 ${
                         showStickySearch ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 -translate-y-4 pointer-events-none'
                     }`}
                 >
