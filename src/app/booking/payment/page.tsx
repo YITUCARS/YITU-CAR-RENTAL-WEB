@@ -2,8 +2,7 @@
 
 import React, { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import Image from 'next/image'
-import { CreditCard, Shield, Check, AlertCircle, ArrowRight, Loader } from 'lucide-react'
+import { CreditCard, Shield, Check, AlertCircle, Loader } from 'lucide-react'
 import { useBooking } from '@/lib/booking-context'
 import BookingFlowHeader from '@/components/booking/BookingFlowHeader'
 import Navbar from '@/components/layout/Navbar'
@@ -25,14 +24,6 @@ function PaymentContent() {
     const depositAmount = Math.round(vehicleTotal * 0.1 * 100) / 100
     const fullAmount = vehicleTotal
     const payAmount = paymentType === 'deposit' ? depositAmount : fullAmount
-
-    function goToManualPayment() {
-        setBooking(b => ({
-            ...b,
-            paymentType: 'manual',
-        }))
-        router.push(`/booking/payment/manual?total=${fullAmount}&days=${daysFromUrl}&pricePerDay=${pricePerDayFromUrl}`)
-    }
 
     if (!isHydrated) {
         return (
@@ -222,48 +213,6 @@ function PaymentContent() {
                                 </div>
                             </button>
 
-                            <button
-                                onClick={goToManualPayment}
-                                className="text-left bg-white border border-black/10 rounded-card p-5 flex items-start gap-4 transition-all w-full hover:border-orange/20 hover:shadow-card"
-                            >
-                                <div className="flex flex-col gap-2 flex-shrink-0 pt-0.5">
-                                    <div className="w-11 h-11 rounded-xl bg-[#07C160]/10 flex items-center justify-center overflow-hidden">
-                                        <Image
-                                            src="/wechat-pay.svg"
-                                            alt="WeChat Pay"
-                                            width={28}
-                                            height={28}
-                                            className="w-7 h-7"
-                                        />
-                                    </div>
-                                    <div className="w-11 h-11 rounded-xl bg-[#1677FF]/10 flex items-center justify-center overflow-hidden">
-                                        <Image
-                                            src="/alipay.svg"
-                                            alt="Alipay"
-                                            width={28}
-                                            height={28}
-                                            className="w-7 h-7"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="flex-1">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <div className="font-syne font-bold text-[14px] text-navy">WeChat / Alipay</div>
-                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-orange">
-                                            Contact us <ArrowRight size={13} />
-                                        </span>
-                                    </div>
-                                    <div className="text-[12.5px] text-muted mt-0.5 leading-relaxed">
-                                        Prefer WeChat Pay or Alipay? Contact our customer service on WeChat and we will help you place the booking manually.
-                                    </div>
-                                    <div className="text-[16px] font-syne font-bold text-orange mt-1.5">
-                                        ${fullAmount.toLocaleString()} NZD
-                                        <span className="text-[11px] text-muted font-normal ml-2">
-                                            manual booking support
-                                        </span>
-                                    </div>
-                                </div>
-                            </button>
                         </div>
 
                         {error && (

@@ -1,10 +1,5 @@
-import { Suspense } from 'react'
-import ManualPaymentPageClient from './ManualPaymentPageClient'
+import { redirect } from 'next/navigation'
 
 export default function Page() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <ManualPaymentPageClient />
-    </Suspense>
-  )
+  redirect('/booking/payment')
 }

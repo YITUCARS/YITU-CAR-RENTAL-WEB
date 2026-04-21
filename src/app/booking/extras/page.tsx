@@ -146,8 +146,8 @@ export default function ExtrasPage() {
                 <div className="flex gap-8 items-start flex-col lg:flex-row">
                     <div className="flex-1 flex flex-col gap-6">
 
-                        {/* Relocation / Mandatory Fees */}
-                        {!loading && mandatoryFees.length > 0 && (
+                        {/* Required Fees — relocation + young driver merged under one heading */}
+                        {!loading && (mandatoryFees.length > 0 || isUnder26) && (
                             <div>
                                 <h2 className="font-syne font-bold text-navy text-xl mb-3">Required Fees</h2>
                                 <div className="flex flex-col gap-3">
@@ -170,30 +170,26 @@ export default function ExtrasPage() {
                                             </div>
                                         </div>
                                     ))}
-                                </div>
-                            </div>
-                        )}
 
-                        {/* Young Driver Fee */}
-                        {isUnder26 && (
-                            <div>
-                                <h2 className="font-syne font-bold text-navy text-xl mb-3">Required Fee</h2>
-                                <div className="bg-orange/5 border border-orange/30 rounded-card p-5 flex items-start gap-4">
-                                    <div className="w-11 h-11 bg-orange/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                                        <AlertCircle size={20} className="text-orange" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex items-center justify-between">
-                                            <div className="font-syne font-bold text-[14px] text-navy">Young Driver Fee</div>
-                                            <span className="text-[11px] bg-orange/15 text-orange font-bold px-3 py-1 rounded-full flex-shrink-0">Required</span>
+                                    {isUnder26 && (
+                                        <div className="bg-orange/5 border border-orange/30 rounded-card p-5 flex items-start gap-4">
+                                            <div className="w-11 h-11 bg-orange/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                                                <AlertCircle size={20} className="text-orange" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="font-syne font-bold text-[14px] text-navy">Young Driver Fee</div>
+                                                    <span className="text-[11px] bg-orange/15 text-orange font-bold px-3 py-1 rounded-full flex-shrink-0">Required</span>
+                                                </div>
+                                                <div className="text-[12.5px] text-muted mt-0.5 leading-relaxed">
+                                                    Mandatory for drivers under 26 years old. $30 per day.
+                                                </div>
+                                                <div className="text-[12px] text-orange font-semibold mt-1.5">
+                                                    +${youngDriverFeePerDay}/day (${youngDriverTotal} total)
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="text-[12.5px] text-muted mt-0.5 leading-relaxed">
-                                            Mandatory for drivers under 26 years old. $30 per day.
-                                        </div>
-                                        <div className="text-[12px] text-orange font-semibold mt-1.5">
-                                            +${youngDriverFeePerDay}/day (${youngDriverTotal} total)
-                                        </div>
-                                    </div>
+                                    )}
                                 </div>
                             </div>
                         )}
