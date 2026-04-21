@@ -63,7 +63,7 @@ export default function FleetSection({ initialVehicles = [] }: { initialVehicles
                                         <img
                                             src={vehicle.image_url}
                                             alt={vehicle.name}
-                                            className="w-full h-full object-cover p-3 transform scale-115 transition-transform duration-500 group-hover:scale-120"
+                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                                         />
                                     ) : (
                                         <div className="text-muted/30 text-sm">No image</div>
