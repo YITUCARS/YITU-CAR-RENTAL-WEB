@@ -1,4 +1,5 @@
 import LegalPageLayout from '@/components/ui/LegalPageLayout'
+import { Phone } from 'lucide-react'
 
 const P = ({ children }: { children: React.ReactNode }) => (
   <p className="text-[14.5px] text-muted leading-[1.8] mb-4">{children}</p>
@@ -70,14 +71,15 @@ const SECTIONS = [
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {[
           { label: 'Reservations', email: 'booking@yiturentalcars.co.nz', phone: '0800 948 888' },
-          { label: 'Roadside Assistance', email: null, phone: '0800 948 888' },
+          { label: 'Roadside Assistance', email: null, phone: '0800 948 888', iPhone: '0800 734 543' },
           { label: 'Customer Service', email: 'yitucars@hotmail.com', phone: '0800 948 888' },
           { label: 'Claims', email: 'jay@yitugroup.co.nz', phone: '+64 21 873789' },
         ].map((c) => (
           <div key={c.label} className="bg-off-white border border-black/10 rounded-[10px] p-4">
             <div className="font-syne font-bold text-[13px] text-navy mb-2">{c.label}</div>
             {c.email && <a href={`mailto:${c.email}`} className="block text-[12.5px] text-orange hover:underline mb-1">{c.email}</a>}
-            <a href={`tel:${c.phone.replace(/\s/g, '')}`} className="text-[12.5px] text-muted hover:text-orange">{c.phone}</a>
+            <a href={`tel:${c.phone.replace(/\s/g, '')}`} className="block text-[12.5px] text-muted hover:text-orange mb-1">{c.phone}</a>
+            {c.iPhone && <a href={`tel:${c.iPhone.replace(/\s/g, '')}`} className="text-[12.5px] text-muted hover:text-orange">{c.iPhone}</a>}
           </div>
         ))}
       </div>
@@ -448,7 +450,7 @@ export default function TermsConditionsPage() {
   return (
     <LegalPageLayout
       badge="Rental Terms & Conditions · Effective 01 March 2024"
-      title="Terms & Conditions of Rental"
+      title="Terms & Conditions"
       subtitle="Please read these Terms and Conditions before You sign the Rental Document. These pages contain the information You need to know about Your rental with YITU New Zealand."
       lastUpdated="Effective date: 01 March 2024"
       sections={SECTIONS}
