@@ -604,7 +604,7 @@ export default function VehiclesPage() {
                                                             src={vehicle.imageurl.startsWith('//') ? `https:${vehicle.imageurl}` : vehicle.imageurl}
                                                             alt={vehicle.vehiclecategory}
                                                             className="w-full h-full object-contain"
-                                                            style={{ objectPosition: '50% 60%' }}
+                                                            style={{ objectPosition: '50% 50%' }}
                                                         />
                                                     ) : (
                                                         <div className="w-full py-12 flex items-center justify-center text-muted text-sm">
