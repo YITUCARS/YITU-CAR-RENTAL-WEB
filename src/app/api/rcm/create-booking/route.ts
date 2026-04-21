@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
       extras,
       driverAge,
       promoCode,
+      mandatoryFeeIds,
     } = body
 
     console.log('[create-booking FULL BODY]\n', JSON.stringify(body, null, 2))
@@ -52,6 +53,9 @@ export async function POST(req: NextRequest) {
       numbertravelling: 1,
       campaigncode: promoCode || '',
       ...(optionalFeesList.length > 0 ? { optionalfees: optionalFeesList } : {}),
+      ...((mandatoryFeeIds || []).length > 0 ? {
+        mandatoryfees: (mandatoryFeeIds as number[]).map((id: number) => ({ id, qty: 1 }))
+      } : {}),
       customer: {
         firstname: firstName,
         lastname: lastName,

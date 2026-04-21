@@ -22,6 +22,7 @@ export default function ExtrasPage() {
     const [extras, setExtras] = useState<Record<string, number>>(booking.extras || {})
     const [selectedInsuranceId, setSelectedInsuranceId] = useState<number | null>(booking.selectedInsuranceId)
     const [optionalFees, setOptionalFees] = useState<any[]>([])
+    const [mandatoryFees, setMandatoryFees] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
 
     const isUnder26 = booking.driverAge === 'under26'
@@ -51,10 +52,13 @@ export default function ExtrasPage() {
         })
             .then(r => r.json())
             .then(res => {
-                if (res.success && res.data?.optionalfees) {
+                if (res.success && res.data) {
                     // 过滤掉 Young Driver Fee（我们单独处理）
-                    const fees = res.data.optionalfees.filter((f: any) => f.id !== YOUNG_DRIVER_FEE_ID)
+                    const fees = (res.data.optionalfees || []).filter((f: any) => f.id !== YOUNG_DRIVER_FEE_ID)
                     setOptionalFees(fees)
+
+                    const mandatory = res.data.mandatoryfees || []
+                    setMandatoryFees(mandatory)
                 }
             })
             .catch(e => console.error('step3 error:', e))
@@ -106,10 +110,19 @@ export default function ExtrasPage() {
     const insuranceTotal = calcInsuranceTotal()
     const extrasTotal = calcExtrasTotal()
     const afterHour = calcAfterHourBreakdown(booking.pickupTime, booking.dropoffTime)
-    const grandTotal = vehicleTotal + insuranceTotal + extrasTotal + youngDriverTotal + afterHour.total
+    const relocationTotal = mandatoryFees.reduce((sum, f) => sum + (f.fees || 0), 0)
+    const grandTotal = vehicleTotal + insuranceTotal + extrasTotal + youngDriverTotal + afterHour.total + relocationTotal
 
     function proceed() {
-        setBooking(b => ({ ...b, extras, selectedInsuranceId, afterHourFee: afterHour.total, totalAmount: grandTotal }))
+        setBooking(b => ({
+            ...b,
+            extras,
+            selectedInsuranceId,
+            afterHourFee: afterHour.total,
+            relocationFee: relocationTotal,
+            mandatoryFeeIds: mandatoryFees.map((f: any) => f.id),
+            totalAmount: grandTotal,
+        }))
         router.push('/booking/details')
     }
 
@@ -132,6 +145,34 @@ export default function ExtrasPage() {
             <main className="max-w-[900px] mx-auto px-10 py-10">
                 <div className="flex gap-8 items-start flex-col lg:flex-row">
                     <div className="flex-1 flex flex-col gap-6">
+
+                        {/* Relocation / Mandatory Fees */}
+                        {!loading && mandatoryFees.length > 0 && (
+                            <div>
+                                <h2 className="font-syne font-bold text-navy text-xl mb-3">Required Fees</h2>
+                                <div className="flex flex-col gap-3">
+                                    {mandatoryFees.map(fee => (
+                                        <div key={fee.id} className="bg-orange/5 border border-orange/30 rounded-card p-5 flex items-start gap-4">
+                                            <div className="w-11 h-11 bg-orange/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                                                <AlertCircle size={20} className="text-orange" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="font-syne font-bold text-[14px] text-navy">{fee.name || 'One-Way Relocation Fee'}</div>
+                                                    <span className="text-[11px] bg-orange/15 text-orange font-bold px-3 py-1 rounded-full flex-shrink-0">Required</span>
+                                                </div>
+                                                {fee.feedescription && (
+                                                    <div className="text-[12.5px] text-muted mt-0.5 leading-relaxed">{fee.feedescription}</div>
+                                                )}
+                                                <div className="text-[12px] text-orange font-semibold mt-1.5">
+                                                    +${fee.fees} (one-time fee)
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Young Driver Fee */}
                         {isUnder26 && (
@@ -303,6 +344,14 @@ export default function ExtrasPage() {
                                         <span className="flex-shrink-0">+${afterHour.dropoffFee}</span>
                                     </div>
                                 )}
+
+                                {/* Relocation Fee */}
+                                {mandatoryFees.map(f => (
+                                    <div key={f.id} className="flex justify-between text-muted">
+                                        <span>{f.name || 'One-Way Fee'}</span>
+                                        <span className="flex-shrink-0">+${f.fees}</span>
+                                    </div>
+                                ))}
 
                                 {/* Young Driver */}
                                 {isUnder26 && (

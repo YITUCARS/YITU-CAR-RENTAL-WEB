@@ -31,6 +31,8 @@ export interface BookingState {
     pricePerDay: number
     days: number
     afterHourFee: number   // 0, 65, or 130 — charged per out-of-hours pickup/dropoff
+    relocationFee: number  // one-way relocation fee from RCM mandatoryfees
+    mandatoryFeeIds: number[]  // fee IDs to pass to RCM booking call
     promoCode: string
     promoDiscountType: 'percent' | 'fixed' | ''
     promoDiscountValue: number
@@ -66,6 +68,8 @@ const defaultState: BookingState = {
     pricePerDay: 0,
     days: 0,
     afterHourFee: 0,
+    relocationFee: 0,
+    mandatoryFeeIds: [],
     promoCode: '',
     promoDiscountType: '',
     promoDiscountValue: 0,

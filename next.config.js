@@ -19,12 +19,22 @@ const nextConfig = {
   async headers() {
     return [
       {
+        source: '/sitemap.xml',
+        headers: [
+          { key: 'Content-Type', value: 'application/xml; charset=utf-8' },
+          { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=3600' },
+        ],
+      },
+      {
+        source: '/robots.txt',
+        headers: [
+          { key: 'Content-Type', value: 'text/plain; charset=utf-8' },
+        ],
+      },
+      {
         source: '/api/rcm/:path*',
         headers: [
-          {
-            key: 'Cache-Control',
-            value: 's-maxage=300, stale-while-revalidate=600',
-          },
+          { key: 'Cache-Control', value: 's-maxage=300, stale-while-revalidate=600' },
         ],
       },
     ]

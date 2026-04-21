@@ -6,6 +6,7 @@ import Footer from '@/components/layout/Footer'
 import ManageBookingModal from '@/components/ui/ManageBookingModal'
 import { Calendar, Clock, ArrowRight, Tag } from 'lucide-react'
 import Link from 'next/link'
+import BLOG_POSTS_DATA from '@/data/blog-posts.json'
 
 interface BlogPost {
   slug: string
@@ -18,63 +19,7 @@ interface BlogPost {
   featured?: boolean
 }
 
-const BLOG_POSTS: BlogPost[] = [
-  {
-    slug: 'south-island-road-trip-guide',
-    title: 'The Ultimate South Island Road Trip Guide',
-    excerpt: 'From Christchurch to Queenstown via the scenic Milford Sound — discover the most breathtaking drives New Zealand has to offer, with tips on timing, stops, and what to pack.',
-    category: 'Travel Guide',
-    date: 'April 15, 2026',
-    readTime: '8 min read',
-    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80',
-    featured: true,
-  },
-  {
-    slug: 'queenstown-winter-driving-tips',
-    title: 'Driving in Queenstown in Winter: What You Need to Know',
-    excerpt: 'Snow chains, alpine road closures, and AWD essentials — everything to stay safe and stress-free on New Zealand\'s most dramatic winter roads.',
-    category: 'Driving Tips',
-    date: 'March 28, 2026',
-    readTime: '6 min read',
-    image: 'https://images.unsplash.com/photo-1418985991508-e47386d96a71?w=800&q=80',
-  },
-  {
-    slug: 'auckland-day-trips-by-car',
-    title: '5 Perfect Day Trips from Auckland You Can Only Do by Car',
-    excerpt: 'Skip the tour buses. Rent a car and explore Waiheke Island, the Coromandel, and Cape Reinga on your own schedule — with hidden stops along the way.',
-    category: 'Travel Guide',
-    date: 'March 10, 2026',
-    readTime: '5 min read',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80',
-  },
-  {
-    slug: 'choosing-the-right-rental-car',
-    title: 'Sedan, SUV, or MPV? How to Choose the Right Rental Car',
-    excerpt: 'Travelling as a family, couple, or solo adventurer each calls for a different vehicle. Here\'s how to match your car to your trip — and avoid paying for more than you need.',
-    category: 'Car Tips',
-    date: 'February 20, 2026',
-    readTime: '4 min read',
-    image: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=800&q=80',
-  },
-  {
-    slug: 'nz-road-rules-for-visitors',
-    title: 'New Zealand Road Rules Every Visitor Should Know',
-    excerpt: 'Drive on the left, give way rules, one-lane bridges — a clear guide to the rules of the road that will keep you safe and fine-free across New Zealand.',
-    category: 'Driving Tips',
-    date: 'February 5, 2026',
-    readTime: '7 min read',
-    image: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&q=80',
-  },
-  {
-    slug: 'christchurch-hidden-gems',
-    title: 'Christchurch Beyond the City: Hidden Gems Worth the Drive',
-    excerpt: 'The Garden City is just the start. Head out to Akaroa, Arthur\'s Pass, or the Banks Peninsula for landscapes that most visitors never see.',
-    category: 'Travel Guide',
-    date: 'January 18, 2026',
-    readTime: '6 min read',
-    image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80',
-  },
-]
+const BLOG_POSTS: BlogPost[] = BLOG_POSTS_DATA
 
 const CATEGORIES = ['All', 'Travel Guide', 'Driving Tips', 'Car Tips']
 

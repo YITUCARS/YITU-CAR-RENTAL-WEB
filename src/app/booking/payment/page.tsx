@@ -90,6 +90,7 @@ function PaymentContent() {
                     flightNumber: freshBooking.flightNumber,
                     notes: freshBooking.notes,
                     promoCode: freshBooking.promoCode,
+                    mandatoryFeeIds: freshBooking.mandatoryFeeIds || [],
                 }),
             })
             const bookingData = await bookingRes.json()
