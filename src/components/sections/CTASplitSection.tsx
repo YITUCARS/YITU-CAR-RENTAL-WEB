@@ -16,9 +16,9 @@ export default function CTASplitSection() {
           className="relative rounded-card overflow-hidden min-h-[200px] md:min-h-[280px] flex flex-col justify-end p-8 cursor-pointer group"
           onClick={goToBooking}
         >
-          <div className="absolute inset-0 bg-[linear-gradient(135deg,#10214d_0%,#1a2b6b_45%,#e8431a_100%)] transition-transform duration-500 group-hover:scale-105" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.16),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.12),transparent_32%)]" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
+          <div className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105" style={{backgroundImage: "url('/roadtrip-bg.png')"}} />
+          <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(16,33,77,0.60)_0%,rgba(26,43,107,0.45)_45%,rgba(232,67,26,0.50)_100%)]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent" />
           <div className="relative z-10">
             <h3 className="font-syne font-extrabold text-sm md:text-[1.4rem] text-white leading-[1.2] mb-2.5">
               {t('CTA.primaryTitleLine1')}<br />{t('CTA.primaryTitleLine2')}
@@ -37,9 +37,8 @@ export default function CTASplitSection() {
             className="relative rounded-card overflow-hidden flex flex-col justify-end p-6 cursor-pointer group"
             onClick={goToBooking}
           >
-            <div className="absolute inset-0 bg-[linear-gradient(135deg,#fff3ec_0%,#ffd7c8_38%,#ffc2ad_100%)] transition-transform duration-500 group-hover:scale-105" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(232,67,26,0.26),transparent_28%),radial-gradient(circle_at_80%_75%,rgba(26,43,107,0.18),transparent_26%)]" />
-            <div className="absolute inset-0 bg-gradient-to-t from-navy/85 via-navy/25 to-transparent" />
+            <div className="absolute inset-0 bg-cover bg-bottom transition-transform duration-500 group-hover:scale-105" style={{backgroundImage: "url('/oneway-bg.png')"}} />
+            <div className="absolute inset-0 bg-gradient-to-t from-navy/85 via-navy/30 to-transparent" />
             <div className="relative z-10">
               <h3 className="font-syne font-extrabold text-sm md:text-[1.4rem] text-white leading-[1.2] mb-2.5">
                 {t('CTA.secondaryTitle')}
@@ -57,9 +56,9 @@ export default function CTASplitSection() {
             className="relative overflow-hidden rounded-card p-6 cursor-pointer group"
             onClick={goToBooking}
           >
-            <div className="absolute inset-0 bg-[linear-gradient(135deg,#14295f_0%,#27408f_48%,#0f172a_100%)]" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_22%,rgba(255,255,255,0.18),transparent_25%),radial-gradient(circle_at_85%_78%,rgba(232,67,26,0.24),transparent_28%)]" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105" style={{backgroundImage: "url('/vehicles-bg.jpg')"}} />
+            <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(20,41,95,0.72)_0%,rgba(39,64,143,0.55)_48%,rgba(15,23,42,0.70)_100%)]" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
             <div className="relative z-10 flex items-end justify-between gap-4">
               <div>
                 <h3 className="font-syne font-extrabold text-sm md:text-[1.4rem] text-white leading-[1.2] mb-2.5">
