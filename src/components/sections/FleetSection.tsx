@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import {ArrowRight, Users, Briefcase} from 'lucide-react'
 import {useTranslations} from 'next-intl'
 import {useRouter} from '@/i18n/navigation'
@@ -53,10 +54,12 @@ export default function FleetSection({initialVehicles = []}: {initialVehicles?: 
                             >
                                 <div className="relative bg-off-white h-48 flex items-center justify-center overflow-hidden">
                                     {vehicle.image_url ? (
-                                        <img
+                                        <Image
                                             src={vehicle.image_url}
                                             alt={vehicle.name}
-                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                            fill
+                                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                            className="object-cover transition-transform duration-500 group-hover:scale-105"
                                         />
                                     ) : (
                                         <div className="text-muted/30 text-sm">{t('Common.noImage')}</div>

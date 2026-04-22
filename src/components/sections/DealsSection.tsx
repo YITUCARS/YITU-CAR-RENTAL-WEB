@@ -1,6 +1,7 @@
 'use client'
 
 import {useState, useEffect} from 'react'
+import Image from 'next/image'
 import {useTranslations} from 'next-intl'
 import {Tag, ArrowRight} from 'lucide-react'
 import {useRouter} from '@/i18n/navigation'
@@ -28,6 +29,7 @@ export default function DealsSection({initialDeals}: {initialDeals?: DealItem[]}
     )
 
     useEffect(() => {
+        if (initialDeals && initialDeals.length > 0) return
         fetch('/api/public/deals')
             .then(r => r.json())
             .then((data: DealItem[]) => { if (data.length > 0) setDeals(data) })
@@ -54,14 +56,16 @@ export default function DealsSection({initialDeals}: {initialDeals?: DealItem[]}
                         return (
                             <div
                                 key={deal.slug || deal.id}
-                                className="relative rounded-card overflow-hidden min-h-[220px] flex flex-col justify-end p-6 cursor-pointer group"
+                                className="relative rounded-card overflow-hidden h-[220px] flex flex-col justify-end p-6 cursor-pointer group"
                                 onClick={() => router.push(`/deals/${deal.slug || deal.id}`)}
                             >
                                 {img && (
-                                    <img
+                                    <Image
                                         src={img}
                                         alt={deal.title}
-                                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                        fill
+                                        sizes="(max-width: 768px) 100vw, 50vw"
+                                        className="object-cover transition-transform duration-500 group-hover:scale-105"
                                     />
                                 )}
                                 {!img && <div className="absolute inset-0 bg-navy" />}

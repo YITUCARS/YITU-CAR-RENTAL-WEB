@@ -2,13 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700;1,900&family=Bebas+Neue&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap');
-
-:root {
-  --font-syne: 'Syne', sans-serif;
-  --font-dm-sans: 'DM Sans', sans-serif;
-  --font-montserrat: 'Montserrat', sans-serif;
-}
 
 * {
   box-sizing: border-box;
@@ -20,7 +13,7 @@ html {
 }
 
 body {
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-dm-sans), sans-serif;
   background: #ffffff;
   color: #0b1220;
   overflow-x: hidden;
@@ -39,19 +32,41 @@ body {
     opacity: 0;
     transform: translateY(24px);
     transition: opacity 0.65s ease, transform 0.65s ease;
+    will-change: opacity, transform;
   }
   .reveal.in {
     opacity: 1;
     transform: none;
+    will-change: auto;
   }
 }
 
 @keyframes floating {
   0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+  50% { transform: translateY(-8px); }
 }
-.animate-floating {
-  animation: floating 3s ease-in-out infinite;
+/* Outer wrapper: layout anchor — never moves, never shifts */
+.floating-anchor {
+  /* Fixed layout space; the inner child floats inside this box */
+}
+/* Inner element: the one that visually floats */
+.floating-inner {
+  will-change: transform;
+  animation: none; /* added by JS after mount to avoid first-paint shift */
+}
+.floating-inner.floating-active {
+  animation: floating 5s ease-in-out infinite;
+}
+@media (max-width: 640px) {
+  @keyframes floating {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-4px); }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .floating-inner.floating-active {
+    animation: none;
+  }
 }
 
 @keyframes float {

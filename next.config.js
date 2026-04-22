@@ -14,6 +14,8 @@ const nextConfig = {
       { protocol: 'https', hostname: 'images.unsplash.com' },
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
       { protocol: 'https', hostname: 'upload.wikimedia.org' },
+      // RCM vehicle images
+      { protocol: 'https', hostname: 'rentalcarmanagerau.blob.core.windows.net' },
     ],
   },
   async headers() {

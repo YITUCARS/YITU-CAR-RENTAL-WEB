@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { Search, User, Tag, X } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
@@ -27,23 +27,20 @@ export default function BookingSection() {
 
   const [pickupLocation, setPickupLocation]   = useState('Christchurch')
   const [dropoffLocation, setDropoffLocation] = useState('Christchurch')
-  const [pickupDate, setPickupDate]           = useState('')
-  const [pickupTime, setPickupTime]           = useState('09:00')
-  const [dropoffDate, setDropoffDate]         = useState('')
-  const [dropoffTime, setDropoffTime]         = useState('09:00')
+  const [pickupDate, setPickupDate]           = useState<string>(() => { const d = new Date(); d.setDate(d.getDate() + 2); return toYMD(d) })
+  const [pickupTime, setPickupTime]           = useState<string>(() => getNZMinPickup().minHour)
+  const [dropoffDate, setDropoffDate]         = useState<string>(() => { const d = new Date(); d.setDate(d.getDate() + 9); return toYMD(d) })
+  const [dropoffTime, setDropoffTime]         = useState<string>(() => getNZMinPickup().minHour)
   const [driverAge, setDriverAge]             = useState<'over26' | 'under26'>('over26')
   const [promoCode, setPromoCode]             = useState('')
   const [promoOpen, setPromoOpen]             = useState(false)
+  const floatRef = useRef<HTMLDivElement>(null)
 
-  // Default: today + 2 days for pickup, +9 days for dropoff
   useEffect(() => {
-    const { minHour } = getNZMinPickup()
-    const pickup = new Date(); pickup.setDate(pickup.getDate() + 2)
-    const dropoff = new Date(); dropoff.setDate(dropoff.getDate() + 9)
-    setPickupDate(toYMD(pickup))
-    setPickupTime(minHour)
-    setDropoffDate(toYMD(dropoff))
-    setDropoffTime(minHour)
+    const t = setTimeout(() => {
+      floatRef.current?.classList.add('floating-active')
+    }, 600)
+    return () => clearTimeout(t)
   }, [])
 
   function handlePickupLocationChange(val: string) {
@@ -95,8 +92,8 @@ export default function BookingSection() {
 
   return (
     <section id="booking" className="relative z-20 px-4 sm:px-10" style={{ marginTop: '-90px' }}>
-      <div className="animate-floating max-w-[1400px] mx-auto">
-        <div className="rounded-2xl p-2" style={{
+      <div className="floating-anchor max-w-[1400px] mx-auto">
+        <div ref={floatRef} className="floating-inner rounded-2xl p-2" style={{
           background: 'rgba(255,255,255,0.15)',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',

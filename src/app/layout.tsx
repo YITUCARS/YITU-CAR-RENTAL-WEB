@@ -10,18 +10,24 @@ const syne = Syne({
   subsets: ['latin'],
   variable: '--font-syne',
   weight: ['400', '600', '700', '800'],
+  display: 'swap',
+  preload: true,
 })
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
   variable: '--font-dm-sans',
   weight: ['400', '500', '600'],
+  display: 'swap',
+  preload: true,
 })
 
 const montserrat = Montserrat({
   subsets: ['latin'],
   variable: '--font-montserrat',
-  weight: ['600','700', '800', '900'],
+  weight: ['600', '700', '800', '900'],
+  display: 'swap',
+  preload: true,
 })
 
 export const viewport: Viewport = {
