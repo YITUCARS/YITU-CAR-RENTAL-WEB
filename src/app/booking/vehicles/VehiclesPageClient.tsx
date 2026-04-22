@@ -249,7 +249,7 @@ function VehicleSearchCard({
                     <input
                         type="range"
                         min={60}
-                        max={220}
+                        max={1000}
                         step={10}
                         value={maxPrice}
                         onChange={e => setMaxPrice(Number(e.target.value))}
@@ -369,7 +369,7 @@ export default function VehiclesPage() {
     const [searchResults, setSearchResults] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
-    const [maxPrice, setMaxPrice] = useState(220)
+    const [maxPrice, setMaxPrice] = useState(1000)
     const [vehicleType, setVehicleType] = useState('all')
     const [showStickySearch, setShowStickySearch] = useState(false)
     const [promoCode, setPromoCode] = useState(initialPromoCode.toUpperCase())
@@ -641,7 +641,7 @@ export default function VehiclesPage() {
                                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
                                     <div>
                                         <h2 className="font-syne font-bold text-navy text-xl">
-                                            {filteredVehicles.length} vehicles available
+                                            {filteredVehicles.length} vehicle groups available
                                         </h2>
                                         <p className="text-[13px] text-muted mt-1">
                                             Results update from your new dates, times, locations, price cap, and vehicle type filter.
