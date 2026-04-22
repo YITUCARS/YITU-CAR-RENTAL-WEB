@@ -16,7 +16,7 @@ export default function ContactSection() {
   const contactButtons = [
     {icon: Phone, small: t('ContactSection.callUs'), strong: '0800 948 888', iconColor: 'text-navy'},
     {icon: Mail, small: t('ContactSection.email'), strong: 'booking@yiturentalcars.co.nz', iconColor: 'text-navy'},
-    {icon: null, wechat: true, small: 'WeChat', strong: 'YituPrestigeCar', iconColor: 'text-[#07c160]'},
+    {icon: null, wechat: true, small: 'WeChat', strong: 'YITUPRESTIGECAR', iconColor: 'text-[#07c160]'},
   ]
 
   return (

@@ -69,7 +69,7 @@ export default function HeroSection({ initialDeals }: { initialDeals?: any[] }) 
 const ad = ads[current] ?? null
   const stats = [
     { value: '100', suffix: '+', label: t('Hero.stats.vehiclesFleet') },
-    { value: '15', suffix: '+', label: t('Hero.stats.yearsOfService') },
+    { value: '8', suffix: '+', label: t('Hero.stats.yearsOfService') },
     { value: '3', suffix: '', label: t('Hero.stats.nzLocations') },
   ]
 

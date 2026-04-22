@@ -13,7 +13,7 @@ export default function TrustSection() {
     <section className="py-[60px] px-4 sm:px-10 border-t border-black/10">
       <div className="max-w-[1100px] mx-auto text-center">
         <div className="font-syne font-extrabold text-navy mb-3 text-[clamp(2rem,5vw,3.8rem)] leading-tight">
-          <span className="text-orange">15+</span> Years Serving<br />
+          <span className="text-orange">8+</span> Years Serving<br />
           New Zealand Travellers
         </div>
         <p className="text-muted text-[15px] max-w-[500px] mx-auto mb-9">
