@@ -83,7 +83,9 @@ export default function BookingSection() {
     const params = new URLSearchParams({
       pickupLocation, dropoffLocation,
       pickupDate,
+      pickupTime,
       dropoffDate,
+      dropoffTime,
       driverAge,
     })
     if (promoCode.trim()) params.set('promoCode', promoCode.trim().toUpperCase())

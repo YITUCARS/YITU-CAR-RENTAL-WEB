@@ -12,6 +12,12 @@ export interface InsuranceOption {
     totalinsuranceamount: number
 }
 
+type FeeLike = {
+    id?: number
+    name?: string
+    fees?: number
+}
+
 export interface BookingState {
     pickupLocation: string
     pickupLocationId: number
@@ -180,6 +186,33 @@ export function calcAfterHourBreakdown(pickupTime: string, dropoffTime: string):
     const pickupFee  = isAfterHours(pickupTime)  ? AFTER_HOUR_CHARGE : 0
     const dropoffFee = isAfterHours(dropoffTime) ? AFTER_HOUR_CHARGE : 0
     return { pickupFee, dropoffFee, total: pickupFee + dropoffFee }
+}
+
+export function isAfterHourMandatoryFee(fee: FeeLike): boolean {
+    const name = (fee?.name || '').trim().toLowerCase()
+    return name.includes('after hour') || name.includes('after-hour') || name.includes('afterhours')
+}
+
+export function formatAfterHourFeeLabel(fee?: FeeLike): string {
+    const name = (fee?.name || '').trim().toLowerCase()
+    if (name.includes('pick')) return 'After-hours pickup'
+    if (name.includes('drop') || name.includes('return')) return 'After-hours return'
+    return 'After-hours fee'
+}
+
+export function splitMandatoryFees<T extends FeeLike>(fees: T[]): {
+    afterHourFees: T[]
+    otherFees: T[]
+} {
+    const afterHourFees: T[] = []
+    const otherFees: T[] = []
+
+    for (const fee of fees) {
+        if (isAfterHourMandatoryFee(fee)) afterHourFees.push(fee)
+        else otherFees.push(fee)
+    }
+
+    return { afterHourFees, otherFees }
 }
 
 export const LOCATION_IDS: Record<string, number> = {

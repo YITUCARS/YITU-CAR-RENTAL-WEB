@@ -469,7 +469,7 @@ export default function VehiclesPage() {
                 if (activePromoCode) query.set('promoCode', activePromoCode)
                 const newSearch = `?${query.toString()}`
                 if (window.location.search !== newSearch) {
-                    router.replace(`/booking/vehicles${newSearch}`)
+                    window.history.replaceState(null, '', `/booking/vehicles${newSearch}`)
                 }
             } else {
                 setVehicles([])

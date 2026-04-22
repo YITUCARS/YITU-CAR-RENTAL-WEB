@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Shield, Check, Minus, Plus, AlertCircle, Package, Users, Baby } from 'lucide-react'
-import { useBooking, calcAfterHourBreakdown } from '@/lib/booking-context'
+import { useBooking, calcAfterHourBreakdown, splitMandatoryFees, formatAfterHourFeeLabel, isAfterHourMandatoryFee } from '@/lib/booking-context'
 import BookingFlowHeader from '@/components/booking/BookingFlowHeader'
 import Navbar from '@/components/layout/Navbar'
 
@@ -109,16 +109,20 @@ export default function ExtrasPage() {
     const vehicleTotal = Math.max(0, baseVehicleTotal - booking.promoDiscountAmount)
     const insuranceTotal = calcInsuranceTotal()
     const extrasTotal = calcExtrasTotal()
-    const afterHour = calcAfterHourBreakdown(booking.pickupTime, booking.dropoffTime)
-    const relocationTotal = mandatoryFees.reduce((sum, f) => sum + (f.fees || 0), 0)
-    const grandTotal = vehicleTotal + insuranceTotal + extrasTotal + youngDriverTotal + afterHour.total + relocationTotal
+    const calculatedAfterHour = calcAfterHourBreakdown(booking.pickupTime, booking.dropoffTime)
+    const { afterHourFees, otherFees: nonAfterHourMandatoryFees } = splitMandatoryFees(mandatoryFees)
+    const afterHourTotal = afterHourFees.length > 0
+        ? afterHourFees.reduce((sum, fee) => sum + (fee.fees || 0), 0)
+        : calculatedAfterHour.total
+    const relocationTotal = nonAfterHourMandatoryFees.reduce((sum, fee) => sum + (fee.fees || 0), 0)
+    const grandTotal = vehicleTotal + insuranceTotal + extrasTotal + youngDriverTotal + afterHourTotal + relocationTotal
 
     function proceed() {
         setBooking(b => ({
             ...b,
             extras,
             selectedInsuranceId,
-            afterHourFee: afterHour.total,
+            afterHourFee: afterHourTotal,
             relocationFee: relocationTotal,
             mandatoryFeeIds: mandatoryFees.map((f: any) => f.id),
             totalAmount: grandTotal,
@@ -158,7 +162,9 @@ export default function ExtrasPage() {
                                             </div>
                                             <div className="flex-1">
                                                 <div className="flex items-center justify-between">
-                                                    <div className="font-syne font-bold text-[14px] text-navy">{fee.name || 'One-Way Relocation Fee'}</div>
+                                                    <div className="font-syne font-bold text-[14px] text-navy">
+                                                        {isAfterHourMandatoryFee(fee) ? formatAfterHourFeeLabel(fee) : (fee.name || 'One-Way Relocation Fee')}
+                                                    </div>
                                                     <span className="text-[11px] bg-orange/15 text-orange font-bold px-3 py-1 rounded-full flex-shrink-0">Required</span>
                                                 </div>
                                                 {fee.feedescription && (
@@ -328,21 +334,26 @@ export default function ExtrasPage() {
                                 <div className="border-t border-black/[0.07] my-1" />
 
                                 {/* After-hour fees */}
-                                {afterHour.pickupFee > 0 && (
+                                {afterHourFees.length > 0 ? afterHourFees.map(fee => (
+                                    <div key={fee.id} className="flex justify-between text-muted">
+                                        <span>{formatAfterHourFeeLabel(fee)}</span>
+                                        <span className="flex-shrink-0">+${fee.fees}</span>
+                                    </div>
+                                )) : calculatedAfterHour.pickupFee > 0 && (
                                     <div className="flex justify-between text-muted">
                                         <span>After-hours pickup</span>
-                                        <span className="flex-shrink-0">+${afterHour.pickupFee}</span>
+                                        <span className="flex-shrink-0">+${calculatedAfterHour.pickupFee}</span>
                                     </div>
                                 )}
-                                {afterHour.dropoffFee > 0 && (
+                                {!afterHourFees.length && calculatedAfterHour.dropoffFee > 0 && (
                                     <div className="flex justify-between text-muted">
                                         <span>After-hours return</span>
-                                        <span className="flex-shrink-0">+${afterHour.dropoffFee}</span>
+                                        <span className="flex-shrink-0">+${calculatedAfterHour.dropoffFee}</span>
                                     </div>
                                 )}
 
                                 {/* Relocation Fee */}
-                                {mandatoryFees.map(f => (
+                                {nonAfterHourMandatoryFees.map(f => (
                                     <div key={f.id} className="flex justify-between text-muted">
                                         <span>{f.name || 'One-Way Fee'}</span>
                                         <span className="flex-shrink-0">+${f.fees}</span>
@@ -385,7 +396,7 @@ export default function ExtrasPage() {
                                 })}
 
                                 {/* After-hour explanation note */}
-                                {afterHour.total > 0 && (
+                                {afterHourTotal > 0 && !afterHourFees.length && (
                                     <div className="text-[11px] text-muted/70 bg-orange/5 border border-orange/15 rounded-lg px-3 py-2 leading-relaxed">
                                         After-hours fee applies for pickups/returns outside 8:30 AM–5:30 PM ($65 each).
                                     </div>

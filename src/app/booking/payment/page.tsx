@@ -1,11 +1,13 @@
 'use client'
 
-import React, { useState, Suspense } from 'react'
+import React, { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CreditCard, Shield, Check, AlertCircle, Loader } from 'lucide-react'
-import { useBooking } from '@/lib/booking-context'
+import { useBooking, calcAfterHourBreakdown, splitMandatoryFees, formatAfterHourFeeLabel } from '@/lib/booking-context'
 import BookingFlowHeader from '@/components/booking/BookingFlowHeader'
 import Navbar from '@/components/layout/Navbar'
+
+const YOUNG_DRIVER_FEE_PER_DAY = 30
 
 function PaymentContent() {
     const router = useRouter()
@@ -14,15 +16,88 @@ function PaymentContent() {
     const [paymentType, setPaymentType] = useState<'deposit' | 'full'>('deposit')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
+    const [optionalFees, setOptionalFees] = useState<any[]>([])
+    const [mandatoryFees, setMandatoryFees] = useState<any[]>([])
 
     const totalFromUrl = Number(params.get('total')) || 0
     const daysFromUrl = Number(params.get('days')) || booking.days
     const pricePerDayFromUrl = Number(params.get('pricePerDay')) || booking.pricePerDay
 
+    useEffect(() => {
+        if (!isHydrated) return
+        if (!booking.vehicleId || !booking.vehicleCategoryTypeId) return
+
+        fetch('/api/rcm/step3', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                vehicleCategoryTypeId: booking.vehicleCategoryTypeId || 0,
+                vehicleCategoryId: Number(booking.vehicleId),
+                pickupLocation: booking.pickupLocation,
+                dropoffLocation: booking.dropoffLocation,
+                pickupDate: booking.pickupDate,
+                dropoffDate: booking.dropoffDate,
+                pickupTime: booking.pickupTime,
+                dropoffTime: booking.dropoffTime,
+                promoCode: booking.promoCode,
+            }),
+        })
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success || !res.data) return
+                setOptionalFees(Array.isArray(res.data.optionalfees) ? res.data.optionalfees : [])
+                setMandatoryFees(Array.isArray(res.data.mandatoryfees) ? res.data.mandatoryfees : [])
+            })
+            .catch(err => console.error('payment step3 error:', err))
+    }, [
+        isHydrated,
+        booking.vehicleCategoryTypeId,
+        booking.vehicleId,
+        booking.pickupLocation,
+        booking.dropoffLocation,
+        booking.pickupDate,
+        booking.dropoffDate,
+        booking.pickupTime,
+        booking.dropoffTime,
+        booking.promoCode,
+    ])
+
+    const baseVehicleTotal = (booking.basePricePerDay || pricePerDayFromUrl || booking.pricePerDay) * daysFromUrl
+    const discountedVehicleTotal = Math.max(0, baseVehicleTotal - booking.promoDiscountAmount)
+    const calculatedAfterHour = calcAfterHourBreakdown(booking.pickupTime, booking.dropoffTime)
+    const youngDriverTotal = booking.driverAge === 'under26' ? YOUNG_DRIVER_FEE_PER_DAY * daysFromUrl : 0
+
+    const selectedInsurance = booking.insuranceOptions.find(i => i.id === booking.selectedInsuranceId) || null
+    const insuranceTotal = selectedInsurance && selectedInsurance.fees > 0
+        ? selectedInsurance.fees * daysFromUrl
+        : 0
+
+    const selectedMandatoryFees = mandatoryFees.filter(fee => (booking.mandatoryFeeIds || []).includes(fee.id))
+    const { afterHourFees, otherFees: nonAfterHourMandatoryFees } = splitMandatoryFees(selectedMandatoryFees)
+    const afterHourTotal = afterHourFees.length > 0
+        ? afterHourFees.reduce((sum, fee) => sum + (fee.fees || 0), 0)
+        : (booking.afterHourFee || calculatedAfterHour.total)
+    const relocationTotal = nonAfterHourMandatoryFees.length > 0
+        ? nonAfterHourMandatoryFees.reduce((sum, fee) => sum + (fee.fees || 0), 0)
+        : booking.relocationFee
+
+    const selectedExtras = optionalFees
+        .map(extra => {
+            const qty = booking.extras?.[String(extra.id)] || 0
+            if (qty <= 0) return null
+            const multiplier = extra.type === 'Daily' ? daysFromUrl : 1
+            const total = extra.maximumprice > 0
+                ? Math.min(extra.fees * qty * multiplier, extra.maximumprice * qty)
+                : extra.fees * qty * multiplier
+            return { ...extra, qty, total }
+        })
+        .filter(Boolean) as Array<any>
+
+    const extrasTotal = selectedExtras.reduce((sum, extra) => sum + extra.total, 0)
+    const computedGrandTotal = discountedVehicleTotal + insuranceTotal + extrasTotal + youngDriverTotal + afterHourTotal + relocationTotal
     const fallbackTotal = pricePerDayFromUrl * daysFromUrl
-    const vehicleTotal = totalFromUrl > 0 ? totalFromUrl : fallbackTotal
-    const depositAmount = Math.round(vehicleTotal * 0.1 * 100) / 100
-    const fullAmount = vehicleTotal
+    const fullAmount = booking.totalAmount > 0 ? booking.totalAmount : (totalFromUrl > 0 ? totalFromUrl : (computedGrandTotal > 0 ? computedGrandTotal : fallbackTotal))
+    const depositAmount = Math.round(fullAmount * 0.1 * 100) / 100
     const payAmount = paymentType === 'deposit' ? depositAmount : fullAmount
 
     if (!isHydrated) {
@@ -258,12 +333,79 @@ function PaymentContent() {
                             </div>
                             <div className="border-t border-black/10 pt-3 space-y-2 text-[13px]">
                                 <div className="flex justify-between text-muted">
+                                    <span className="truncate max-w-[150px]">{booking.vehicleName || 'Vehicle'}</span>
+                                    <span>${discountedVehicleTotal.toLocaleString()}</span>
+                                </div>
+                                <div className="text-[11px] text-muted">
+                                    {daysFromUrl} day{daysFromUrl !== 1 ? 's' : ''} × ${(booking.pricePerDay || pricePerDayFromUrl).toLocaleString()}/day
+                                </div>
+                                {booking.promoDiscountAmount > 0 && (
+                                    <div className="flex justify-between text-green-700 text-[12px]">
+                                        <span>Promo {booking.promoCode}</span>
+                                        <span>- ${booking.promoDiscountAmount.toLocaleString()}</span>
+                                    </div>
+                                )}
+
+                                {afterHourFees.length > 0 ? afterHourFees.map(fee => (
+                                    <div key={fee.id} className="flex justify-between text-muted">
+                                        <span className="truncate max-w-[150px]">{formatAfterHourFeeLabel(fee)}</span>
+                                        <span>+${Number(fee.fees || 0).toLocaleString()}</span>
+                                    </div>
+                                )) : calculatedAfterHour.pickupFee > 0 && (
+                                    <div className="flex justify-between text-muted">
+                                        <span>After-hours pickup</span>
+                                        <span>+${calculatedAfterHour.pickupFee.toLocaleString()}</span>
+                                    </div>
+                                )}
+                                {!afterHourFees.length && calculatedAfterHour.dropoffFee > 0 && (
+                                    <div className="flex justify-between text-muted">
+                                        <span>After-hours return</span>
+                                        <span>+${calculatedAfterHour.dropoffFee.toLocaleString()}</span>
+                                    </div>
+                                )}
+
+                                {nonAfterHourMandatoryFees.map(fee => (
+                                    <div key={fee.id} className="flex justify-between text-muted">
+                                        <span className="truncate max-w-[150px]">{fee.name || 'One-Way Fee'}</span>
+                                        <span>+${Number(fee.fees || 0).toLocaleString()}</span>
+                                    </div>
+                                ))}
+
+                                {!nonAfterHourMandatoryFees.length && relocationTotal > 0 && (
+                                    <div className="flex justify-between text-muted">
+                                        <span>Relocation Fee</span>
+                                        <span>+${relocationTotal.toLocaleString()}</span>
+                                    </div>
+                                )}
+
+                                {youngDriverTotal > 0 && (
+                                    <div className="flex justify-between text-muted">
+                                        <span>Young Driver Fee</span>
+                                        <span>+${youngDriverTotal.toLocaleString()}</span>
+                                    </div>
+                                )}
+
+                                {selectedInsurance && (
+                                    <div className="flex justify-between text-muted">
+                                        <span className="truncate max-w-[150px]">{selectedInsurance.name}</span>
+                                        <span>{insuranceTotal > 0 ? `+$${insuranceTotal.toLocaleString()}` : 'Included'}</span>
+                                    </div>
+                                )}
+
+                                {selectedExtras.map(extra => (
+                                    <div key={extra.id} className="flex justify-between text-muted">
+                                        <span className="truncate max-w-[150px]">{extra.name} ×{extra.qty}</span>
+                                        <span>+${Number(extra.total || 0).toLocaleString()}</span>
+                                    </div>
+                                ))}
+
+                                <div className="border-t border-black/[0.07] pt-2 mt-2 flex justify-between text-muted">
                                     <span>Total booking</span>
                                     <span>${fullAmount.toLocaleString()}</span>
                                 </div>
-                                <div className="flex justify-between font-syne font-extrabold text-navy text-[15px]">
+                                <div className="flex justify-between text-muted">
                                     <span>Paying now</span>
-                                    <span className="text-orange">${payAmount.toLocaleString()}</span>
+                                    <span className="text-orange font-syne font-extrabold text-[15px]">${payAmount.toLocaleString()}</span>
                                 </div>
                                 {paymentType === 'deposit' && (
                                     <div className="flex justify-between text-muted text-[11px]">
