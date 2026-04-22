@@ -1,4 +1,6 @@
 import LegalPageLayout from '@/components/ui/LegalPageLayout'
+import {getLocale} from 'next-intl/server'
+import {zhPrivacySections, zhPrivacyToc} from '@/content/legal/privacy-policy.zh'
 
 const P = ({ children }: { children: React.ReactNode }) => (
   <p className="text-[14.5px] text-muted leading-[1.8] mb-4">{children}</p>
@@ -291,7 +293,22 @@ const SECTIONS = [
   },
 ]
 
-export default function PrivacyPolicyPage() {
+export async function PrivacyPolicyPageContent({forcedLocale}: {forcedLocale?: 'en' | 'zh'} = {}) {
+  const locale = forcedLocale ?? await getLocale()
+
+  if (locale === 'zh') {
+    return (
+      <LegalPageLayout
+        badge="隐私声明 · 更新于 2024年3月"
+        title="隐私声明"
+        subtitle="了解 YITU New Zealand 如何在您租车、访问网站或使用应用服务时收集、使用、共享和保护您的个人信息。"
+        lastUpdated="最后更新：2024年3月"
+        sections={zhPrivacySections}
+        tocLinks={zhPrivacyToc}
+      />
+    )
+  }
+
   return (
     <LegalPageLayout
       badge="Privacy Notice · Updated March 2024"
@@ -302,4 +319,8 @@ export default function PrivacyPolicyPage() {
       tocLinks={TOC}
     />
   )
+}
+
+export default async function PrivacyPolicyPage() {
+  return <PrivacyPolicyPageContent />
 }

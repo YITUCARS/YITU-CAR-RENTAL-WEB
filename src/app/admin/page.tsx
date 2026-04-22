@@ -36,7 +36,7 @@ export default function AdminPage() {
     const csvRef = useRef<HTMLInputElement>(null)
 
     // ── RCM tab ──────────────────────────────────────────────────────────────
-    const [activeTab, setActiveTab] = useState<'fleet' | 'rcm' | 'promo' | 'banners' | 'deals' | 'gallery'>('fleet')
+    const [activeTab, setActiveTab] = useState<'fleet' | 'rcm' | 'promo' | 'banners' | 'deals' | 'gallery' | 'blog'>('fleet')
     const [rcmVehicles, setRcmVehicles] = useState<any[]>([])
     const [rcmLoading, setRcmLoading] = useState(false)
     const [featured, setFeatured] = useState<Map<number, any>>(new Map())
@@ -66,6 +66,13 @@ export default function AdminPage() {
     const [galleryLoading, setGalleryLoading] = useState(false)
     const [galleryUploading, setGalleryUploading] = useState(false)
     const galleryFileRef = useRef<HTMLInputElement>(null)
+
+    // ── Blog tab ──────────────────────────────────────────────────────────────
+    const [blogPosts, setBlogPosts] = useState<any[]>([])
+    const [blogLoading, setBlogLoading] = useState(false)
+    const [editingBlog, setEditingBlog] = useState<any | null>(null)
+    const [blogImgUploading, setBlogImgUploading] = useState(false)
+    const blogFileRef = useRef<HTMLInputElement>(null)
 
     const showToast = (msg: string) => {
         setToast(msg)
@@ -474,6 +481,47 @@ export default function AdminPage() {
         }
     }
 
+    async function loadBlogPosts() {
+        setBlogLoading(true)
+        const res = await fetch('/api/admin/blog', { headers })
+        const data = await res.json()
+        setBlogPosts(Array.isArray(data) ? data : [])
+        setBlogLoading(false)
+    }
+
+    async function saveBlogPost(post: any) {
+        const isNew = !post.id
+        const url = isNew ? '/api/admin/blog' : `/api/admin/blog/${post.id}`
+        const method = isNew ? 'POST' : 'PUT'
+        const res = await fetch(url, { method, headers, body: JSON.stringify(post) })
+        const data = await res.json()
+        if (!res.ok) { showToast('❌ ' + (data.error || '保存失败')); return }
+        showToast('✅ 已保存')
+        setEditingBlog(null)
+        loadBlogPosts()
+    }
+
+    async function deleteBlogPost(id: string) {
+        if (!confirm('确定删除这篇文章？')) return
+        const res = await fetch(`/api/admin/blog/${id}`, { method: 'DELETE', headers })
+        if (res.ok) { showToast('✅ 已删除'); loadBlogPosts() }
+        else showToast('❌ 删除失败')
+    }
+
+    async function uploadBlogImage(file: File) {
+        setBlogImgUploading(true)
+        try {
+            const fd = new FormData()
+            fd.append('file', file)
+            fd.append('folder', 'blog')
+            const res = await fetch('/api/admin/upload', { method: 'POST', headers: { 'x-admin-token': token }, body: fd })
+            const data = await res.json()
+            if (!res.ok || data.error) { showToast('❌ 上传失败: ' + (data.error || `HTTP ${res.status}`)); return }
+            setEditingBlog((p: any) => ({ ...p, image_url: data.url }))
+            showToast('✅ 图片已上传')
+        } finally { setBlogImgUploading(false) }
+    }
+
     async function save() {
         setSaving(true)
         try {
@@ -714,6 +762,12 @@ export default function AdminPage() {
                     className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors ${activeTab === 'gallery' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
                 >
                     Gallery 图库
+                </button>
+                <button
+                    onClick={() => { setActiveTab('blog'); loadBlogPosts() }}
+                    className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors ${activeTab === 'blog' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
+                >
+                    Blog 管理
                 </button>
             </div>
 
@@ -1342,6 +1396,233 @@ export default function AdminPage() {
                             ))}
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* ── Blog tab ── */}
+            {activeTab === 'blog' && (
+                <div className="px-8 py-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="text-[12px] text-muted bg-navy/5 border border-black/10 rounded-xl px-4 py-3 flex-1 mr-4">
+                            管理前台 Blog 页面的文章内容。发布后前台 <code className="bg-black/5 px-1 rounded">/blog</code> 页面自动更新，支持封面图上传、分类、精选设置。
+                        </div>
+                        <button
+                            onClick={() => setEditingBlog({ title: '', slug: '', excerpt: '', category: 'Travel Guide', date: new Date().toLocaleDateString('en-NZ', { year: 'numeric', month: 'long', day: 'numeric' }), read_time: '5 min read', image_url: '', content: '', featured: false, active: true })}
+                            className="flex items-center gap-1.5 bg-orange hover:bg-orange-dark text-white font-syne font-bold text-[13px] px-5 py-2.5 rounded-xl transition-colors whitespace-nowrap"
+                        >
+                            <Plus size={14} /> 新增文章
+                        </button>
+                    </div>
+
+                    {/* Hidden file input */}
+                    <input ref={blogFileRef} type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && uploadBlogImage(e.target.files[0])} />
+
+                    {blogLoading ? (
+                        <div className="py-12 text-center text-muted text-sm">加载中...</div>
+                    ) : blogPosts.length === 0 ? (
+                        <div className="bg-white rounded-2xl border border-black/10 py-16 text-center text-muted text-sm">
+                            暂无文章，点击右上角「新增文章」开始创作
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {blogPosts.map(post => (
+                                <div key={post.id} className="bg-white border border-black/10 rounded-2xl p-4 flex items-center gap-4">
+                                    <div className="w-20 h-14 rounded-xl overflow-hidden bg-off-white flex-shrink-0">
+                                        {post.image_url
+                                            ? <img src={post.image_url} alt={post.title} className="w-full h-full object-cover" />
+                                            : <div className="w-full h-full flex items-center justify-center text-muted/40 text-xs">No img</div>
+                                        }
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-0.5">
+                                            <span className="font-syne font-bold text-navy text-[14px] truncate">{post.title}</span>
+                                            {post.featured && <span className="text-[10px] font-bold bg-orange text-white px-2 py-0.5 rounded-full">精选</span>}
+                                            {!post.active && <span className="text-[10px] font-bold bg-black/10 text-muted px-2 py-0.5 rounded-full">隐藏</span>}
+                                        </div>
+                                        <div className="flex items-center gap-3 text-[12px] text-muted">
+                                            <span className="bg-black/5 px-2 py-0.5 rounded-full">{post.category}</span>
+                                            <span>{post.date}</span>
+                                            <span>{post.read_time}</span>
+                                            <span className="text-orange font-mono text-[11px]">/blog/{post.slug}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                        <button
+                                            onClick={() => { saveBlogPost({ ...post, active: !post.active }) }}
+                                            className={`text-[12px] font-medium px-3 py-1.5 rounded-lg border transition-colors ${post.active ? 'border-green-200 text-green-700 hover:bg-green-50' : 'border-black/10 text-muted hover:border-navy'}`}
+                                        >
+                                            {post.active ? '已发布' : '已隐藏'}
+                                        </button>
+                                        <button onClick={() => setEditingBlog({ ...post })} className="p-2 text-muted hover:text-navy border border-black/10 rounded-lg transition-colors">
+                                            <Pencil size={14} />
+                                        </button>
+                                        <button onClick={() => deleteBlogPost(post.id)} className="p-2 text-red-400 hover:text-red-600 border border-red-100 hover:bg-red-50 rounded-lg transition-colors">
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Blog edit modal */}
+            {editingBlog && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto shadow-2xl">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-black/10 sticky top-0 bg-white z-10">
+                            <h2 className="font-syne font-bold text-navy text-lg">{editingBlog.id ? '编辑文章' : '新增文章'}</h2>
+                            <button onClick={() => setEditingBlog(null)} className="text-muted hover:text-navy"><X size={20} /></button>
+                        </div>
+
+                        <div className="px-6 py-5 space-y-4">
+                            {/* Cover image */}
+                            <div>
+                                <label className="block text-[12px] font-semibold text-navy mb-1.5">封面图片</label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        placeholder="图片 URL"
+                                        value={editingBlog.image_url || ''}
+                                        onChange={e => setEditingBlog((p: any) => ({ ...p, image_url: e.target.value }))}
+                                        className="flex-1 border border-black/15 rounded-xl px-3 py-2.5 text-[13px] focus:outline-none focus:border-orange"
+                                    />
+                                    <button
+                                        onClick={() => blogFileRef.current?.click()}
+                                        disabled={blogImgUploading}
+                                        className="flex items-center gap-1.5 px-4 py-2.5 border border-black/15 rounded-xl text-[12px] text-muted hover:border-orange hover:text-orange transition-colors whitespace-nowrap"
+                                    >
+                                        <Upload size={13} /> {blogImgUploading ? '上传中...' : '上传图片'}
+                                    </button>
+                                </div>
+                                {editingBlog.image_url && (
+                                    <img src={editingBlog.image_url} alt="preview" className="mt-2 h-32 w-full object-cover rounded-xl" />
+                                )}
+                            </div>
+
+                            {/* Title */}
+                            <div>
+                                <label className="block text-[12px] font-semibold text-navy mb-1.5">标题</label>
+                                <input
+                                    type="text"
+                                    placeholder="文章标题"
+                                    value={editingBlog.title || ''}
+                                    onChange={e => {
+                                        const title = e.target.value
+                                        const autoSlug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+                                        setEditingBlog((p: any) => ({ ...p, title, ...(!p.id ? { slug: autoSlug } : {}) }))
+                                    }}
+                                    className="w-full border border-black/15 rounded-xl px-3 py-2.5 text-[13px] focus:outline-none focus:border-orange"
+                                />
+                            </div>
+
+                            {/* Slug */}
+                            <div>
+                                <label className="block text-[12px] font-semibold text-navy mb-1.5">URL Slug</label>
+                                <input
+                                    type="text"
+                                    placeholder="url-slug"
+                                    value={editingBlog.slug || ''}
+                                    onChange={e => setEditingBlog((p: any) => ({ ...p, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))}
+                                    className="w-full border border-black/15 rounded-xl px-3 py-2.5 text-[13px] font-mono focus:outline-none focus:border-orange"
+                                />
+                                <p className="text-[11px] text-muted mt-1">前台访问地址：/blog/{editingBlog.slug || '...'}</p>
+                            </div>
+
+                            {/* Excerpt */}
+                            <div>
+                                <label className="block text-[12px] font-semibold text-navy mb-1.5">摘要</label>
+                                <textarea
+                                    rows={2}
+                                    placeholder="简短描述，显示在卡片列表"
+                                    value={editingBlog.excerpt || ''}
+                                    onChange={e => setEditingBlog((p: any) => ({ ...p, excerpt: e.target.value }))}
+                                    className="w-full border border-black/15 rounded-xl px-3 py-2.5 text-[13px] focus:outline-none focus:border-orange resize-none"
+                                />
+                            </div>
+
+                            {/* Category + Date + Read time */}
+                            <div className="grid grid-cols-3 gap-3">
+                                <div>
+                                    <label className="block text-[12px] font-semibold text-navy mb-1.5">分类</label>
+                                    <select
+                                        value={editingBlog.category || 'Travel Guide'}
+                                        onChange={e => setEditingBlog((p: any) => ({ ...p, category: e.target.value }))}
+                                        className="w-full border border-black/15 rounded-xl px-3 py-2.5 text-[13px] focus:outline-none focus:border-orange"
+                                    >
+                                        <option>Travel Guide</option>
+                                        <option>Driving Tips</option>
+                                        <option>Car Tips</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[12px] font-semibold text-navy mb-1.5">发布日期</label>
+                                    <input
+                                        type="text"
+                                        placeholder="April 15, 2026"
+                                        value={editingBlog.date || ''}
+                                        onChange={e => setEditingBlog((p: any) => ({ ...p, date: e.target.value }))}
+                                        className="w-full border border-black/15 rounded-xl px-3 py-2.5 text-[13px] focus:outline-none focus:border-orange"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[12px] font-semibold text-navy mb-1.5">阅读时间</label>
+                                    <input
+                                        type="text"
+                                        placeholder="5 min read"
+                                        value={editingBlog.read_time || ''}
+                                        onChange={e => setEditingBlog((p: any) => ({ ...p, read_time: e.target.value }))}
+                                        className="w-full border border-black/15 rounded-xl px-3 py-2.5 text-[13px] focus:outline-none focus:border-orange"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Content */}
+                            <div>
+                                <label className="block text-[12px] font-semibold text-navy mb-1.5">正文内容 <span className="font-normal text-muted">(支持 HTML)</span></label>
+                                <textarea
+                                    rows={12}
+                                    placeholder="<p>文章正文，支持 HTML 标签...</p>"
+                                    value={editingBlog.content || ''}
+                                    onChange={e => setEditingBlog((p: any) => ({ ...p, content: e.target.value }))}
+                                    className="w-full border border-black/15 rounded-xl px-3 py-2.5 text-[13px] font-mono focus:outline-none focus:border-orange resize-y"
+                                />
+                            </div>
+
+                            {/* Featured + Active toggles */}
+                            <div className="flex items-center gap-6">
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => setEditingBlog((p: any) => ({ ...p, featured: !p.featured }))}
+                                        className={`w-10 h-6 rounded-full transition-colors relative ${editingBlog.featured ? 'bg-orange' : 'bg-black/20'}`}
+                                    >
+                                        <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${editingBlog.featured ? 'left-5' : 'left-1'}`} />
+                                    </button>
+                                    <span className="text-sm text-navy font-medium">精选文章</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => setEditingBlog((p: any) => ({ ...p, active: !p.active }))}
+                                        className={`w-10 h-6 rounded-full transition-colors relative ${editingBlog.active ? 'bg-orange' : 'bg-black/20'}`}
+                                    >
+                                        <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${editingBlog.active ? 'left-5' : 'left-1'}`} />
+                                    </button>
+                                    <span className="text-sm text-navy font-medium">{editingBlog.active ? '已发布' : '草稿'}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-4 border-t border-black/10 flex justify-end gap-3 sticky bottom-0 bg-white">
+                            <button onClick={() => setEditingBlog(null)} className="px-5 py-2.5 text-sm text-muted hover:text-navy border border-black/10 rounded-lg transition-colors">取消</button>
+                            <button
+                                onClick={() => saveBlogPost(editingBlog)}
+                                className="flex items-center gap-1.5 px-5 py-2.5 bg-orange hover:bg-orange-dark text-white font-syne font-bold text-sm rounded-lg transition-colors"
+                            >
+                                <Check size={14} /> 保存发布
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 

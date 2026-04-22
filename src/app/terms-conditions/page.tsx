@@ -1,5 +1,7 @@
 import LegalPageLayout from '@/components/ui/LegalPageLayout'
 import { Phone } from 'lucide-react'
+import {getLocale} from 'next-intl/server'
+import {zhTermsSections, zhTermsToc} from '@/content/legal/terms-conditions.zh'
 
 const P = ({ children }: { children: React.ReactNode }) => (
   <p className="text-[14.5px] text-muted leading-[1.8] mb-4">{children}</p>
@@ -446,7 +448,22 @@ const SECTIONS = [
   },
 ]
 
-export default function TermsConditionsPage() {
+export async function TermsConditionsPageContent({forcedLocale}: {forcedLocale?: 'en' | 'zh'} = {}) {
+  const locale = forcedLocale ?? await getLocale()
+
+  if (locale === 'zh') {
+    return (
+      <LegalPageLayout
+        badge="租赁条款与条件 · 生效日期 2024年3月1日"
+        title="条款与条件"
+        subtitle="以下页面展示了你提供的中文《租赁条款与条件》全文，适用于 YITU New Zealand 的中文法律页面。"
+        lastUpdated="生效日期：2024年3月1日"
+        sections={zhTermsSections}
+        tocLinks={zhTermsToc}
+      />
+    )
+  }
+
   return (
     <LegalPageLayout
       badge="Rental Terms & Conditions · Effective 01 March 2024"
@@ -457,4 +474,8 @@ export default function TermsConditionsPage() {
       tocLinks={TOC}
     />
   )
+}
+
+export default async function TermsConditionsPage() {
+  return <TermsConditionsPageContent />
 }

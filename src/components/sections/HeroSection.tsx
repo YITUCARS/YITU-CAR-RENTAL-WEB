@@ -254,7 +254,7 @@ const ad = ads[current] ?? null
 
           <div className="flex gap-9 mt-12 pt-8 border-t border-black/10 flex-wrap">
             {stats.map((s) => (
-                <div key={s.label}>
+                <div key={s.label} className="text-center">
                   <strong className="font-syne font-extrabold text-[2.2rem] text-navy leading-none block">
                     {s.value}<em className="text-orange not-italic">{s.suffix}</em>
                   </strong>

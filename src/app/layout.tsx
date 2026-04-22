@@ -3,8 +3,8 @@ import { NextIntlClientProvider } from 'next-intl'
 import './globals.css'
 import '@fortawesome/fontawesome-free/css/all.min.css'
 import { Syne, DM_Sans, Montserrat } from 'next/font/google'
-import messages from '../../messages/en.json'
 import ChatWidget from '@/components/ChatWidget'
+import messages from '../../messages/en.json'
 
 const syne = Syne({
   subsets: ['latin'],
@@ -57,10 +57,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="google-site-verification" content="6jSbpSDcCqS3noZzwqtphT5k5Gae8v6Unzy9pl6b0b0" />
       </head>
       <body className={`${syne.variable} ${dmSans.variable} ${montserrat.variable}`}>
-      <NextIntlClientProvider locale="en" messages={messages}>
-        {children}
-        <ChatWidget />
-      </NextIntlClientProvider>
+        <NextIntlClientProvider locale="en" messages={messages}>
+          {children}
+          <ChatWidget />
+        </NextIntlClientProvider>
       </body>
       </html>
   )

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import ManageBookingModal from '@/components/ui/ManageBookingModal'
@@ -9,17 +9,20 @@ import Link from 'next/link'
 import BLOG_POSTS_DATA from '@/data/blog-posts.json'
 
 interface BlogPost {
+  id?: string
   slug: string
   title: string
   excerpt: string
   category: string
   date: string
-  readTime: string
-  image: string
+  read_time?: string
+  readTime?: string
+  image_url?: string
+  image?: string
   featured?: boolean
 }
 
-const BLOG_POSTS: BlogPost[] = BLOG_POSTS_DATA
+const STATIC_POSTS: BlogPost[] = BLOG_POSTS_DATA
 
 const CATEGORIES = ['All', 'Travel Guide', 'Driving Tips', 'Car Tips']
 
@@ -29,12 +32,25 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Car Tips': 'bg-green-50 text-green-700',
 }
 
+function getImage(post: BlogPost) { return post.image_url || post.image || '' }
+function getReadTime(post: BlogPost) { return post.read_time || post.readTime || '' }
+
 export default function BlogPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [activeCategory, setActiveCategory] = useState('All')
+  const [posts, setPosts] = useState<BlogPost[]>(STATIC_POSTS)
+  const [loading, setLoading] = useState(true)
 
-  const featured = BLOG_POSTS.find(p => p.featured)
-  const filtered = BLOG_POSTS.filter(p => {
+  useEffect(() => {
+    fetch('/api/public/blog')
+      .then(r => r.json())
+      .then((data: BlogPost[]) => { if (Array.isArray(data) && data.length > 0) setPosts(data) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const featured = posts.find(p => p.featured)
+  const filtered = posts.filter(p => {
     if (p.featured) return false
     return activeCategory === 'All' || p.category === activeCategory
   })
@@ -65,7 +81,7 @@ export default function BlogPage() {
             <div className="rounded-[28px] overflow-hidden bg-white border border-black/10 shadow-[0_8px_32px_rgba(15,23,42,0.08)] flex flex-col lg:flex-row">
               <div className="lg:w-[55%] flex-shrink-0 overflow-hidden">
                 <img
-                  src={featured.image}
+                  src={getImage(featured)}
                   alt={featured.title}
                   className="w-full h-64 lg:h-full object-cover"
                 />
@@ -92,7 +108,7 @@ export default function BlogPage() {
                   </span>
                   <span className="flex items-center gap-1.5">
                     <Clock size={13} className="text-orange" />
-                    {featured.readTime}
+                    {getReadTime(featured)}
                   </span>
                 </div>
                 <Link
@@ -128,46 +144,61 @@ export default function BlogPage() {
 
         {/* Post Grid */}
         <div className="max-w-[1100px] mx-auto px-6 lg:px-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filtered.map(post => (
-              <Link
-                key={post.slug}
-                href={`/blog/${post.slug}`}
-                className="group bg-white rounded-[20px] border border-black/10 overflow-hidden hover:border-orange/30 hover:shadow-card transition-all flex flex-col"
-              >
-                <div className="overflow-hidden h-48">
-                  <img
-                    src={post.image}
-                    alt={post.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                </div>
-                <div className="p-6 flex flex-col flex-1">
-                  <span className={`self-start text-[10px] font-bold uppercase tracking-[0.14em] px-2.5 py-1 rounded-full mb-3 ${CATEGORY_COLORS[post.category] || 'bg-gray-100 text-gray-600'}`}>
-                    {post.category}
-                  </span>
-                  <h3 className="font-syne font-bold text-navy text-[16px] leading-snug mb-2 group-hover:text-orange transition-colors">
-                    {post.title}
-                  </h3>
-                  <p className="text-muted text-[13px] leading-relaxed mb-4 flex-1">
-                    {post.excerpt}
-                  </p>
-                  <div className="flex items-center gap-4 text-[11px] text-muted pt-4 border-t border-black/[0.07]">
-                    <span className="flex items-center gap-1">
-                      <Calendar size={11} className="text-orange" />
-                      {post.date}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock size={11} className="text-orange" />
-                      {post.readTime}
-                    </span>
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="bg-white rounded-[20px] border border-black/10 overflow-hidden animate-pulse">
+                  <div className="h-48 bg-gray-100" />
+                  <div className="p-6 space-y-3">
+                    <div className="h-3 bg-gray-100 rounded w-1/3" />
+                    <div className="h-4 bg-gray-100 rounded w-3/4" />
+                    <div className="h-3 bg-gray-100 rounded w-full" />
                   </div>
                 </div>
-              </Link>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filtered.map(post => (
+                <Link
+                  key={post.slug}
+                  href={`/blog/${post.slug}`}
+                  className="group bg-white rounded-[20px] border border-black/10 overflow-hidden hover:border-orange/30 hover:shadow-card transition-all flex flex-col"
+                >
+                  <div className="overflow-hidden h-48">
+                    <img
+                      src={getImage(post)}
+                      alt={post.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  </div>
+                  <div className="p-6 flex flex-col flex-1">
+                    <span className={`self-start text-[10px] font-bold uppercase tracking-[0.14em] px-2.5 py-1 rounded-full mb-3 ${CATEGORY_COLORS[post.category] || 'bg-gray-100 text-gray-600'}`}>
+                      {post.category}
+                    </span>
+                    <h3 className="font-syne font-bold text-navy text-[16px] leading-snug mb-2 group-hover:text-orange transition-colors">
+                      {post.title}
+                    </h3>
+                    <p className="text-muted text-[13px] leading-relaxed mb-4 flex-1">
+                      {post.excerpt}
+                    </p>
+                    <div className="flex items-center gap-4 text-[11px] text-muted pt-4 border-t border-black/[0.07]">
+                      <span className="flex items-center gap-1">
+                        <Calendar size={11} className="text-orange" />
+                        {post.date}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock size={11} className="text-orange" />
+                        {getReadTime(post)}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
 
-          {filtered.length === 0 && (
+          {!loading && filtered.length === 0 && (
             <div className="text-center py-20 text-muted">
               <p className="text-[15px]">No posts in this category yet.</p>
             </div>
