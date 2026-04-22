@@ -35,13 +35,14 @@ export default function BookingSection() {
   const [promoCode, setPromoCode]             = useState('')
   const [promoOpen, setPromoOpen]             = useState(false)
 
-  // Default: earliest valid pickup (NZ now + 6h), dropoff +7 days same time
+  // Default: today + 2 days for pickup, +9 days for dropoff
   useEffect(() => {
-    const { minDate, minHour } = getNZMinPickup()
-    setPickupDate(minDate)
+    const { minHour } = getNZMinPickup()
+    const pickup = new Date(); pickup.setDate(pickup.getDate() + 2)
+    const dropoff = new Date(); dropoff.setDate(dropoff.getDate() + 9)
+    setPickupDate(toYMD(pickup))
     setPickupTime(minHour)
-    const dropDay = parseYMD(minDate); dropDay.setDate(dropDay.getDate() + 7)
-    setDropoffDate(toYMD(dropDay))
+    setDropoffDate(toYMD(dropoff))
     setDropoffTime(minHour)
   }, [])
 

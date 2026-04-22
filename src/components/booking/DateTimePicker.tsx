@@ -13,7 +13,7 @@ export const HOURS = Array.from({ length: 48 }, (_, index) => {
   const value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
   const displayHour = hour % 12 === 0 ? 12 : hour % 12
   const suffix = hour < 12 ? 'AM' : 'PM'
-  const minuteLabel = minute === 0 ? '' : ':30'
+  const minuteLabel = minute === 0 ? ':00' : ':30'
   return { value, label: `${displayHour}${minuteLabel} ${suffix}` }
 })
 

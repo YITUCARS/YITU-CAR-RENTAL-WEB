@@ -348,9 +348,11 @@ export default function VehiclesPage() {
 
     const initialPickupLocation = params.get('pickupLocation') || booking.pickupLocation || 'Christchurch'
     const initialDropoffLocation = params.get('dropoffLocation') || booking.dropoffLocation || 'Christchurch'
-    const initialPickupDate = params.get('pickupDate') || booking.pickupDate || getNZMinPickup().minDate
+    const defaultPickup = new Date(); defaultPickup.setDate(defaultPickup.getDate() + 2)
+    const defaultDropoff = new Date(); defaultDropoff.setDate(defaultDropoff.getDate() + 9)
+    const initialPickupDate = params.get('pickupDate') || booking.pickupDate || toYMD(defaultPickup)
     const initialPickupTime = params.get('pickupTime') || '10:00'
-    const initialDropoffDate = params.get('dropoffDate') || booking.dropoffDate || getNZMinPickup().minDate
+    const initialDropoffDate = params.get('dropoffDate') || booking.dropoffDate || toYMD(defaultDropoff)
     const initialDropoffTime = params.get('dropoffTime') || '10:00'
     const initialDriverAge = (params.get('driverAge') as DriverAge) || booking.driverAge || 'over26'
     const initialPromoCode = params.get('promoCode') || booking.promoCode || ''
@@ -373,6 +375,7 @@ export default function VehiclesPage() {
     const [vehicleType, setVehicleType] = useState('all')
     const [showStickySearch, setShowStickySearch] = useState(false)
     const [promoCode, setPromoCode] = useState(initialPromoCode.toUpperCase())
+    const [showTimingModal, setShowTimingModal] = useState(false)
 
     const days = calcDays(searchForm.pickupDate, searchForm.pickupTime, searchForm.dropoffDate, searchForm.dropoffTime)
 
@@ -447,8 +450,13 @@ export default function VehiclesPage() {
 
             const result = await response.json()
             if (result.success && result.data?.availablecars) {
-                setVehicles(result.data.availablecars)
+                const cars: RCMVehicle[] = result.data.availablecars
+                setVehicles(cars)
                 setSearchResults(result.data)
+                const pickupMs = new Date(`${form.pickupDate}T${form.pickupTime}:00`).getTime()
+                const hoursUntilPickup = (pickupMs - Date.now()) / 36e5
+                const minHours = form.pickupLocation === 'Christchurch' ? 6 : 24
+                if (hoursUntilPickup < minHours) setShowTimingModal(true)
                 const query = new URLSearchParams({
                     pickupLocation: form.pickupLocation,
                     dropoffLocation: form.dropoffLocation,
@@ -747,7 +755,7 @@ export default function VehiclesPage() {
                                                                         </div>
                                                                     )}
                                                                     <div className="font-syne font-extrabold text-[1.8rem] text-navy leading-none">
-                                                                        ${pricing.discountedTotal.toLocaleString()}
+                                                                        <span className="text-[13px] font-bold">NZD</span>&nbsp;${pricing.discountedTotal.toLocaleString()}
                                                                         <span className="text-[13px] font-normal text-muted ml-1">total</span>
                                                                     </div>
                                                                     {pricing.promoDiscount > 0 && (
@@ -808,6 +816,43 @@ export default function VehiclesPage() {
                     />
                 </div>
             </div>
+
+            {showTimingModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative">
+                        <button
+                            onClick={() => setShowTimingModal(false)}
+                            className="absolute top-4 right-4 text-muted hover:text-navy transition-colors"
+                            aria-label="Close"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                        <div className="flex items-center gap-3 mb-5">
+                            <div className="w-10 h-10 rounded-full bg-orange/10 flex items-center justify-center flex-shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                            </div>
+                            <h2 className="font-syne font-bold text-navy text-lg">Booking Time Notice</h2>
+                        </div>
+                        <div className="space-y-3 text-[14px] text-gray-700 leading-relaxed mb-6">
+                            <div className="flex gap-2.5">
+                                <span className="text-orange font-bold mt-0.5">•</span>
+                                <p><span className="font-semibold text-navy">Christchurch Location</span> does not accept bookings less than <span className="font-semibold">6 hours</span> from now.</p>
+                            </div>
+                            <div className="flex gap-2.5">
+                                <span className="text-orange font-bold mt-0.5">•</span>
+                                <p><span className="font-semibold text-navy">Other Locations</span> do not accept bookings less than <span className="font-semibold">24 hours</span> from now.</p>
+                            </div>
+                        </div>
+                        <p className="text-[13px] text-muted mb-6">Some vehicles may be unavailable for your selected dates. Please adjust your pick-up date and time and search again.</p>
+                        <button
+                            onClick={() => setShowTimingModal(false)}
+                            className="w-full bg-orange hover:bg-orange-dark text-white font-syne font-bold text-[14px] py-3 rounded-xl transition-colors"
+                        >
+                            Got it, I'll adjust my dates
+                        </button>
+                    </div>
+                </div>
+            )}
         </>
     )
 }

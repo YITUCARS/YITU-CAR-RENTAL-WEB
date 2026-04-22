@@ -88,7 +88,7 @@ export default function Footer({onManageBooking}: FooterProps) {
               <div className="flex items-center gap-2.5 text-[13.5px] text-muted">
                 <Phone size={12} className="text-orange flex-shrink-0" />
                 <a href="tel:0800948888" className="hover:text-orange transition-colors">
-                  +64 27 3922 666/+64 21 873 789
+                  +64 27 3922 666 / +64 21 873 789
                 </a>
               </div>
               <div className="flex items-center gap-2.5 text-[13.5px] text-muted">
