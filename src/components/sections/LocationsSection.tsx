@@ -1,6 +1,11 @@
-import {MapPin} from 'lucide-react'
+import {MapPin, ExternalLink} from 'lucide-react'
 import {useTranslations} from 'next-intl'
 import {LOCATIONS} from '@/lib/data'
+
+const GOOGLE_MAPS_URLS: Record<string, string> = {
+  christchurch: 'https://maps.google.com/?q=222+Main+South+Road,+Hornby,+Christchurch',
+  queenstown: 'https://maps.google.com/?q=1+Gray+Street,+Frankton,+Queenstown',
+}
 
 export default function LocationsSection() {
   const t = useTranslations()
@@ -20,9 +25,12 @@ export default function LocationsSection() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-[640px] mx-auto">
           {LOCATIONS.map(loc => (
-            <div
+            <a
               key={loc.id}
-              className="relative bg-white border border-black/10 rounded-card px-[22px] py-7 text-center overflow-hidden transition-all hover:-translate-y-1 hover:border-orange/25 group"
+              href={GOOGLE_MAPS_URLS[loc.id]}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="relative bg-white border border-black/10 rounded-card px-[22px] py-7 text-center overflow-hidden transition-all hover:-translate-y-1 hover:border-orange/25 group cursor-pointer"
             >
               <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-orange scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left" />
 
@@ -31,7 +39,10 @@ export default function LocationsSection() {
               <p className="text-muted text-[13px] leading-[1.6]">
                 {t(`Locations.cards.${loc.id}.address`)}<br />{t(`Locations.cards.${loc.id}.suburb`)}
               </p>
-            </div>
+              <span className="inline-flex items-center gap-1 mt-3 text-[11px] text-orange font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
+                Open in Google Maps <ExternalLink size={11} />
+              </span>
+            </a>
           ))}
         </div>
       </div>

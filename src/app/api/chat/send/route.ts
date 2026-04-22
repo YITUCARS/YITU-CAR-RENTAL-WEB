@@ -1,10 +1,11 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
+import { updateChatStatus } from '@/lib/chat-store'
 
 export async function POST(request: NextRequest) {
     try {
-        const { message } = await request.json()
+        const { message, sessionId } = await request.json()
 
         if (!message) {
             return NextResponse.json({ error: 'message is required.' }, { status: 400 })
@@ -23,6 +24,7 @@ export async function POST(request: NextRequest) {
             body: JSON.stringify({
                 chat_id: chatId,
                 text: message,
+                parse_mode: 'HTML',
             }),
         })
 
@@ -32,6 +34,15 @@ export async function POST(request: NextRequest) {
         }
 
         const data = await response.json()
+
+        // Escalate the session to human status in Firestore
+        if (sessionId) {
+            await updateChatStatus(sessionId, 'human', {
+                agentJoinedAt: null,
+                lastTelegramMessageId: data.result?.message_id ?? null,
+            }).catch(() => {})
+        }
+
         return NextResponse.json({ ok: true, result: data.result })
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unexpected error'

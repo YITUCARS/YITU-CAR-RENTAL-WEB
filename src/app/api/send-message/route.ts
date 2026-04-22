@@ -60,10 +60,12 @@ export async function POST(request: NextRequest) {
             const messagesToStore = [userMessage, supportReply].filter(Boolean) as ChatMessage[]
             await appendMessages(sessionId, messagesToStore, { status: 'human' })
 
-            const telegramPayload = buildTelegramMessage(
+            const telegramPayload = buildTelegramMessage({
                 sessionId,
-                trimmedText || 'Customer requested human support from the website chat.',
-            )
+                name: 'Website User',
+                phone: '—',
+                message: trimmedText || 'Customer requested human support from the website chat.',
+            })
             const telegramResponse = await sendTelegramText(telegramPayload)
 
             await updateChatStatus(sessionId, 'human', {
@@ -84,7 +86,7 @@ export async function POST(request: NextRequest) {
             }
 
             await appendMessages(sessionId, [userMessage], { status: 'human' })
-            const telegramResponse = await sendTelegramText(buildTelegramMessage(sessionId, trimmedText))
+            const telegramResponse = await sendTelegramText(buildTelegramMessage({ sessionId, name: 'Website User', phone: '—', message: trimmedText }))
             await updateChatStatus(sessionId, 'human', {
                 lastTelegramMessageId: telegramResponse.result?.message_id ?? chat.lastTelegramMessageId ?? null,
             })

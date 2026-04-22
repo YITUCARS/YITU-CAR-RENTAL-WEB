@@ -5,15 +5,15 @@ import { ensureChatSession } from '@/lib/chat-store'
 
 export async function POST(request: NextRequest) {
   try {
-    const { sessionId, text } = await request.json()
+    const { sessionId, text, sender, timestamp } = await request.json()
     if (!sessionId || !text) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
     }
     await ensureChatSession(sessionId)
     await appendMessages(sessionId, [{
-      sender: 'user',
+      sender: sender === 'agent' ? 'agent' : 'user',
       text,
-      timestamp: Date.now(),
+      timestamp: typeof timestamp === 'number' ? timestamp : Date.now(),
     }])
     return NextResponse.json({ ok: true })
   } catch (error) {

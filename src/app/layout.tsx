@@ -4,6 +4,7 @@ import './globals.css'
 import '@fortawesome/fontawesome-free/css/all.min.css'
 import { Syne, DM_Sans, Montserrat } from 'next/font/google'
 import messages from '../../messages/en.json'
+import ChatWidget from '@/components/ChatWidget'
 
 const syne = Syne({
   subsets: ['latin'],
@@ -52,6 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${syne.variable} ${dmSans.variable} ${montserrat.variable}`}>
       <NextIntlClientProvider locale="en" messages={messages}>
         {children}
+        <ChatWidget />
       </NextIntlClientProvider>
       </body>
       </html>
