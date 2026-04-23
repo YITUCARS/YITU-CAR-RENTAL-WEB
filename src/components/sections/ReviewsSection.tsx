@@ -4,6 +4,7 @@ import React from 'react'
 import Image from 'next/image'
 import { Star, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { STATIC_REVIEWS } from '@/lib/static-reviews'
 
 const MAPS_URL = 'https://www.google.com/maps/place/?q=place_id:ChIJJxIZZNn1MW0Rk4kIt7fYHOc'
@@ -19,6 +20,7 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 export default function ReviewsSection() {
+    const t = useTranslations()
     const { rating, user_ratings_total, reviews } = STATIC_REVIEWS
 
     return (
@@ -29,10 +31,10 @@ export default function ReviewsSection() {
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10">
                     <div>
                         <div className="flex items-center gap-2 text-[11.5px] text-orange uppercase tracking-[2.5px] font-bold mb-2.5 before:content-[''] before:w-5 before:h-0.5 before:bg-orange">
-                            Customer Reviews
+                            {t('ReviewsSection.kicker')}
                         </div>
                         <h2 className="font-montserrat font-extrabold italic text-[clamp(1.8rem,3vw,2.8rem)] text-navy leading-[1.1]">
-                            What Our <span className="text-orange">Customers</span> Say
+                            {t('ReviewsSection.titlePrefix')} <span className="text-orange">{t('ReviewsSection.titleAccent')}</span> {t('ReviewsSection.titleSuffix')}
                         </h2>
                     </div>
 
@@ -49,7 +51,7 @@ export default function ReviewsSection() {
                             </div>
                             <StarRating rating={Math.round(rating)} />
                             <div className="text-[11px] text-muted mt-1">
-                                {user_ratings_total} reviews
+                                {t('ReviewsSection.reviewsCount', { count: user_ratings_total })}
                             </div>
                         </div>
                         <ExternalLink size={14} className="text-muted ml-1" />
@@ -97,7 +99,7 @@ export default function ReviewsSection() {
                 <div className="text-center mt-8">
                     <Link href={MAPS_URL} target="_blank" rel="noopener noreferrer"
                           className="inline-flex items-center gap-2 bg-transparent border-[1.5px] border-orange text-orange font-syne font-bold text-[14px] px-8 py-3 rounded-full transition-all hover:bg-orange hover:text-white">
-                        View All Reviews on Google
+                        {t('ReviewsSection.viewAll')}
                         <ExternalLink size={14} />
                     </Link>
                 </div>

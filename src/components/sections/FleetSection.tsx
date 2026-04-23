@@ -64,9 +64,6 @@ export default function FleetSection({initialVehicles = []}: {initialVehicles?: 
                                     ) : (
                                         <div className="text-muted/30 text-sm">{t('Common.noImage')}</div>
                                     )}
-                                    <span className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm text-[10px] font-bold text-navy uppercase tracking-wide px-2.5 py-1 rounded-full border border-black/10">
-                                        {vehicle.category}
-                                    </span>
                                 </div>
 
                                 <div className="p-5">

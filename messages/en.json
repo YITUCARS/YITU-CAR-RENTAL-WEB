@@ -74,6 +74,14 @@
     "titleAccent": "Deals",
     "viewDeal": "View Deal"
   },
+  "ReviewsSection": {
+    "kicker": "Customer Reviews",
+    "titlePrefix": "What Our",
+    "titleAccent": "Customers",
+    "titleSuffix": "Say",
+    "reviewsCount": "{count} reviews",
+    "viewAll": "View All Reviews on Google"
+  },
   "LocationsSection": {
     "kicker": "Where To Find Us",
     "titlePrefix": "Our",

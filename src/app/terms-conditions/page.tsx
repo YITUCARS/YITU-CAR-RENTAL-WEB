@@ -245,7 +245,7 @@ const SECTIONS = [
     content: (
       <>
         <P>
-          If You are liable to compensate YITU for loss under Clause 7.1, YITU will waive that liability if You have complied with the Rental Agreement and You pay the Excess Amount (Basic Insurance: $3,000 standard fleet / $5,000 LUX fleet; YITU Super Cover: zero excess).
+          If You are liable to compensate YITU for loss under Clause 7.1, YITU will waive that liability if You have complied with the Rental Agreement and You pay the Excess Amount (Basic Insurance: $4,500 standard fleet / $5,000 LUX fleet; YITU Super Cover: zero excess).
         </P>
         <H3>When Loss Damage Waiver Will NOT Apply</H3>
         <P>The waiver does not apply to:</P>
@@ -324,7 +324,7 @@ const SECTIONS = [
           YITU aims to pay any refund due to You within 14 days after it becomes payable. Credit card refunds may take 7-10 working days for Your financial institution to process.
         </P>
         <H3>Card Surcharges</H3>
-        <P>Visa & MasterCard: 2.2% · American Express: 3.1%</P>
+        <P>Visa & MasterCard: 2.9% · American Express: 3.1%</P>
       </>
     ),
   },
@@ -378,7 +378,7 @@ const SECTIONS = [
         <PriceTable rows={[
           { fee: 'Late Return Fee', rate: '$30.00/hr, or applicable daily rate', clause: '5.3' },
           { fee: 'One Way Fee', rate: '$2.30 per kilometre', clause: '5.2' },
-          { fee: 'Card Surcharge (Visa/MC)', rate: '2.2%', clause: '12.1(d)' },
+          { fee: 'Card Surcharge (Visa/MC)', rate: '2.9%', clause: '12.1(d)' },
           { fee: 'Card Surcharge (Amex)', rate: '3.1%', clause: '12.1(d)' },
           { fee: 'Collection Costs', rate: '$86.25 plus 10% p.a. interest', clause: '12.10' },
           { fee: 'Roadside Callout Fee', rate: 'Min. $235.75 per callout', clause: '4.6' },

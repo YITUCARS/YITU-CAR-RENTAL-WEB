@@ -74,6 +74,14 @@
     "titleAccent": "优惠",
     "viewDeal": "查看优惠"
   },
+  "ReviewsSection": {
+    "kicker": "客户评价",
+    "titlePrefix": "听听",
+    "titleAccent": "客户",
+    "titleSuffix": "怎么说",
+    "reviewsCount": "{count} 条评价",
+    "viewAll": "在 Google 查看全部评价"
+  },
   "LocationsSection": {
     "kicker": "门店位置",
     "titlePrefix": "我们的",

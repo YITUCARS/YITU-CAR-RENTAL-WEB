@@ -1,4 +1,6 @@
 import LegalPageLayout from '@/components/ui/LegalPageLayout'
+import { getLocale } from 'next-intl/server'
+import { zhWearAndTearSections, zhWearAndTearToc } from '@/content/legal/wear-and-tear.zh'
 
 const P = ({ children }: { children: React.ReactNode }) => (
   <p className="text-[14.5px] text-muted leading-[1.8] mb-4">{children}</p>
@@ -285,7 +287,22 @@ const SECTIONS = [
   },
 ]
 
-export default function WearAndTearPage() {
+export async function WearAndTearPageContent({forcedLocale}: {forcedLocale?: 'en' | 'zh'} = {}) {
+  const locale = forcedLocale ?? await getLocale()
+
+  if (locale === 'zh') {
+    return (
+      <LegalPageLayout
+        badge="车辆状况政策"
+        title="合理磨损政策"
+        subtitle="帮助您了解“合理磨损”与“需收费损坏”之间的区别，以便在归还 YITU 车辆时清楚知道会如何评估。"
+        lastUpdated="生效日期：2024年3月1日"
+        sections={zhWearAndTearSections}
+        tocLinks={zhWearAndTearToc}
+      />
+    )
+  }
+
   return (
     <LegalPageLayout
       badge="Vehicle Condition Policy"
@@ -296,4 +313,8 @@ export default function WearAndTearPage() {
       tocLinks={TOC}
     />
   )
+}
+
+export default async function WearAndTearPage() {
+  return <WearAndTearPageContent />
 }
