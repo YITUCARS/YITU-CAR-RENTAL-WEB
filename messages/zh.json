@@ -76,9 +76,9 @@
   },
   "ReviewsSection": {
     "kicker": "客户评价",
-    "titlePrefix": "听听",
-    "titleAccent": "客户",
-    "titleSuffix": "怎么说",
+    "titlePrefix": "客户",
+    "titleAccent": "真实",
+    "titleSuffix": "反馈",
     "reviewsCount": "{count} 条评价",
     "viewAll": "在 Google 查看全部评价"
   },

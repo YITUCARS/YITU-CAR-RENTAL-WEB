@@ -91,6 +91,17 @@ function roundMoney(value: number) {
     return Math.round(value * 100) / 100
 }
 
+function PriceDisplay({ value }: { value: number }) {
+    const fixed = value.toFixed(2)
+    const [intPart, decPart] = fixed.split('.')
+    return (
+        <>
+            {Number(intPart).toLocaleString()}
+            <span style={{ fontSize: '0.5em' }}>.{decPart}</span>
+        </>
+    )
+}
+
 function getVehiclePricing(vehicle: RCMVehicle, days: number) {
     const safeDays = Math.max(days, 1)
     const baseRatePerDay = roundMoney(vehicle.avgrate)
@@ -747,23 +758,23 @@ export default function VehiclesPage() {
                                                             {selectable ? (
                                                                 <>
                                                                     <div className="text-[11px] text-muted mb-0.5">
-                                                                        ${pricing.effectivePerDay.toLocaleString()}/day × {days} days
+                                                                        $<PriceDisplay value={pricing.effectivePerDay} />/day × {days} days
                                                                         {searchForm.driverAge === 'under26' && (
                                                                             <span className="text-orange ml-1">+ Young Driver Fee</span>
                                                                         )}
                                                                     </div>
                                                                     {pricing.promoDiscount > 0 && (
                                                                         <div className="text-[11px] text-green-700 font-medium mb-1">
-                                                                            Promo {promoCode} applied · save ${pricing.promoDiscount.toLocaleString()}
+                                                                            Promo {promoCode} applied · save $<PriceDisplay value={pricing.promoDiscount} />
                                                                         </div>
                                                                     )}
                                                                     <div className="font-syne font-extrabold text-[1.8rem] text-navy leading-none">
-                                                                        <span className="text-[13px] font-bold">NZD</span>&nbsp;${pricing.discountedTotal.toLocaleString()}
+                                                                        <span className="text-[13px] font-bold">NZD</span>&nbsp;$<PriceDisplay value={pricing.discountedTotal} />
                                                                         <span className="text-[13px] font-normal text-muted ml-1">total</span>
                                                                     </div>
                                                                     {pricing.promoDiscount > 0 && (
                                                                         <div className="text-[11px] text-muted line-through mt-1">
-                                                                            ${pricing.baseTotal.toLocaleString()} original
+                                                                            $<PriceDisplay value={pricing.baseTotal} /> original
                                                                         </div>
                                                                     )}
                                                                 </>
