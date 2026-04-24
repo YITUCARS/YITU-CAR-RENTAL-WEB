@@ -43,6 +43,25 @@ function CallbackContent() {
         ) {
             setStatus('failed')
             setError('Payment was cancelled or failed. Please try again.')
+
+            // Notify mini program of failure so it can show retry UI
+            const inMiniProgram =
+                typeof window !== 'undefined' &&
+                (window as any).__wxjs_environment === 'miniprogram'
+            const inWeChat =
+                typeof navigator !== 'undefined' &&
+                /MicroMessenger/i.test(navigator.userAgent)
+
+            if (inMiniProgram || inWeChat) {
+                const wx = (window as any).wx
+                if (wx && wx.miniProgram) {
+                    setTimeout(() => {
+                        wx.miniProgram.navigateTo({
+                            url: `/pages/payment/result?success=false&reservationRef=${reservationRef}`
+                        })
+                    }, 2000)
+                }
+            }
             return
         }
 
@@ -52,6 +71,25 @@ function CallbackContent() {
             const query = new URLSearchParams()
             if (reservationRef) query.set('ref', reservationRef)
             if (reservationNo) query.set('no', reservationNo)
+
+            // If opened inside WeChat mini program web-view, navigate back there
+            const inMiniProgram =
+                typeof window !== 'undefined' &&
+                (window as any).__wxjs_environment === 'miniprogram'
+            const inWeChat =
+                typeof navigator !== 'undefined' &&
+                /MicroMessenger/i.test(navigator.userAgent)
+
+            if (inMiniProgram || inWeChat) {
+                const wx = (window as any).wx
+                if (wx && wx.miniProgram) {
+                    wx.miniProgram.navigateTo({
+                        url: `/pages/payment/result?${query.toString()}&success=true`
+                    })
+                    return
+                }
+            }
+
             router.push(`/booking/confirmation?${query.toString()}`)
         }, 2000)
     // eslint-disable-next-line react-hooks/exhaustive-deps
