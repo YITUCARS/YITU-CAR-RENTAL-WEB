@@ -51,6 +51,7 @@ export interface BookingState {
     lastName: string
     email: string
     phone: string
+    phoneDialCode: string
     flightNumber: string
     notes: string
 }
@@ -88,6 +89,7 @@ const defaultState: BookingState = {
     lastName: '',
     email: '',
     phone: '',
+    phoneDialCode: '+64',
     flightNumber: '',
     notes: '',
 }

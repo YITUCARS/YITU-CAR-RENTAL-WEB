@@ -152,7 +152,14 @@ function PaymentContent() {
                     firstName: freshBooking.firstName,
                     lastName: freshBooking.lastName,
                     email: freshBooking.email,
-                    phone: freshBooking.phone,
+                    phone: (() => {
+                        const raw = (freshBooking.phone || '').trim()
+                        if (raw.startsWith('+')) return raw.replace(/\s+/g, '')
+
+                        const dialCode = freshBooking.phoneDialCode || '+64'
+                        const localNumber = raw.replace(/\D/g, '').replace(/^0+/, '')
+                        return `${dialCode}${localNumber}`
+                    })(),
                     flightNumber: freshBooking.flightNumber,
                     notes: freshBooking.notes,
                     promoCode: freshBooking.promoCode,

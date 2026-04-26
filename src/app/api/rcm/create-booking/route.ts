@@ -3,6 +3,15 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { rcmCall, toRCMDate } from '@/lib/rcm'
 
+function normalizePhoneForRcm(phone: string) {
+  const display = (phone || '').trim().replace(/\s+/g, '')
+  const numeric = display.replace(/\D/g, '')
+  return {
+    display,
+    numeric,
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -24,6 +33,7 @@ export async function POST(req: NextRequest) {
     console.log('[create-booking FULL BODY]\n', JSON.stringify(body, null, 2))
 
     const ageid = driverAge === 'under26' ? 4 : 9
+    const customerPhone = normalizePhoneForRcm(phone || '')
 
     // Build optionalfees array from extras map { "18": 2, "22": 1 }
     const optionalFeesList: { id: number; qty: number }[] = Object.entries(extras || {})
@@ -60,7 +70,12 @@ export async function POST(req: NextRequest) {
         firstname: firstName,
         lastname: lastName,
         email,
-        phone1: phone,
+        phone: customerPhone.numeric,
+        mobile: customerPhone.numeric,
+        phone1: customerPhone.numeric,
+        phone2: customerPhone.numeric,
+        phn: customerPhone.numeric,
+        mob: customerPhone.numeric,
         dateofbirth: '',
         licenseno: '',
         state: '',
@@ -69,7 +84,7 @@ export async function POST(req: NextRequest) {
         address: '',
       },
       flightin: flightNumber || '',
-      remark: notes || '',
+      remark: [customerPhone.numeric ? `Phone: ${customerPhone.numeric}` : '', notes || ''].filter(Boolean).join(' | '),
     })
 
     console.log('[create-booking] RCM result keys:', Object.keys(result || {}))

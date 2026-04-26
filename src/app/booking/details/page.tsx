@@ -2,11 +2,92 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { User, Mail, Phone, Plane, MessageSquare } from 'lucide-react'
+import { User, Mail, Phone, Plane, MessageSquare, ChevronDown } from 'lucide-react'
 import { useBooking } from '@/lib/booking-context'
 import BookingFlowHeader from '@/components/booking/BookingFlowHeader'
 import Navbar from '@/components/layout/Navbar'
 import { useRef } from 'react'
+
+const DIAL_CODES = [
+    { key: 'NZ', dial: '+64',  flag: '🇳🇿', name: 'New Zealand' },
+    { key: 'AU', dial: '+61',  flag: '🇦🇺', name: 'Australia' },
+    { key: 'CN', dial: '+86',  flag: '🇨🇳', name: 'China' },
+    { key: 'HK', dial: '+852', flag: '🇭🇰', name: 'Hong Kong' },
+    { key: 'TW', dial: '+886', flag: '🇹🇼', name: 'Taiwan' },
+    { key: 'SG', dial: '+65',  flag: '🇸🇬', name: 'Singapore' },
+    { key: 'JP', dial: '+81',  flag: '🇯🇵', name: 'Japan' },
+    { key: 'KR', dial: '+82',  flag: '🇰🇷', name: 'South Korea' },
+    { key: 'IN', dial: '+91',  flag: '🇮🇳', name: 'India' },
+    { key: 'MY', dial: '+60',  flag: '🇲🇾', name: 'Malaysia' },
+    { key: 'ID', dial: '+62',  flag: '🇮🇩', name: 'Indonesia' },
+    { key: 'TH', dial: '+66',  flag: '🇹🇭', name: 'Thailand' },
+    { key: 'PH', dial: '+63',  flag: '🇵🇭', name: 'Philippines' },
+    { key: 'GB', dial: '+44',  flag: '🇬🇧', name: 'United Kingdom' },
+    { key: 'US', dial: '+1',   flag: '🇺🇸', name: 'United States' },
+    { key: 'CA', dial: '+1',   flag: '🇨🇦', name: 'Canada' },
+    { key: 'DE', dial: '+49',  flag: '🇩🇪', name: 'Germany' },
+    { key: 'FR', dial: '+33',  flag: '🇫🇷', name: 'France' },
+    { key: 'NL', dial: '+31',  flag: '🇳🇱', name: 'Netherlands' },
+    { key: 'CH', dial: '+41',  flag: '🇨🇭', name: 'Switzerland' },
+    { key: 'IT', dial: '+39',  flag: '🇮🇹', name: 'Italy' },
+    { key: 'ES', dial: '+34',  flag: '🇪🇸', name: 'Spain' },
+    { key: 'SE', dial: '+46',  flag: '🇸🇪', name: 'Sweden' },
+    { key: 'NO', dial: '+47',  flag: '🇳🇴', name: 'Norway' },
+    { key: 'DK', dial: '+45',  flag: '🇩🇰', name: 'Denmark' },
+    { key: 'AE', dial: '+971', flag: '🇦🇪', name: 'UAE' },
+    { key: 'ZA', dial: '+27',  flag: '🇿🇦', name: 'South Africa' },
+    { key: 'BR', dial: '+55',  flag: '🇧🇷', name: 'Brazil' },
+]
+
+function PhoneField({ phone, dialCode, dialKey, onPhoneChange, onDialChange, error }: {
+    phone: string
+    dialCode: string
+    dialKey: string
+    onPhoneChange: (val: string) => void
+    onDialChange: (key: string, dial: string) => void
+    error?: string
+}) {
+    const selected = DIAL_CODES.find(c => c.key === dialKey) || DIAL_CODES[0]
+    return (
+        <div>
+            <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">
+                Phone Number <span className="text-orange">*</span>
+            </label>
+            <div className={`flex items-stretch bg-off-white border rounded-xl overflow-hidden transition-colors
+                ${error ? 'border-red-400' : 'border-black/10 focus-within:border-orange'}`}>
+                <div className="relative flex items-center gap-1.5 px-3 border-r border-black/10 flex-shrink-0">
+                    <Phone size={14} className="text-muted" />
+                    <span className="text-[13px] font-medium text-navy whitespace-nowrap pointer-events-none">
+                        {selected.flag} {dialCode}
+                    </span>
+                    <ChevronDown size={11} className="text-muted pointer-events-none" />
+                    <select
+                        value={dialKey}
+                        onChange={e => {
+                            const c = DIAL_CODES.find(x => x.key === e.target.value)
+                            if (c) onDialChange(c.key, c.dial)
+                        }}
+                        className="absolute inset-0 opacity-0 w-full cursor-pointer"
+                        aria-label="Country code"
+                    >
+                        {DIAL_CODES.map(c => (
+                            <option key={c.key} value={c.key}>{c.flag} {c.dial} {c.name}</option>
+                        ))}
+                    </select>
+                </div>
+                <input
+                    type="tel"
+                    value={phone}
+                    onChange={e => onPhoneChange(e.target.value)}
+                    placeholder="21 000 0000"
+                    className="bg-transparent flex-1 text-[14px] text-navy outline-none placeholder:text-muted/60 px-4 py-3"
+                />
+            </div>
+            {error && <p className="text-red-500 text-[11px] mt-1">{error}</p>}
+        </div>
+    )
+}
+
 function Field({ label, icon: Icon, value, onChange, error, type = 'text', placeholder, required = false }: {
     label: string
     icon: any
@@ -46,8 +127,13 @@ export default function DetailsPage() {
         lastName: booking.lastName,
         email: booking.email,
         phone: booking.phone,
+        phoneDialCode: booking.phoneDialCode || '+64',
         flightNumber: booking.flightNumber,
         notes: booking.notes,
+    })
+    const [phoneDialKey, setPhoneDialKey] = useState(() => {
+        const dc = booking.phoneDialCode || '+64'
+        return DIAL_CODES.find(c => c.dial === dc)?.key || 'NZ'
     })
     const formRef = useRef(form)
     const [errors, setErrors] = useState<Record<string, string>>({})
@@ -59,9 +145,12 @@ export default function DetailsPage() {
             lastName: booking.lastName,
             email: booking.email,
             phone: booking.phone,
+            phoneDialCode: booking.phoneDialCode || '+64',
             flightNumber: booking.flightNumber,
             notes: booking.notes,
         })
+        const dc = booking.phoneDialCode || '+64'
+        setPhoneDialKey(DIAL_CODES.find(c => c.dial === dc)?.key || 'NZ')
     }, [booking, isHydrated])
     useEffect(() => {
         formRef.current = form
@@ -137,7 +226,17 @@ export default function DetailsPage() {
                                 <Field label="Last Name" icon={User} value={form.lastName} onChange={val => update('lastName', val)} error={errors.lastName} placeholder="Smith" required />
                             </div>
                             <Field label="Email Address" icon={Mail} type="email" value={form.email} onChange={val => update('email', val)} error={errors.email} placeholder="john@example.com" required />
-                            <Field label="Phone Number" icon={Phone} type="tel" value={form.phone} onChange={val => update('phone', val)} error={errors.phone} placeholder="+64 21 000 0000" required />
+                            <PhoneField
+                                phone={form.phone}
+                                dialCode={form.phoneDialCode}
+                                dialKey={phoneDialKey}
+                                onPhoneChange={val => update('phone', val)}
+                                onDialChange={(key, dial) => {
+                                    setPhoneDialKey(key)
+                                    update('phoneDialCode', dial)
+                                }}
+                                error={errors.phone}
+                            />
                             <Field label="Flight Number" icon={Plane} value={form.flightNumber} onChange={val => update('flightNumber', val)} placeholder="NZ123 (optional)" />
                             <div>
                                 <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">Notes</label>

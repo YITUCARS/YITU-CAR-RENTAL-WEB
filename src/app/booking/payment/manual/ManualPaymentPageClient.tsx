@@ -7,7 +7,7 @@ import { MessageCircle, CreditCard, Copy } from 'lucide-react'
 import Navbar from '@/components/layout/Navbar'
 import BookingFlowHeader from '@/components/booking/BookingFlowHeader'
 
-const WECHAT_ID = 'YituPrestigeCar'
+const WECHAT_ID = 'YITUPRESTIGECAR'
 
 export default function ManualPaymentPageClient() {
     const router = useRouter()
