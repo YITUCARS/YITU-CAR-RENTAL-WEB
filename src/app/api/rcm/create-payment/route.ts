@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     try {
         const { reservationRef, amount, payScenario } = await req.json()
 
-        // Build an absolute base URL so VostroPay can redirect back to us.
+        // Build an absolute base URL so the payment gateway can redirect back to us.
         // x-forwarded-host / x-forwarded-proto are set by Vercel / reverse proxies.
         const host =
             req.headers.get('x-forwarded-host') ||

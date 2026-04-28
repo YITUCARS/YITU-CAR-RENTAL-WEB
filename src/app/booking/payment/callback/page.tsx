@@ -65,9 +65,46 @@ function CallbackContent() {
             return
         }
 
-        // Payment confirmed by VostroPay — navigate to confirmation
-        setStatus('success')
-        setTimeout(() => {
+        async function confirmPaidFromRcm() {
+            for (let attempt = 0; attempt < 5; attempt += 1) {
+                const res = await fetch('/api/rcm/payment-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reservationRef }),
+                })
+                const data = await res.json()
+                if (data.success && data.paid) return true
+                await new Promise(resolve => setTimeout(resolve, 1500))
+            }
+            return false
+        }
+
+        confirmPaidFromRcm().then((paid) => {
+            if (!paid) {
+                setStatus('failed')
+                setError('Payment was not confirmed. If your bank shows a charge, please contact us with your booking number.')
+
+                const inMiniProgram =
+                    typeof window !== 'undefined' &&
+                    (window as any).__wxjs_environment === 'miniprogram'
+                const inWeChat =
+                    typeof navigator !== 'undefined' &&
+                    /MicroMessenger/i.test(navigator.userAgent)
+
+                if (inMiniProgram || inWeChat) {
+                    const wx = (window as any).wx
+                    if (wx && wx.miniProgram) {
+                        setTimeout(() => {
+                            wx.miniProgram.navigateTo({
+                                url: `/pages/payment/result?success=false&reservationRef=${reservationRef}`
+                            })
+                        }, 1200)
+                    }
+                }
+                return
+            }
+
+            setStatus('success')
             const query = new URLSearchParams()
             if (reservationRef) query.set('ref', reservationRef)
             if (reservationNo) query.set('no', reservationNo)
@@ -91,7 +128,10 @@ function CallbackContent() {
             }
 
             router.push(`/booking/confirmation?${query.toString()}`)
-        }, 2000)
+        }).catch((err) => {
+            setStatus('failed')
+            setError(err.message || 'Unable to confirm payment. Please contact us if your bank shows a charge.')
+        })
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 

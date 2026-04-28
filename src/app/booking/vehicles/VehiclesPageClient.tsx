@@ -757,7 +757,7 @@ export default function VehiclesPage() {
                                                         <div>
                                                             {selectable ? (
                                                                 <>
-                                                                    <div className="text-[11px] text-muted mb-0.5">
+                                                                    <div className="text-[16px] text-muted mb-0.5">
                                                                         $<PriceDisplay value={pricing.effectivePerDay} />/day × {days} days
                                                                         {searchForm.driverAge === 'under26' && (
                                                                             <span className="text-orange ml-1">+ Young Driver Fee</span>

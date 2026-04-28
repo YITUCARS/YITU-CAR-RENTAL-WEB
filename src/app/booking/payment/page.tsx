@@ -310,10 +310,10 @@ function PaymentContent() {
                             className="w-full flex items-center justify-center gap-2 bg-orange hover:bg-orange-dark text-white font-syne font-bold text-[15px] py-4 rounded-xl transition-all shadow-orange-glow disabled:opacity-60"
                         >
                             <CreditCard size={18} />
-                            {loading ? 'Processing...' : `Pay $${payAmount.toLocaleString()} NZD with VostroPay`}
+                            {loading ? 'Processing...' : `Pay $${payAmount.toLocaleString()} NZD`}
                         </button>
                         <p className="text-[11px] text-muted text-center mt-3">
-                            Securely redirected to VostroPay to complete your payment
+                            You will be securely redirected to complete your payment
                         </p>
                     </div>
 

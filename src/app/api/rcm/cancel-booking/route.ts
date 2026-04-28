@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     const refundLine = refundSuccess
       ? `✅ <b>Refund submitted automatically</b> ($${paidAmount.toFixed(2)} ${paymentType})`
       : paidAmount > 0
-        ? `⚠️ <b>Manual refund required: $${paidAmount.toFixed(2)} ${paymentType}</b>\nPlease process via VostroPay dashboard.\n<i>Auto-refund failed: ${refundError}</i>`
+        ? `⚠️ <b>Manual refund required: $${paidAmount.toFixed(2)} ${paymentType}</b>\nPlease process via payment gateway dashboard (Stripe).\n<i>Auto-refund failed: ${refundError}</i>`
         : `ℹ️ No deposit paid — no refund required`
 
     const message = [
