@@ -79,13 +79,7 @@ export default function GallerySection() {
                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-navy/60 via-transparent to-transparent opacity-90" />
-                  <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-4">
-                    <div className="text-white">
-                      <div className="text-[10px] uppercase tracking-[0.24em] text-white/70">{t('Gallery.label')}</div>
-                      <div className="mt-1 text-[13px] font-semibold">
-                        {t('Gallery.vehiclePhoto')} {String(index + 1).padStart(2, '0')}
-                      </div>
-                    </div>
+                  <div className="absolute inset-x-0 bottom-0 flex items-end justify-end p-4">
                     <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white backdrop-blur-sm">
                       <Expand size={15} />
                     </span>

@@ -10,6 +10,13 @@ function getSupabase() {
     return createClient(url, key)
 }
 
+function getWechatConfig() {
+    return {
+        appid: process.env.WX_APPID || process.env.WECHAT_APPID || process.env.WECHAT_MINI_APPID || process.env.NEXT_PUBLIC_WX_APPID,
+        secret: process.env.WX_APP_SECRET || process.env.WECHAT_APP_SECRET || process.env.WECHAT_MINI_APP_SECRET,
+    }
+}
+
 export async function POST(req: NextRequest) {
     try {
         const { code, nickName, avatarUrl } = await req.json()
@@ -17,10 +24,21 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Missing code' }, { status: 400 })
         }
 
-        const appid  = process.env.WX_APPID
-        const secret = process.env.WX_APP_SECRET
+        const { appid, secret } = getWechatConfig()
         if (!appid || !secret) {
-            return NextResponse.json({ error: 'WeChat credentials not configured' }, { status: 500 })
+            console.error('[wx/login] missing credentials:', {
+                hasAppid: !!appid,
+                hasSecret: !!secret,
+                expected: ['WX_APPID', 'WX_APP_SECRET'],
+                fallbackNames: ['WECHAT_APPID', 'WECHAT_APP_SECRET', 'WECHAT_MINI_APPID', 'WECHAT_MINI_APP_SECRET', 'NEXT_PUBLIC_WX_APPID'],
+            })
+            return NextResponse.json({
+                error: 'WeChat credentials not configured',
+                missing: {
+                    appid: !appid,
+                    secret: !secret,
+                },
+            }, { status: 500 })
         }
 
         const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${appid}&secret=${secret}&js_code=${code}&grant_type=authorization_code`

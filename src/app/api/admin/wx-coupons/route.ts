@@ -28,8 +28,8 @@ function randomCode(discountValue: number) {
 }
 
 async function getAccessToken() {
-  const appid = process.env.WX_APPID
-  const secret = process.env.WX_APP_SECRET
+  const appid = process.env.WX_APPID || process.env.WECHAT_APPID || process.env.WECHAT_MINI_APPID || process.env.NEXT_PUBLIC_WX_APPID
+  const secret = process.env.WX_APP_SECRET || process.env.WECHAT_APP_SECRET || process.env.WECHAT_MINI_APP_SECRET
   if (!appid || !secret) return ''
   const res = await fetch(`https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${appid}&secret=${secret}`)
   const data = await res.json()

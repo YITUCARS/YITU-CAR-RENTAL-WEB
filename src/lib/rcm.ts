@@ -1,7 +1,7 @@
 import crypto from 'crypto'
 
-function getBaseUrl() {
-    return `https://apis.rentalcarmanager.com/booking/v3.2/?apikey=${process.env.RCM_API_KEY}`
+function getBaseUrl(apiKey = process.env.RCM_API_KEY) {
+    return `https://apis.rentalcarmanager.com/booking/v3.2/?apikey=${apiKey}`
 }
 
 function createSignature(body: string): string {
@@ -12,11 +12,11 @@ function createSignature(body: string): string {
         .toUpperCase()
 }
 
-async function postToRCM(bodyObj: Record<string, any>) {
+async function postToRCM(bodyObj: Record<string, any>, apiKey?: string) {
     const body = JSON.stringify(bodyObj)
     const signature = createSignature(body)
 
-    const res = await fetch(getBaseUrl(), {
+    const res = await fetch(getBaseUrl(apiKey), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -142,6 +142,10 @@ export function toRCMDate(date: string): string {
 
 export async function rcmCall(method: string, params: Record<string, any> = {}) {
     return postToRCM({ method, ...params })
+}
+
+export async function rcmCallWithApiKey(apiKey: string, method: string, params: Record<string, any> = {}) {
+    return postToRCM({ method, ...params }, apiKey)
 }
 
 export async function rcmCreatePaymentTransaction(params: {

@@ -2,9 +2,12 @@ create table if not exists public.wx_users (
   openid text primary key,
   nick_name text,
   avatar_url text,
+  admin_note text,
   created_at timestamptz not null default now(),
   last_login_at timestamptz not null default now()
 );
+
+alter table public.wx_users add column if not exists admin_note text;
 
 create table if not exists public.wx_user_coupons (
   id uuid primary key default gen_random_uuid(),
@@ -20,3 +23,9 @@ create table if not exists public.wx_user_coupons (
 
 create index if not exists wx_user_coupons_openid_idx on public.wx_user_coupons(openid);
 create index if not exists wx_user_coupons_code_idx on public.wx_user_coupons(code);
+
+alter table public.wx_user_bookings add column if not exists cny_rate numeric;
+alter table public.wx_user_bookings add column if not exists cny_deposit numeric;
+alter table public.wx_user_bookings add column if not exists rate_date text;
+alter table public.wx_user_bookings add column if not exists status text default 'created';
+alter table public.wx_user_bookings add column if not exists promo_code text;
