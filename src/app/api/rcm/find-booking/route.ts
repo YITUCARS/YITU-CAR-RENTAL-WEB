@@ -5,7 +5,9 @@ import { rcmCall } from '@/lib/rcm'
 
 export async function POST(req: NextRequest) {
   try {
-    const { reservationRef, lastName } = await req.json()
+    const body = await req.json()
+    const reservationRef = body.reservationRef || body.ref
+    const lastName = body.lastName || body.name
 
     if (!reservationRef || !lastName) {
       return NextResponse.json(
