@@ -36,18 +36,18 @@ const SECTION_DEFINITIONS: SectionDefinition[] = [
     id: 'infringement-offences',
     title: '4. 违规事项',
     start: '4 违规事项',
-    end: '5 损坏保障与损坏责任费（DLF）的支付',
+    end: '5 损坏保障与损坏责任费（DLF）或起赔额的支付',
   },
   {
     id: 'damage-cover-dlf',
-    title: '5. 损坏保障与损坏责任费（DLF）的支付',
-    start: '5 损坏保障与损坏责任费（DLF）的支付',
-    end: '6 损坏保障排除事项',
+    title: '5. 损坏保障与损坏责任费（DLF）或起赔额的支付',
+    start: '5 损坏保障与损坏责任费（DLF）或起赔额的支付',
+    end: '6 损坏保障排除事项（例如：易途超级保障）',
   },
   {
     id: 'damage-cover-exclusions',
-    title: '6. 损坏保障排除事项',
-    start: '6 损坏保障排除事项',
+    title: '6. 损坏保障排除事项（例如：易途超级保障）',
+    start: '6 损坏保障排除事项（例如：易途超级保障）',
     end: '7 客户自有保险',
   },
   {
@@ -148,6 +148,16 @@ function ChineseLegalText({text}: {text: string}) {
           <p key={index} className="text-[14.5px] text-muted leading-[1.8] mb-4">
             <strong className="font-semibold text-navy">{match[1]} </strong>
             {normalizeParagraph(match[2])}
+          </p>
+        )
+      }
+
+      const definitionMatch = line.match(/^(“[^”]+”)(.+)$/)
+      if (definitionMatch) {
+        return (
+          <p key={index} className="text-[14.5px] text-muted leading-[1.8] mb-4">
+            <strong className="font-semibold text-navy">{definitionMatch[1]}</strong>
+            {normalizeParagraph(definitionMatch[2])}
           </p>
         )
       }

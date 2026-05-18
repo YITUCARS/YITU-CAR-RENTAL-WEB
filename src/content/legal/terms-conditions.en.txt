@@ -39,9 +39,9 @@ towing and salvage fees;
 assessing fees;and
 (d)
 Loss of Use.
-Damage Cover Product
- means a product You may purchase at the Start of Rental at extra cost to reduce Your DLF liability.
-Damage Liability Fee (DLF)
+Damage Cover Product (e.g. YITU Super Cover)
+ means a product You may purchase at the Start of Rental at extra cost to reduce Your DLF or excess fee liability.
+Damage Liability Fee (DLF or excess fee)
  means the amount shown in the Rental Agreement You must pay Us in the event of Damage, theft of the Vehicle or Third-Party
 Loss, subject to these Terms and Conditions. The amount payable includes the Claims Administration Fee.
 Debit Card
@@ -179,7 +179,7 @@ You must also pay for any fuel used for the delivery and collection service.
 You as soon as practicable.
 If a refund is due to You, it will be credited to Your YITU Prestige Account.
 If any amount is due to Us You authorise Us to charge Your
-YITU Prestige Account with that amount, including an amount up to the DLF and any amounts payable under clauses 4.1, 6.1 to 6.4 (inclusive).
+YITU Prestige Account with that amount, including an amount up to the DLF or excess fee and any amounts payable under clauses 4.1, 6.1 to 6.4 (inclusive).
 These charges may
 be made at any time during or after the end of the Rental Period.
 3.7
@@ -227,10 +227,10 @@ administration fee if We do.
 notified You of the receipt of an infringement notice from any such authority. If We have paid any amount for which You are liable under clause 4.1 You will also be
 charged that amount together with an administration fee.
 5
- Damage Cover and payment of the Damage Liability Fee (DLF)
+ Damage Cover and payment of the Damage Liability Fee (DLF or excess fee)
 5.1
  If there is Damage, theft of the Vehicle or Third-Party Loss for each separate claim You must pay
-up to the DLF shown in the Rental Agreement unless
+up to the DLF or excess fee shown in the Rental Agreement unless
 Your Rental Contract is for Customer Own Insurance.
 5.2
  You may make Your own insurance arrangements but if We are not satisfied that Your insurance cover is comparable to the cover We offer We may refuse
@@ -243,9 +243,9 @@ If You make Your own insurance arrangements, you accept that You are liable for 
 (c)
  Third Party Loss.
 5.3
- Subject to clause 6, Your DLF liability is reduced if You have purchased a Damage Cover Product.
+ Subject to clause 6, Your DLF or excess fee liability is reduced if You have purchased a Damage Cover Product (e.g. YITU Super Cover).
 5.4
- You will not have to pay the DLF shown in the Rental Agreement for a claim if acting reasonably We agree that You were not at fault and:
+ You will not have to pay the DLF or excess fee shown in the Rental Agreement for a claim if acting reasonably We agree that You were not at fault and:
 (a)
  You are ordinarily a New Zealand resident;
 (b)
@@ -264,14 +264,14 @@ If You make Your own insurance arrangements, you accept that You are liable for 
  You have supplied, or We have established the name of the insurer of any Third Party You believe was at fault and We reasonably believe that the insurer
 will agree to pay Us for the Damage.
 5.5
- If the DLF is payable under clause 5.1:
+ If the DLF or excess fee is payable under clause 5.1:
 (a)
  upon inspection of the Vehicle We may make a reasonable estimate of Damage and debit Your YITU Prestige Account that estimated amount up to but not
-exceeding the DLF shown in Your Rental Agreement; and
+exceeding the DLF or excess fee shown in Your Rental Agreement; and
 (b)
  once Damage has been assessed We will:
 (I)
- debit Your YITU Prestige Account with the difference up to a total amount not exceeding the DLF shown in Your Rental Agreement if the assessed amount is
+ debit Your YITU Prestige Account with the difference up to a total amount not exceeding the DLF or excess fee shown in Your Rental Agreement if the assessed amount is
 greater than the estimate; or
 (ii)
  credit Your YITU Prestige Account with the difference if the assessed amount is less than the estimate, and forward to You a tax invoice for the assessed
@@ -282,29 +282,29 @@ amount;
  debit Your YITU Prestige Account for that estimate; or
 (ii)
  if an amount has already been debited under subclauses (a) or (b), debit Your YITU Prestige Account for the additional amount of that estimate, up to but
-not exceeding the DLF shown in the Rental Agreement.
+not exceeding the DLF or excess fee shown in the Rental Agreement.
 5.6
  We will refund:
 (a)
- the DLF paid pursuant to clause 5.5:
+ the DLF or excess fee paid pursuant to clause 5.5:
 (I)
  in full if We recover the Damage from a responsible third party or their insurer or successfully reject or defend a claim for Third Party Loss; or
 (ii)
  on a pro rata basis if We recover only a proportion of any amount claimed for Damage; or
 (b)
- any surplus amount if a claim for Third Party Loss is rejected or defended for an amount less than the DLF paid pursuant to clause 5.5(c).
+ any surplus amount if a claim for Third Party Loss is rejected or defended for an amount less than the DLF or excess fee paid pursuant to clause 5.5(c).
 5.7
  In making a refund We may consider all reasonable administrative, collection agency and legal costs incurred in connection with the recovery of the
 Damage cost or rejection or defence of a claim for Third Party Loss.
 6
- Exclusions to Damage Cover
+ Exclusions to Damage Cover (e.g. YITU Super Cover)
 6.1
- You have no cover if there is a Serious Breach of the Rental Contract even if a Damage Cover Product has been purchased and the DLF has been paid.
+ You have no cover if there is a Serious Breach of the Rental Contract even if a Damage Cover Product (e.g. YITU Super Cover) has been purchased and the DLF or excess fee has been paid.
 6.2
- You have no cover for Damage to the Vehicle’s windscreen, headlights, wheels or tyres unless You have purchased Go Zen.
+ You have no cover for Damage to the Vehicle’s windscreen, headlights, wheels or tyres unless You have purchased YITU Super Cover.
 
 6.3
- Even if You purchase a Damage Cover Product and You pay the DLF You have no cover for:
+ Even if You purchase a Damage Cover Product (e.g. YITU Super Cover) and You pay the DLF or excess fee You have no cover for:
 (a)
  Damage or Third-Party Loss:
 (I)
@@ -567,7 +567,7 @@ disrupted travel or holiday plans, loss of enjoyment or opportunity, indirect or
 10
  Roadside Assistance, breakdown, accident & repair
 10.1
- Free roadside assistance is provided for inherent mechanical faults in the Vehicle, but fees and charges apply for all other faults
+ Free roadside assistance is provided for inherent mechanical faults in the Vehicle, but fees and charges may apply for all other faults
 or driver induced errors.
 Generally, these fees and charges range from $45 plus GST to $600 plus GST and apply to faults and driver induced errors such as:
 (a)
@@ -579,7 +579,7 @@ Generally, these fees and charges range from $45 plus GST to $600 plus GST and a
 (d)
  changing a wheel as the result of a flat tyre.
 10.2
- Roadside Assistance Cover may be purchased to provide cover for:
+ Roadside Assistance Cover (included in YITU Super Cover) provides cover for:
 (a)
  refuelling the Vehicle when You have run out of fuel with up to 6 litres of fuel;
 (b)
@@ -768,7 +768,7 @@ Fax:
 15
  Privacy Policy
 15.1
- The terms of Our Privacy Policy (available at www.YITU Prestige.co.nz) form part of these terms and conditions. Our Privacy Policy sets out how We
+ The terms of Our Privacy Policy (available at www.yiturentalcars.co.nz) form part of these terms and conditions. Our Privacy Policy sets out how We
 collect, use, store and disclose Your personal information.
 15.2
  If We do not collect Personal Information from You, we will not be able to rent You a Vehicle and if any of the Personal Information You provide is

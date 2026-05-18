@@ -36,18 +36,18 @@ const SECTION_DEFINITIONS: SectionDefinition[] = [
     id: 'infringement-offences',
     title: '4. Infringement Offences',
     start: '4\n Infringement offences',
-    end: '5\n Damage Cover and payment of the Damage Liability Fee (DLF)',
+    end: '5\n Damage Cover and payment of the Damage Liability Fee (DLF or excess fee)',
   },
   {
     id: 'damage-cover-dlf',
-    title: '5. Damage Cover and Payment of the Damage Liability Fee (DLF)',
-    start: '5\n Damage Cover and payment of the Damage Liability Fee (DLF)',
-    end: '6\n Exclusions to Damage Cover',
+    title: '5. Damage Cover and Payment of the Damage Liability Fee (DLF or Excess Fee)',
+    start: '5\n Damage Cover and payment of the Damage Liability Fee (DLF or excess fee)',
+    end: '6\n Exclusions to Damage Cover (e.g. YITU Super Cover)',
   },
   {
     id: 'damage-cover-exclusions',
-    title: '6. Exclusions to Damage Cover',
-    start: '6\n Exclusions to Damage Cover',
+    title: '6. Exclusions to Damage Cover (e.g. YITU Super Cover)',
+    start: '6\n Exclusions to Damage Cover (e.g. YITU Super Cover)',
     end: '7\n Customer Own Insurance',
   },
   {
@@ -150,11 +150,21 @@ function isBulletMarker(line: string) {
   return /^\([a-zivx]+\)$/i.test(line)
 }
 
+function isDefinitionTerm(line: string, nextLine?: string) {
+  return (
+    Boolean(nextLine?.startsWith('means')) &&
+    !isClauseNumber(line) &&
+    !isSectionNumber(line) &&
+    !isBulletMarker(line)
+  )
+}
+
 function shouldStopParagraph(line: string, nextLine?: string) {
   return (
     !line ||
     isClauseNumber(line) ||
     isBulletMarker(line) ||
+    isDefinitionTerm(line, nextLine) ||
     (isSectionNumber(line) && Boolean(nextLine))
   )
 }
@@ -186,6 +196,28 @@ function EnglishLegalText({text}: {text: string}) {
     if (isClauseNumber(line)) {
       pendingClause = line
       index += 1
+      continue
+    }
+
+    if (isDefinitionTerm(line, nextLine)) {
+      const term = line
+      const definitionLines: string[] = []
+      index += 1
+
+      while (
+        index < lines.length &&
+        !shouldStopParagraph(lines[index], lines[index + 1])
+      ) {
+        definitionLines.push(lines[index])
+        index += 1
+      }
+
+      nodes.push(
+        <p key={`definition-${index}`} className="text-[14.5px] text-muted leading-[1.8] mb-4">
+          <strong className="font-semibold text-navy">{term} </strong>
+          {normalizeParagraph(definitionLines)}
+        </p>
+      )
       continue
     }
 
