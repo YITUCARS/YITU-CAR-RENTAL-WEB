@@ -12,48 +12,100 @@ function getSupabase() {
 }
 
 function normalizeStatus(info: any, fallback = 'created') {
+    const bookingInfo = Array.isArray(info?.bookinginfo) ? info.bookinginfo[0] : info?.bookinginfo
     const raw = String(
         info?.status ??
         info?.bookingstatus ??
         info?.booking_status ??
         info?.reservationstatus ??
+        bookingInfo?.status ??
+        bookingInfo?.bookingstatus ??
+        bookingInfo?.booking_status ??
+        bookingInfo?.reservationstatus ??
         fallback
     ).toLowerCase()
 
     if (raw.includes('cancel')) return 'cancelled'
     if (raw.includes('complete') || raw.includes('closed')) return 'completed'
+    if (raw.includes('hired') || raw.includes('hire')) return 'hired'
+    if (raw.includes('reservation request')) return 'reservation_request'
+    if (raw === 'reservation' || raw.includes('reservation')) return 'reservation'
     if (raw.includes('confirm')) return 'confirmed'
     if (raw.includes('pending') || raw.includes('quote')) return 'pending'
     return raw || fallback
 }
 
 function getDisplayReservationNo(info: any) {
+    const bookingInfo = Array.isArray(info?.bookinginfo) ? info.bookinginfo[0] : info?.bookinginfo
     const value =
         info?.reservationno ??
         info?.reservationNo ??
+        info?.reservation_no ??
         info?.reservationdocumentno ??
         info?.reservationDocumentNo ??
         info?.documentno ??
         info?.documentNo ??
         info?.refno ??
+        bookingInfo?.reservationno ??
+        bookingInfo?.reservationNo ??
+        bookingInfo?.reservation_no ??
+        bookingInfo?.reservationdocumentno ??
+        bookingInfo?.reservationDocumentNo ??
+        bookingInfo?.documentno ??
+        bookingInfo?.documentNo ??
+        bookingInfo?.refno ??
         ''
-    return value ? String(value) : ''
+    return value ? String(value).replace(/^#/, '') : ''
 }
 
-async function fetchRcmSnapshot(reservationRef: string, lastName: string, fallbackStatus: string) {
-    if (!reservationRef || !lastName) return { status: fallbackStatus || 'created', reservationNo: '' }
+function cleanRef(value: any) {
+    return String(value || '').trim().replace(/^#/, '')
+}
+
+async function tryBookingInfo(params: Record<string, any>, label: string) {
     try {
-        const info = await rcmCall('bookinginfo', {
-            reservationref: reservationRef,
-            lastname: lastName,
-        })
-        return {
-            status: normalizeStatus(info, fallbackStatus),
-            reservationNo: getDisplayReservationNo(info),
-        }
+        const info = await rcmCall('bookinginfo', params)
+        console.log(`[wx/bookings] RCM snapshot ${label} succeeded`)
+        return info
     } catch (err: any) {
-        console.warn('[wx/bookings] RCM snapshot sync failed:', reservationRef, err.message)
-        return { status: fallbackStatus || 'created', reservationNo: '' }
+        console.warn(`[wx/bookings] RCM snapshot ${label} failed:`, err.message)
+        return null
+    }
+}
+
+async function fetchRcmSnapshot(reservationRef: string, lastName: string, fallbackStatus: string, reservationNo = '') {
+    if (!reservationRef || !lastName) return { status: fallbackStatus || 'created', reservationNo: '', found: false }
+
+    const alphaRefs = Array.from(new Set([cleanRef(reservationRef), cleanRef(reservationNo)].filter(Boolean)))
+    const numericRefs = alphaRefs.filter((value) => {
+        const n = Number(value)
+        return Number.isFinite(n) && n > 0
+    })
+
+    let info: any = null
+    for (const value of alphaRefs) {
+        info =
+            (await tryBookingInfo({ reservationref: value, lastname: lastName }, 'reservationref+lastname')) ||
+            (await tryBookingInfo({ bookingref: value, lastname: lastName }, 'bookingref+lastname')) ||
+            (await tryBookingInfo({ refno: value, lastname: lastName }, 'refno+lastname'))
+        if (info) break
+    }
+
+    if (!info) {
+        for (const value of numericRefs) {
+            info = await tryBookingInfo({ reservationno: Number(value), lastname: lastName }, 'reservationno+lastname')
+            if (info) break
+        }
+    }
+
+    if (!info) {
+        return { status: fallbackStatus || 'created', reservationNo: '', found: false }
+    }
+
+    return {
+        status: normalizeStatus(info, fallbackStatus),
+        reservationNo: getDisplayReservationNo(info),
+        found: true,
     }
 }
 
@@ -79,7 +131,8 @@ export async function GET(req: NextRequest) {
             const snapshot = await fetchRcmSnapshot(
                 booking.reservation_ref,
                 booking.lastname,
-                currentStatus
+                currentStatus,
+                booking.reservation_no || ''
             )
             const latestStatus = snapshot.status
             const latestReservationNo = snapshot.reservationNo || booking.reservation_no || ''
@@ -122,7 +175,7 @@ export async function POST(req: NextRequest) {
             pickupLocation, dropoffLocation,
             pickupDate, dropoffDate, pickupTime, dropoffTime,
             totalPrice, deposit, firstname, lastname,
-            cnyRate, cnyDeposit, rateDate, status, promoCode, reservationNo, action
+            cnyRate, cnyDeposit, rateDate, status, promoCode, reservationNo, priceBreakdown, action
         } = body
 
         if (!openid || !reservationRef) {
@@ -170,6 +223,7 @@ export async function POST(req: NextRequest) {
             status: status || 'created',
             promo_code: promoCode || null,
             reservation_no: reservationNo || null,
+            price_breakdown: Array.isArray(priceBreakdown) ? priceBreakdown : null,
         }
 
         // Upsert — avoid duplicate entries if user retries
@@ -177,7 +231,7 @@ export async function POST(req: NextRequest) {
             .from('wx_user_bookings')
             .upsert(extendedPayload, { onConflict: 'openid,reservation_ref' })
 
-        if (error && /cny_rate|cny_deposit|rate_date|status|promo_code|reservation_no/.test(error.message || '')) {
+        if (error && /cny_rate|cny_deposit|rate_date|status|promo_code|reservation_no|price_breakdown/.test(error.message || '')) {
             console.warn('[wx/bookings POST] extended columns unavailable, retrying base payload')
             const fallback = await getSupabase()
                 .from('wx_user_bookings')

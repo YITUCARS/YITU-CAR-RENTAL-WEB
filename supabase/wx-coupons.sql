@@ -30,3 +30,4 @@ alter table public.wx_user_bookings add column if not exists rate_date text;
 alter table public.wx_user_bookings add column if not exists status text default 'created';
 alter table public.wx_user_bookings add column if not exists promo_code text;
 alter table public.wx_user_bookings add column if not exists reservation_no text;
+alter table public.wx_user_bookings add column if not exists price_breakdown jsonb;

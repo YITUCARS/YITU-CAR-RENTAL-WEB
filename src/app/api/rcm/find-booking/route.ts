@@ -3,10 +3,26 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { rcmCall } from '@/lib/rcm'
 
+function normalizeRef(value: any) {
+  return String(value || '').trim().replace(/^#/, '')
+}
+
+async function tryBookingInfo(params: Record<string, any>, label: string) {
+  try {
+    const info = await rcmCall('bookinginfo', params)
+    console.log(`[find-booking] ${label} succeeded`)
+    return info
+  } catch (err: any) {
+    console.log(`[find-booking] ${label} failed:`, err.message)
+    return null
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const reservationRef = body.reservationRef || body.ref
+    const reservationRef = body.reservationRef || body.ref || body.bookingReference || body.bookingRef
+    const reservationNo = body.reservationNo || body.reservationno
     const lastName = body.lastName || body.name
 
     if (!reservationRef || !lastName) {
@@ -16,58 +32,44 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const ref = reservationRef.trim()
-    const name = lastName.trim()
+    const ref = normalizeRef(reservationRef)
+    const no = normalizeRef(reservationNo)
+    const name = String(lastName || '').trim()
 
     let info: any = null
 
-    // Attempt 1: reservationref (long alphanumeric like 001912BA8D6420D) + lastname
-    try {
-      info = await rcmCall('bookinginfo', { reservationref: ref, lastname: name })
-      console.log('[find-booking] attempt 1 (reservationref+lastname) succeeded')
-    } catch (e1: any) {
-      console.log('[find-booking] attempt 1 failed:', e1.message)
+    const numericRefs = Array.from(new Set([ref, no].filter(Boolean))).filter((value) => {
+      const n = Number(value)
+      return Number.isFinite(n) && n > 0
+    })
 
-      // Attempt 2: reservationno as number + lastname (for short numeric booking numbers)
-      const asNumber = Number(ref)
-      if (Number.isFinite(asNumber) && asNumber > 0) {
-        try {
-          info = await rcmCall('bookinginfo', { reservationno: asNumber, lastname: name })
-          console.log('[find-booking] attempt 2 (reservationno+lastname) succeeded')
-        } catch (e2: any) {
-          console.log('[find-booking] attempt 2 failed:', e2.message)
-        }
-      }
+    const alphaRefs = Array.from(new Set([ref, no].filter(Boolean)))
+    for (const value of alphaRefs) {
+      info =
+        (await tryBookingInfo({ reservationref: value, lastname: name }, 'reservationref+lastname')) ||
+        (await tryBookingInfo({ bookingref: value, lastname: name }, 'bookingref+lastname')) ||
+        (await tryBookingInfo({ refno: value, lastname: name }, 'refno+lastname')) ||
+        (await tryBookingInfo({ reservationref: value, email: name }, 'reservationref+email')) ||
+        (await tryBookingInfo({ bookingref: value, email: name }, 'bookingref+email')) ||
+        (await tryBookingInfo({ refno: value, email: name }, 'refno+email'))
+      if (info) break
+    }
 
-      // Attempt 3: reservationref + email (in case API uses email not lastname)
-      if (!info) {
-        try {
-          info = await rcmCall('bookinginfo', { reservationref: ref, email: name })
-          console.log('[find-booking] attempt 3 (reservationref+email) succeeded')
-        } catch (e3: any) {
-          console.log('[find-booking] attempt 3 failed:', e3.message)
-        }
+    if (!info) {
+      for (const value of numericRefs) {
+        const n = Number(value)
+        info =
+          (await tryBookingInfo({ reservationno: n, lastname: name }, 'reservationno+lastname')) ||
+          (await tryBookingInfo({ reservationno: n, email: name }, 'reservationno+email'))
+        if (info) break
       }
+    }
 
-      // Attempt 4: reservationno + email
-      if (!info) {
-        const asNumber = Number(ref)
-        if (Number.isFinite(asNumber) && asNumber > 0) {
-          try {
-            info = await rcmCall('bookinginfo', { reservationno: asNumber, email: name })
-            console.log('[find-booking] attempt 4 (reservationno+email) succeeded')
-          } catch (e4: any) {
-            console.log('[find-booking] attempt 4 failed:', e4.message)
-          }
-        }
-      }
-
-      if (!info) {
-        return NextResponse.json(
-          { success: false, error: 'No booking found. Please check your booking number and last name.' },
-          { status: 404 }
-        )
-      }
+    if (!info) {
+      return NextResponse.json(
+        { success: false, error: 'No booking found. Please check your booking number and last name.' },
+        { status: 404 }
+      )
     }
 
     // Validate last name against what the booking actually has

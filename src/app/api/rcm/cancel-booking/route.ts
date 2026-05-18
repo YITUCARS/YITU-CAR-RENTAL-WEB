@@ -3,6 +3,10 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { rcmCall } from '@/lib/rcm'
 
+function cleanRef(value: any) {
+  return String(value || '').trim().replace(/^#/, '')
+}
+
 async function sendTelegramAlert(text: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN
   const chatId = process.env.TELEGRAM_CHAT_ID
@@ -18,6 +22,7 @@ export async function POST(req: NextRequest) {
   try {
     const {
       reservationRef,
+      reservationNo,
       cancelReasonId,
       notes,
       // booking & customer details passed from frontend for notifications
@@ -30,11 +35,22 @@ export async function POST(req: NextRequest) {
     }
 
     // Step 1: Cancel the booking in RCM
-    await rcmCall('cancelbooking', {
-      reservationref: reservationRef,
-      reasonid: cancelReasonId ?? 0,
-      notes: notes || '',
-    })
+    try {
+      await rcmCall('cancelbooking', {
+        reservationref: cleanRef(reservationRef),
+        reasonid: cancelReasonId ?? 0,
+        notes: notes || '',
+      })
+    } catch (firstErr: any) {
+      const asNumber = Number(cleanRef(reservationNo))
+      if (!Number.isFinite(asNumber) || asNumber <= 0) throw firstErr
+      console.warn('[cancel-booking] reservationref cancel failed, retrying reservationno:', firstErr.message)
+      await rcmCall('cancelbooking', {
+        reservationno: asNumber,
+        reasonid: cancelReasonId ?? 0,
+        notes: notes || '',
+      })
+    }
 
     // Step 2: Attempt automatic refund via RCM payment transaction
     let refundSuccess = false
