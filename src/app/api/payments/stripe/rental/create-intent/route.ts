@@ -35,8 +35,9 @@ export async function POST(req: NextRequest) {
     params.set('metadata[rcm_reservation_ref]', reservationRef)
     params.set('metadata[source]', 'yitu_car_rental_app')
     params.set('automatic_payment_methods[enabled]', 'true')
-    const email = String(body.email || '').trim()
-    if (email) params.set('receipt_email', email)
+    // Do not pass receipt_email here. App-entered emails can contain invisible
+    // whitespace or be non-final customer contact data, and Stripe rejects the
+    // whole PaymentIntent for an invalid receipt_email.
 
     const stripeRes = await fetch('https://api.stripe.com/v1/payment_intents', {
       method: 'POST',
@@ -49,8 +50,17 @@ export async function POST(req: NextRequest) {
 
     const data = await stripeRes.json()
     if (!stripeRes.ok) {
+      console.error('[stripe rental create-intent] Stripe error:', JSON.stringify(data?.error || data))
       return NextResponse.json(
-        { success: false, error: data?.error?.message || 'Stripe create intent failed.' },
+        {
+          success: false,
+          error: data?.error?.message || 'Stripe create intent failed.',
+          stripeError: {
+            type: data?.error?.type || '',
+            code: data?.error?.code || '',
+            param: data?.error?.param || '',
+          },
+        },
         { status: stripeRes.status },
       )
     }
