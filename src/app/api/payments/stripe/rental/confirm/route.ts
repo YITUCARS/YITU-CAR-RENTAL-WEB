@@ -3,9 +3,23 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { rcmCall } from '@/lib/rcm'
 
-function getStripeSecretKey() {
-  const key = process.env.STRIPE_SECRET_KEY
-  if (!key) throw new Error('Missing STRIPE_SECRET_KEY.')
+function normalizeStripeMode(value: unknown) {
+  const mode = String(value || '').toLowerCase()
+  return mode === 'live' || mode === 'production' ? 'live' : 'test'
+}
+
+function getStripeSecretKey(mode: string) {
+  const key =
+    mode === 'live'
+      ? process.env.STRIPE_LIVE_SECRET_KEY
+      : process.env.STRIPE_TEST_SECRET_KEY || process.env.STRIPE_SECRET_KEY
+  if (!key) {
+    throw new Error(
+      mode === 'live'
+        ? 'Missing STRIPE_LIVE_SECRET_KEY.'
+        : 'Missing STRIPE_TEST_SECRET_KEY.',
+    )
+  }
   return key
 }
 
@@ -22,14 +36,17 @@ function asMoneyFromCents(value: unknown) {
   return Math.round(cents) / 100
 }
 
-async function retrievePaymentIntent(paymentIntentId: string) {
+async function retrievePaymentIntent(
+  paymentIntentId: string,
+  stripeMode: string,
+) {
   const params = new URLSearchParams()
   params.append('expand[]', 'latest_charge')
   const stripeRes = await fetch(
     `https://api.stripe.com/v1/payment_intents/${encodeURIComponent(paymentIntentId)}?${params.toString()}`,
     {
       headers: {
-        Authorization: `Bearer ${getStripeSecretKey()}`,
+        Authorization: `Bearer ${getStripeSecretKey(stripeMode)}`,
       },
     },
   )
@@ -43,7 +60,10 @@ async function retrievePaymentIntent(paymentIntentId: string) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const paymentIntentId = String(body.paymentIntentId || body.payment_intent_id || '').trim()
+    const stripeMode = normalizeStripeMode(body.stripeMode || body.mode)
+    const paymentIntentId = String(
+      body.paymentIntentId || body.payment_intent_id || '',
+    ).trim()
     if (!paymentIntentId) {
       return NextResponse.json(
         { success: false, error: 'Missing paymentIntentId.' },
@@ -51,7 +71,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const pi = await retrievePaymentIntent(paymentIntentId)
+    const pi = await retrievePaymentIntent(paymentIntentId, stripeMode)
     if (pi.status !== 'succeeded') {
       return NextResponse.json(
         { success: false, error: `Stripe payment is ${pi.status}.` },
@@ -68,9 +88,13 @@ export async function POST(req: NextRequest) {
     if (!reservationRef) throw new Error('Missing RCM reservation reference.')
 
     const amount = asMoneyFromCents(pi.amount_received || pi.amount)
-    const brand = String(card?.brand || charge?.payment_method_details?.type || 'STRIPE').toUpperCase()
+    const brand = String(
+      card?.brand || charge?.payment_method_details?.type || 'STRIPE',
+    ).toUpperCase()
     const last4 = String(card?.last4 || '')
-    const expMonth = card?.exp_month ? String(card.exp_month).padStart(2, '0') : ''
+    const expMonth = card?.exp_month
+      ? String(card.exp_month).padStart(2, '0')
+      : ''
     const expYear = card?.exp_year ? String(card.exp_year).slice(-2) : ''
     const supplierId = Number(process.env.RCM_STRIPE_SUPPLIER_ID || 1)
 
@@ -82,7 +106,8 @@ export async function POST(req: NextRequest) {
       paydate: formatRcmDate(),
       supplierid: supplierId,
       transactid: pi.id,
-      dpstxnref: typeof pi.latest_charge === 'string' ? pi.latest_charge : charge?.id || '',
+      dpstxnref:
+        typeof pi.latest_charge === 'string' ? pi.latest_charge : charge?.id || '',
       cardholder: billing?.name || '',
       paysource: 'Stripe via YituCarRental App',
       cardnumber: last4 ? `############${last4}` : '',
@@ -93,7 +118,11 @@ export async function POST(req: NextRequest) {
 
     if (rcmResult?.paymentsaved !== true) {
       return NextResponse.json(
-        { success: false, error: 'RCM did not confirm payment.', data: rcmResult },
+        {
+          success: false,
+          error: 'RCM did not confirm payment.',
+          data: rcmResult,
+        },
         { status: 502 },
       )
     }
@@ -102,13 +131,18 @@ export async function POST(req: NextRequest) {
       success: true,
       reservationRef,
       paymentIntentId: pi.id,
-      chargeId: typeof pi.latest_charge === 'string' ? pi.latest_charge : charge?.id || '',
+      chargeId:
+        typeof pi.latest_charge === 'string' ? pi.latest_charge : charge?.id || '',
+      stripeMode,
       data: rcmResult,
     })
   } catch (err: any) {
     console.error('[stripe rental confirm] error:', err.message)
     return NextResponse.json(
-      { success: false, error: err.message || 'Failed to confirm Stripe payment.' },
+      {
+        success: false,
+        error: err.message || 'Failed to confirm Stripe payment.',
+      },
       { status: 500 },
     )
   }
