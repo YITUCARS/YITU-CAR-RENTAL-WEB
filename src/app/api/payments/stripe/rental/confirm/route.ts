@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
       ? String(card.exp_month).padStart(2, '0')
       : ''
     const expYear = card?.exp_year ? String(card.exp_year).slice(-2) : ''
-    const supplierId = Number(process.env.RCM_STRIPE_SUPPLIER_ID || 1)
+    const supplierId = Number(process.env.RCM_STRIPE_SUPPLIER_ID || 5)
 
     const rcmResult = await rcmCall('confirmpayment', {
       reservationref: reservationRef,
