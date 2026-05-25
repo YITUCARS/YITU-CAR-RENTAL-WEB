@@ -80,6 +80,9 @@ export async function POST(req: NextRequest) {
     }
 
     const charge = typeof pi.latest_charge === 'object' ? pi.latest_charge : null
+    const paymentMethodType = String(
+      charge?.payment_method_details?.type || '',
+    ).toLowerCase()
     const card = charge?.payment_method_details?.card
     const billing = charge?.billing_details
     const reservationRef = String(
@@ -133,6 +136,8 @@ export async function POST(req: NextRequest) {
       paymentIntentId: pi.id,
       chargeId:
         typeof pi.latest_charge === 'string' ? pi.latest_charge : charge?.id || '',
+      paymentMethodType,
+      paymentMethodBrand: card?.brand || '',
       stripeMode,
       data: rcmResult,
     })
