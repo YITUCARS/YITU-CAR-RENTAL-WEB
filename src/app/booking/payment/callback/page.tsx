@@ -29,6 +29,67 @@ function CallbackContent() {
             }
         } catch {}
 
+        function routeToConfirmation() {
+            setStatus('success')
+            const query = new URLSearchParams()
+            if (reservationRef) query.set('ref', reservationRef)
+            if (reservationNo) query.set('no', reservationNo)
+
+            const inMiniProgram =
+                typeof window !== 'undefined' && (window as any).__wxjs_environment === 'miniprogram'
+            const inWeChat =
+                typeof navigator !== 'undefined' && /MicroMessenger/i.test(navigator.userAgent)
+            if (inMiniProgram || inWeChat) {
+                const wx = (window as any).wx
+                if (wx && wx.miniProgram) {
+                    wx.miniProgram.navigateTo({ url: `/pages/payment/result?${query.toString()}&success=true` })
+                    return
+                }
+            }
+            router.push(`/booking/confirmation?${query.toString()}`)
+        }
+
+        // ── Stripe redirect return (e.g. after 3-D Secure authentication) ────────
+        // Stripe appends payment_intent, payment_intent_client_secret and
+        // redirect_status to our return_url. Finish by registering the charge in
+        // RCM via the confirm route (same step the inline flow performs).
+        const stripePaymentIntent = params.get('payment_intent')
+        const stripeMode = params.get('stripeMode') || 'live'
+        const stripeRedirectStatus = params.get('redirect_status')
+        if (stripePaymentIntent) {
+            if (stripeRedirectStatus === 'failed') {
+                setStatus('failed')
+                setError('Card authentication failed. Please try again.')
+                return
+            }
+
+            ;(async () => {
+                // The intent may briefly read as "processing" right after redirect.
+                for (let attempt = 0; attempt < 5; attempt += 1) {
+                    try {
+                        const res = await fetch('/api/payments/stripe/rental/confirm', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                paymentIntentId: stripePaymentIntent,
+                                reservationRef,
+                                stripeMode,
+                            }),
+                        })
+                        const data = await res.json()
+                        if (data.success) {
+                            routeToConfirmation()
+                            return
+                        }
+                    } catch {}
+                    await new Promise(resolve => setTimeout(resolve, 1500))
+                }
+                setStatus('failed')
+                setError('Payment was not confirmed. If your bank shows a charge, please contact us with your booking number.')
+            })()
+            return
+        }
+
         // ── VostroPay payscenario=1 (hosted payment page) ───────────────────────
         // VostroPay communicates directly with RCM when the card is charged,
         // creating the payment record (Visa/Mastercard) automatically.

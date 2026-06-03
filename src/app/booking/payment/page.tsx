@@ -1,11 +1,16 @@
 'use client'
 
-import React, { useEffect, useState, Suspense } from 'react'
+import React, { useEffect, useMemo, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { CreditCard, Shield, Check, AlertCircle, Loader } from 'lucide-react'
+import { CreditCard, Shield, Check, AlertCircle, Loader, ArrowLeft } from 'lucide-react'
+import { Elements } from '@stripe/react-stripe-js'
 import { useBooking, calcAfterHourBreakdown, splitMandatoryFees, formatAfterHourFeeLabel } from '@/lib/booking-context'
 import BookingFlowHeader from '@/components/booking/BookingFlowHeader'
+import StripeCheckout from '@/components/booking/StripeCheckout'
+import { getStripe, STRIPE_MODE } from '@/lib/stripe-client'
 import Navbar from '@/components/layout/Navbar'
+
+const stripePromise = getStripe()
 
 const YOUNG_DRIVER_FEE_PER_DAY = 30
 
@@ -18,6 +23,10 @@ function PaymentContent() {
     const [error, setError] = useState('')
     const [optionalFees, setOptionalFees] = useState<any[]>([])
     const [mandatoryFees, setMandatoryFees] = useState<any[]>([])
+    // Stripe checkout: 'select' = choose deposit/full, 'pay' = enter card details.
+    const [stage, setStage] = useState<'select' | 'pay'>('select')
+    const [clientSecret, setClientSecret] = useState('')
+    const [reservation, setReservation] = useState<{ ref: string; no: string }>({ ref: '', no: '' })
 
     const totalFromUrl = Number(params.get('total')) || 0
     const daysFromUrl = Number(params.get('days')) || booking.days
@@ -100,6 +109,24 @@ function PaymentContent() {
     const depositAmount = Math.round(fullAmount * 0.1 * 100) / 100
     const payAmount = paymentType === 'deposit' ? depositAmount : fullAmount
 
+    const elementsOptions = useMemo(
+        () =>
+            clientSecret
+                ? {
+                      clientSecret,
+                      appearance: {
+                          theme: 'stripe' as const,
+                          variables: {
+                              colorPrimary: '#f97316',
+                              borderRadius: '12px',
+                              fontFamily: 'inherit',
+                          },
+                      },
+                  }
+                : undefined,
+        [clientSecret],
+    )
+
     if (!isHydrated) {
         return (
             <>
@@ -114,7 +141,7 @@ function PaymentContent() {
         )
     }
 
-    async function handlePay() {
+    async function handleContinue() {
         setLoading(true)
         setError('')
         try {
@@ -133,7 +160,7 @@ function PaymentContent() {
             console.log('[payment] freshBooking:', freshBooking)
             // ── Step 1: Always create a fresh booking so extras/insurance are
             //   correctly registered in RCM and the reservation total matches
-            //   the payment amount sent to VostroPay.
+            //   the payment amount charged via Stripe.
             const bookingRes = await fetch('/api/rcm/create-booking', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -171,32 +198,34 @@ function PaymentContent() {
             const reservationRef = bookingData.reservationRef
             const reservationNo = bookingData.reservationNo
 
-            // ── Step 2: Create payment transaction on the (possibly reused) reservation
-            const paymentRes = await fetch('/api/rcm/create-payment', {
+            // ── Step 2: Create a Stripe PaymentIntent for the chosen amount.
+            //   The create-intent route expects the amount in the smallest
+            //   currency unit (cents), so convert from NZD dollars here.
+            const intentRes = await fetch('/api/payments/stripe/rental/create-intent', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     reservationRef,
-                    amount: payAmount,
-                    payScenario: 1,
+                    amountCents: Math.round(payAmount * 100),
+                    currency: 'nzd',
+                    stripeMode: STRIPE_MODE,
+                    description: `YITU rental ${reservationRef} (${paymentType === 'deposit' ? '10% deposit' : 'full payment'})`,
                 }),
             })
-            const paymentData = await paymentRes.json()
-            if (!paymentData.success) throw new Error(paymentData.error || 'Failed to create payment')
+            const intentData = await intentRes.json()
+            if (!intentData.success || !intentData.clientSecret) {
+                throw new Error(intentData.error || 'Failed to start payment')
+            }
 
-            const { RedirectUrl } = paymentData.data
-
-            // Persist to sessionStorage synchronously before navigating away —
-            // React state updates won't flush before window.location.href leaves.
+            // Persist reservation refs so the callback page (3-D Secure redirects)
+            // and confirmation page can recover them even if context is lost.
             const updatedBooking = { ...freshBooking, reservationRef, reservationNo, paymentType }
             try { sessionStorage.setItem('yitu-booking', JSON.stringify(updatedBooking)) } catch {}
             setBooking(_ => updatedBooking)
 
-            if (RedirectUrl) {
-                window.location.href = RedirectUrl
-            } else {
-                throw new Error('No redirect URL from payment gateway')
-            }
+            setReservation({ ref: reservationRef, no: reservationNo || '' })
+            setClientSecret(intentData.clientSecret)
+            setStage('pay')
         } catch (err: any) {
             setError(err.message || 'Payment failed, please try again.')
         } finally {
@@ -223,8 +252,33 @@ function PaymentContent() {
             <main className="max-w-[900px] mx-auto px-10 py-10">
                 <div className="flex gap-8 items-start flex-col lg:flex-row">
                     <div className="flex-1">
-                        <h2 className="font-syne font-bold text-navy text-xl mb-6">Select Payment Option</h2>
+                        <h2 className="font-syne font-bold text-navy text-xl mb-6">
+                            {stage === 'select' ? 'Select Payment Option' : 'Enter Payment Details'}
+                        </h2>
 
+                        {stage === 'pay' ? (
+                            <div className="flex flex-col gap-4">
+                                <button
+                                    onClick={() => { setStage('select'); setClientSecret(''); setError('') }}
+                                    className="self-start inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-navy transition-colors"
+                                >
+                                    <ArrowLeft size={14} /> Change payment option
+                                </button>
+                                {elementsOptions ? (
+                                    <Elements stripe={stripePromise} options={elementsOptions}>
+                                        <StripeCheckout
+                                            payAmount={payAmount}
+                                            stripeMode={STRIPE_MODE}
+                                            reservationRef={reservation.ref}
+                                            reservationNo={reservation.no}
+                                        />
+                                    </Elements>
+                                ) : (
+                                    <div className="bg-white border border-black/10 rounded-card h-48 animate-pulse" />
+                                )}
+                            </div>
+                        ) : (
+                        <>
                         <div className="flex flex-col gap-3 mb-6">
                             <button
                                 onClick={() => setPaymentType('deposit')}
@@ -305,16 +359,18 @@ function PaymentContent() {
                         )}
 
                         <button
-                            onClick={handlePay}
+                            onClick={handleContinue}
                             disabled={loading}
                             className="w-full flex items-center justify-center gap-2 bg-orange hover:bg-orange-dark text-white font-syne font-bold text-[15px] py-4 rounded-xl transition-all shadow-orange-glow disabled:opacity-60"
                         >
                             <CreditCard size={18} />
-                            {loading ? 'Processing...' : `Pay $${payAmount.toLocaleString()} NZD`}
+                            {loading ? 'Processing...' : `Continue to Payment · $${payAmount.toLocaleString()} NZD`}
                         </button>
                         <p className="text-[11px] text-muted text-center mt-3">
-                            You will be securely redirected to complete your payment
+                            Enter your card details on the next step — securely processed by Stripe
                         </p>
+                        </>
+                        )}
                     </div>
 
                     <div className="lg:w-72 flex-shrink-0 sticky top-24">
