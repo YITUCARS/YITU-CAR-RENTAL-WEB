@@ -8,7 +8,27 @@ function normalizeStripeMode(value: unknown) {
   return mode === 'live' || mode === 'production' ? 'live' : 'test'
 }
 
-function getStripeSecretKey(mode: string) {
+function normalizePaymentChannel(value: unknown) {
+  return String(value || '').toLowerCase() === 'vantu_app'
+    ? 'vantu_app'
+    : 'yitu_web'
+}
+
+function getStripeSecretKey(mode: string, channel: string) {
+  if (channel === 'vantu_app') {
+    const key =
+      mode === 'live'
+        ? process.env.VANTU_STRIPE_LIVE_SECRET_KEY
+        : process.env.VANTU_STRIPE_TEST_SECRET_KEY
+    if (!key) {
+      throw new Error(
+        mode === 'live'
+          ? 'Missing VANTU_STRIPE_LIVE_SECRET_KEY.'
+          : 'Missing VANTU_STRIPE_TEST_SECRET_KEY.',
+      )
+    }
+    return key
+  }
   const key =
     mode === 'live'
       ? process.env.STRIPE_LIVE_SECRET_KEY
@@ -39,6 +59,7 @@ function asMoneyFromCents(value: unknown) {
 async function retrievePaymentIntent(
   paymentIntentId: string,
   stripeMode: string,
+  paymentChannel: string,
 ) {
   const params = new URLSearchParams()
   params.append('expand[]', 'latest_charge')
@@ -46,7 +67,7 @@ async function retrievePaymentIntent(
     `https://api.stripe.com/v1/payment_intents/${encodeURIComponent(paymentIntentId)}?${params.toString()}`,
     {
       headers: {
-        Authorization: `Bearer ${getStripeSecretKey(stripeMode)}`,
+        Authorization: `Bearer ${getStripeSecretKey(stripeMode, paymentChannel)}`,
       },
     },
   )
@@ -61,6 +82,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const stripeMode = normalizeStripeMode(body.stripeMode || body.mode)
+    const paymentChannel = normalizePaymentChannel(body.paymentChannel)
     const paymentIntentId = String(
       body.paymentIntentId || body.payment_intent_id || '',
     ).trim()
@@ -71,7 +93,20 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const pi = await retrievePaymentIntent(paymentIntentId, stripeMode)
+    const pi = await retrievePaymentIntent(
+      paymentIntentId,
+      stripeMode,
+      paymentChannel,
+    )
+    const intentChannel = normalizePaymentChannel(
+      pi.metadata?.payment_channel || pi.metadata?.source,
+    )
+    if (intentChannel !== paymentChannel) {
+      return NextResponse.json(
+        { success: false, error: 'Stripe payment channel mismatch.' },
+        { status: 400 },
+      )
+    }
     if (pi.status !== 'succeeded') {
       return NextResponse.json(
         { success: false, error: `Stripe payment is ${pi.status}.` },
@@ -112,7 +147,10 @@ export async function POST(req: NextRequest) {
       dpstxnref:
         typeof pi.latest_charge === 'string' ? pi.latest_charge : charge?.id || '',
       cardholder: billing?.name || '',
-      paysource: 'Stripe via YituCarRental App',
+      paysource:
+        paymentChannel === 'vantu_app'
+          ? 'Stripe via Vantu App'
+          : 'Stripe via YituCarRental Web',
       cardnumber: last4 ? `############${last4}` : '',
       cardexpiry: expMonth && expYear ? `${expMonth}/${expYear}` : '',
       transtype: 'Payment',
@@ -139,6 +177,7 @@ export async function POST(req: NextRequest) {
       paymentMethodType,
       paymentMethodBrand: card?.brand || '',
       stripeMode,
+      paymentChannel,
       data: rcmResult,
     })
   } catch (err: any) {
