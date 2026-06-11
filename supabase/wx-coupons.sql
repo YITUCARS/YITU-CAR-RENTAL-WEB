@@ -31,3 +31,8 @@ alter table public.wx_user_bookings add column if not exists status text default
 alter table public.wx_user_bookings add column if not exists promo_code text;
 alter table public.wx_user_bookings add column if not exists reservation_no text;
 alter table public.wx_user_bookings add column if not exists price_breakdown jsonb;
+
+alter table public.wx_user_bookings add column if not exists deposit_paid boolean not null default false;
+alter table public.wx_user_bookings add column if not exists deposit_paid_at timestamptz;
+alter table public.wx_user_bookings add column if not exists wx_pay_out_trade_no text;
+alter table public.wx_user_bookings add column if not exists wx_pay_amount_cny numeric;

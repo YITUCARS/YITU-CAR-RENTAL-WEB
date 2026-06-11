@@ -135,7 +135,7 @@ export default function StripeCheckout({
             </button>
 
             <p className="text-[11px] text-muted text-center flex items-center justify-center gap-1.5">
-                <Lock size={11} /> Payments are securely processed by Stripe
+                <Lock size={11} /> Payments are securely processed by Stripe. Cards and Alipay accepted.
             </p>
         </form>
     )

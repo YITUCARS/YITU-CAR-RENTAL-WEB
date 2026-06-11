@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CreditCard, Shield, Check, AlertCircle, Loader, ArrowLeft } from 'lucide-react'
 import { Elements } from '@stripe/react-stripe-js'
+import type { StripeElementLocale } from '@stripe/stripe-js'
+import { useLocale } from 'next-intl'
 import { useBooking, calcAfterHourBreakdown, splitMandatoryFees, formatAfterHourFeeLabel } from '@/lib/booking-context'
 import BookingFlowHeader from '@/components/booking/BookingFlowHeader'
 import StripeCheckout from '@/components/booking/StripeCheckout'
@@ -17,6 +19,7 @@ const YOUNG_DRIVER_FEE_PER_DAY = 30
 function PaymentContent() {
     const router = useRouter()
     const params = useSearchParams()
+    const locale = useLocale()
     const { booking, setBooking, isHydrated } = useBooking()
     const [paymentType, setPaymentType] = useState<'deposit' | 'full'>('deposit')
     const [loading, setLoading] = useState(false)
@@ -108,12 +111,14 @@ function PaymentContent() {
     const fullAmount = booking.totalAmount > 0 ? booking.totalAmount : (totalFromUrl > 0 ? totalFromUrl : (computedGrandTotal > 0 ? computedGrandTotal : fallbackTotal))
     const depositAmount = Math.round(fullAmount * 0.1 * 100) / 100
     const payAmount = paymentType === 'deposit' ? depositAmount : fullAmount
+    const stripeLocale: StripeElementLocale = locale === 'zh' ? 'zh' : 'en'
 
     const elementsOptions = useMemo(
         () =>
             clientSecret
                 ? {
                       clientSecret,
+                      locale: stripeLocale,
                       appearance: {
                           theme: 'stripe' as const,
                           variables: {
@@ -124,7 +129,7 @@ function PaymentContent() {
                       },
                   }
                 : undefined,
-        [clientSecret],
+        [clientSecret, stripeLocale],
     )
 
     if (!isHydrated) {

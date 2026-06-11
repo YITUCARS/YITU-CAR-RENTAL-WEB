@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { Plus, Pencil, Trash2, Upload, X, Check, LogOut, FileText, RefreshCw, Star, Save, Tag, Copy, Image, ChevronUp, ChevronDown } from 'lucide-react'
 import type { VehicleRecord } from '@/lib/db/repository'
 import Papa from 'papaparse'
+import RateManager from '@/components/admin/RateManager'
 
 const CATEGORIES = ['sedan', 'suv', 'mpv', 'van']
 const FUELS = ['Petrol', 'Diesel', 'Hybrid', 'Electric']
@@ -36,7 +37,7 @@ export default function AdminPage() {
     const csvRef = useRef<HTMLInputElement>(null)
 
     // ── RCM tab ──────────────────────────────────────────────────────────────
-    const [activeTab, setActiveTab] = useState<'fleet' | 'rcm' | 'promo' | 'banners' | 'deals' | 'gallery' | 'blog'>('fleet')
+    const [activeTab, setActiveTab] = useState<'fleet' | 'rcm' | 'promo' | 'banners' | 'deals' | 'gallery' | 'blog' | 'rates'>('fleet')
     const [rcmVehicles, setRcmVehicles] = useState<any[]>([])
     const [rcmLoading, setRcmLoading] = useState(false)
     const [featured, setFeatured] = useState<Map<number, any>>(new Map())
@@ -768,6 +769,12 @@ export default function AdminPage() {
                     className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors ${activeTab === 'blog' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
                 >
                     Blog 管理
+                </button>
+                <button
+                    onClick={() => setActiveTab('rates')}
+                    className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors ${activeTab === 'rates' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
+                >
+                    价格管理
                 </button>
             </div>
 
@@ -1800,6 +1807,9 @@ export default function AdminPage() {
                     </div>
                 </div>
             )}
+
+            {/* ── Rate Manager tab ── */}
+            {activeTab === 'rates' && <RateManager token={token} showToast={showToast} />}
         </div>
     )
 }

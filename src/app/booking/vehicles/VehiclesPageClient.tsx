@@ -765,18 +765,13 @@ export default function VehiclesPage() {
                                                                     </div>
                                                                     {pricing.promoDiscount > 0 && (
                                                                         <div className="text-[11px] text-green-700 font-medium mb-1">
-                                                                            Promo {promoCode} applied · save $<PriceDisplay value={pricing.promoDiscount} />
+                                                                            Promo {promoCode} applied
                                                                         </div>
                                                                     )}
                                                                     <div className="font-syne font-extrabold text-[1.8rem] text-navy leading-none">
                                                                         <span className="text-[13px] font-bold">NZD</span>&nbsp;$<PriceDisplay value={pricing.discountedTotal} />
                                                                         <span className="text-[13px] font-normal text-muted ml-1">total</span>
                                                                     </div>
-                                                                    {pricing.promoDiscount > 0 && (
-                                                                        <div className="text-[11px] text-muted line-through mt-1">
-                                                                            $<PriceDisplay value={pricing.baseTotal} /> original
-                                                                        </div>
-                                                                    )}
                                                                 </>
                                                             ) : (
                                                                 <div className="text-[13px] text-muted font-medium">
