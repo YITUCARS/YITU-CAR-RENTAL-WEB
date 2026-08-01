@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useRef } from 'react'
-import { Plus, Pencil, Trash2, Upload, X, Check, LogOut, FileText, RefreshCw, Star, Save, Tag, Copy, Image, ChevronUp, ChevronDown, ExternalLink, Ticket } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload, X, Check, LogOut, FileText, RefreshCw, Star, Save, Tag, Copy, Image, ChevronUp, ChevronDown, ExternalLink, Ticket, MessageCircle } from 'lucide-react'
 import type { VehicleRecord } from '@/lib/db/repository'
 import Papa from 'papaparse'
 import RateManager from '@/components/admin/RateManager'
@@ -10,13 +10,22 @@ const CATEGORIES = ['sedan', 'suv', 'mpv', 'van']
 const FUELS = ['Petrol', 'Diesel', 'Hybrid', 'Electric']
 const DRIVES = ['FWD', 'AWD', 'RWD']
 const VANTU_TICKETS_URL = 'https://vantugroup.com/en/tickets'
-type AdminTab = 'fleet' | 'rcm' | 'promo' | 'banners' | 'deals' | 'gallery' | 'blog' | 'tickets' | 'rates'
+type AdminTab = 'fleet' | 'rcm' | 'promo' | 'banners' | 'deals' | 'gallery' | 'blog' | 'tickets' | 'faq' | 'rates'
 
 interface GalleryImage {
     name: string
     path: string
     url: string
     created_at?: string | null
+}
+
+interface ChatFaqAdmin {
+    id?: string
+    question: string
+    answer: string
+    keywords: string[]
+    active: boolean
+    displayOrder: number
 }
 
 const EMPTY: Omit<VehicleRecord, 'id' | 'created_at'> = {
@@ -79,6 +88,10 @@ export default function AdminPage() {
     const [vantuTicketsUrl, setVantuTicketsUrl] = useState('')
     const [vantuTicketsLoading, setVantuTicketsLoading] = useState(false)
     const [vantuTicketsError, setVantuTicketsError] = useState('')
+    const [chatFaqs, setChatFaqs] = useState<ChatFaqAdmin[]>([])
+    const [chatFaqsLoading, setChatFaqsLoading] = useState(false)
+    const [editingFaq, setEditingFaq] = useState<ChatFaqAdmin | null>(null)
+    const [savingFaq, setSavingFaq] = useState(false)
 
     const showToast = (msg: string) => {
         setToast(msg)
@@ -95,6 +108,7 @@ export default function AdminPage() {
         gallery: 'Gallery 图库',
         blog: 'Blog 管理',
         tickets: '门票预订',
+        faq: 'Live Support FAQ',
         rates: '价格管理',
     }
 
@@ -230,6 +244,63 @@ export default function AdminPage() {
     function switchToRCMTab() {
         setActiveTab('rcm')
         loadFeatured()
+    }
+
+    async function loadChatFaqs() {
+        setChatFaqsLoading(true)
+        try {
+            const res = await fetch('/api/admin/chat-faqs', { headers: { 'x-admin-token': token } })
+            const data = await res.json()
+            if (res.ok && Array.isArray(data.faqs)) setChatFaqs(data.faqs)
+            else showToast('❌ ' + (data.error || 'FAQ 加载失败'))
+        } finally {
+            setChatFaqsLoading(false)
+        }
+    }
+
+    function faqKeywordsText(faq: ChatFaqAdmin | null) {
+        return Array.isArray(faq?.keywords) ? faq.keywords.join(', ') : ''
+    }
+
+    async function saveChatFaq() {
+        if (!editingFaq) return
+        const question = editingFaq.question.trim()
+        const answer = editingFaq.answer.trim()
+        if (!question || !answer) {
+            showToast('❌ 问题和答案不能为空')
+            return
+        }
+
+        setSavingFaq(true)
+        try {
+            const isNewFaq = !editingFaq.id
+            const res = await fetch(isNewFaq ? '/api/admin/chat-faqs' : `/api/admin/chat-faqs/${editingFaq.id}`, {
+                method: isNewFaq ? 'POST' : 'PUT',
+                headers,
+                body: JSON.stringify(editingFaq),
+            })
+            const data = await res.json()
+            if (!res.ok || !data.success) throw new Error(data.error || '保存失败')
+            setEditingFaq(null)
+            showToast('✅ FAQ 已保存')
+            loadChatFaqs()
+        } catch (err: any) {
+            showToast('❌ ' + (err.message || '保存失败'))
+        } finally {
+            setSavingFaq(false)
+        }
+    }
+
+    async function deleteChatFaq(id?: string) {
+        if (!id || !confirm('确定删除这个常用问题吗？')) return
+        const res = await fetch(`/api/admin/chat-faqs/${id}`, { method: 'DELETE', headers: { 'x-admin-token': token } })
+        const data = await res.json().catch(() => ({}))
+        if (res.ok && data.success) {
+            showToast('✅ FAQ 已删除')
+            loadChatFaqs()
+        } else {
+            showToast('❌ ' + (data.error || '删除失败'))
+        }
     }
 
     // ── Promo code helpers ────────────────────────────────────────────────────
@@ -775,6 +846,30 @@ export default function AdminPage() {
                             <ExternalLink size={14} /> {vantuTicketsLoading ? '生成中...' : '新窗口打开'}
                         </a>
                     )}
+                    {activeTab === 'faq' && (
+                        <>
+                            <button
+                                onClick={loadChatFaqs}
+                                disabled={chatFaqsLoading}
+                                className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                                <RefreshCw size={14} className={chatFaqsLoading ? 'animate-spin' : ''} />
+                                刷新
+                            </button>
+                            <button
+                                onClick={() => setEditingFaq({
+                                    question: '',
+                                    answer: '',
+                                    keywords: [],
+                                    active: true,
+                                    displayOrder: chatFaqs.length + 1,
+                                })}
+                                className="flex items-center gap-1.5 bg-orange hover:bg-orange-dark text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors"
+                            >
+                                <Plus size={14} /> 新增 FAQ
+                            </button>
+                        </>
+                    )}
                     <button onClick={() => setAuthed(false)} className="text-white/50 hover:text-white">
                         <LogOut size={18} />
                     </button>
@@ -830,6 +925,12 @@ export default function AdminPage() {
                     className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'tickets' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
                 >
                     门票预订
+                </button>
+                <button
+                    onClick={() => { setActiveTab('faq'); loadChatFaqs() }}
+                    className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'faq' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
+                >
+                    Live Support FAQ
                 </button>
                 <button
                     onClick={() => setActiveTab('rates')}
@@ -1938,8 +2039,185 @@ export default function AdminPage() {
                 </div>
             )}
 
+            {/* ── Live Support FAQ tab ── */}
+            {activeTab === 'faq' && (
+                <div className="px-8 py-6 space-y-4">
+                    <div className="bg-white rounded-2xl border border-black/10 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                            <div className="w-11 h-11 rounded-xl bg-orange/10 text-orange flex items-center justify-center flex-shrink-0">
+                                <MessageCircle size={22} />
+                            </div>
+                            <div>
+                                <h2 className="font-syne font-extrabold text-xl text-navy">Live Support 常用问题</h2>
+                                <p className="text-sm text-muted mt-1">
+                                    这里配置的问题会显示在网站右下角 live support 里。关键词用于用户输入文字时自动匹配答案，多个关键词请用英文逗号分隔。
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setEditingFaq({
+                                question: '',
+                                answer: '',
+                                keywords: [],
+                                active: true,
+                                displayOrder: chatFaqs.length + 1,
+                            })}
+                            className="inline-flex items-center justify-center gap-2 bg-navy hover:bg-navy/90 text-white font-syne font-bold text-sm px-5 py-3 rounded-xl transition-colors"
+                        >
+                            <Plus size={16} /> 新增常用问题
+                        </button>
+                    </div>
+
+                    <div className="bg-white rounded-2xl border border-black/10 overflow-hidden">
+                        {chatFaqsLoading ? (
+                            <div className="p-8 text-center text-muted">FAQ 加载中...</div>
+                        ) : chatFaqs.length === 0 ? (
+                            <div className="p-8 text-center text-muted">暂无 FAQ，点击新增常用问题开始配置。</div>
+                        ) : (
+                            <table className="w-full text-sm">
+                                <thead>
+                                <tr className="border-b border-black/10 bg-off-white">
+                                    <th className="text-left px-4 py-3 font-syne font-bold text-navy text-[12px] uppercase tracking-wide">排序</th>
+                                    <th className="text-left px-4 py-3 font-syne font-bold text-navy text-[12px] uppercase tracking-wide">问题</th>
+                                    <th className="text-left px-4 py-3 font-syne font-bold text-navy text-[12px] uppercase tracking-wide">关键词</th>
+                                    <th className="text-left px-4 py-3 font-syne font-bold text-navy text-[12px] uppercase tracking-wide">状态</th>
+                                    <th className="text-right px-4 py-3 font-syne font-bold text-navy text-[12px] uppercase tracking-wide">操作</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {chatFaqs.map(faq => (
+                                    <tr key={faq.id || faq.question} className="border-b border-black/5 hover:bg-off-white/50">
+                                        <td className="px-4 py-3 text-muted">{faq.displayOrder}</td>
+                                        <td className="px-4 py-3">
+                                            <div className="font-syne font-bold text-navy">{faq.question}</div>
+                                            <div className="text-[12px] text-muted line-clamp-2 max-w-[520px] mt-1">{faq.answer}</div>
+                                        </td>
+                                        <td className="px-4 py-3 text-muted max-w-[260px]">
+                                            <div className="line-clamp-2">{faqKeywordsText(faq)}</div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                                                faq.active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
+                                            }`}>
+                                                {faq.active ? '启用' : '停用'}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center justify-end gap-1">
+                                                <button
+                                                    onClick={() => setEditingFaq(faq)}
+                                                    className="p-2 rounded-lg hover:bg-navy/5 text-muted hover:text-navy transition-colors"
+                                                >
+                                                    <Pencil size={15} />
+                                                </button>
+                                                <button
+                                                    onClick={() => deleteChatFaq(faq.id)}
+                                                    className="p-2 rounded-lg hover:bg-red-50 text-muted hover:text-red-600 transition-colors"
+                                                >
+                                                    <Trash2 size={15} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {/* ── Rate Manager tab ── */}
             {activeTab === 'rates' && <RateManager token={token} showToast={showToast} />}
+
+            {editingFaq && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-[720px] max-h-[92vh] overflow-y-auto">
+                        <div className="sticky top-0 bg-white border-b border-black/10 px-6 py-4 flex items-center justify-between">
+                            <h2 className="font-syne font-extrabold text-xl text-navy">
+                                {editingFaq.id ? '编辑常用问题' : '新增常用问题'}
+                            </h2>
+                            <button onClick={() => setEditingFaq(null)} className="p-2 hover:bg-black/5 rounded-lg">
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">问题</label>
+                                <input
+                                    value={editingFaq.question}
+                                    onChange={e => setEditingFaq({ ...editingFaq, question: e.target.value })}
+                                    placeholder="例如：Can I return the car to a different city?"
+                                    className="w-full bg-off-white border border-black/10 rounded-xl px-4 py-3 text-sm text-navy outline-none focus:border-orange"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">答案</label>
+                                <textarea
+                                    value={editingFaq.answer}
+                                    onChange={e => setEditingFaq({ ...editingFaq, answer: e.target.value })}
+                                    rows={7}
+                                    placeholder="用户点击问题后，聊天窗口里显示的答案。"
+                                    className="w-full bg-off-white border border-black/10 rounded-xl px-4 py-3 text-sm text-navy outline-none focus:border-orange resize-y"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">关键词（英文逗号分隔）</label>
+                                <input
+                                    value={faqKeywordsText(editingFaq)}
+                                    onChange={e => setEditingFaq({
+                                        ...editingFaq,
+                                        keywords: e.target.value.split(',').map(v => v.trim()).filter(Boolean),
+                                    })}
+                                    placeholder="one way, different city, 异地还车"
+                                    className="w-full bg-off-white border border-black/10 rounded-xl px-4 py-3 text-sm text-navy outline-none focus:border-orange"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">排序</label>
+                                    <input
+                                        type="number"
+                                        value={editingFaq.displayOrder}
+                                        onChange={e => setEditingFaq({ ...editingFaq, displayOrder: Number(e.target.value) })}
+                                        className="w-full bg-off-white border border-black/10 rounded-xl px-4 py-3 text-sm text-navy outline-none focus:border-orange"
+                                    />
+                                </div>
+                                <label className="flex items-center gap-3 bg-off-white border border-black/10 rounded-xl px-4 py-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={editingFaq.active}
+                                        onChange={e => setEditingFaq({ ...editingFaq, active: e.target.checked })}
+                                        className="accent-orange"
+                                    />
+                                    <span className="text-sm font-semibold text-navy">启用，显示在 live support</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="sticky bottom-0 bg-white border-t border-black/10 px-6 py-4 flex justify-end gap-3">
+                            <button
+                                onClick={() => setEditingFaq(null)}
+                                className="px-5 py-2.5 rounded-lg border border-black/10 text-sm font-bold text-muted hover:text-navy transition-colors"
+                            >
+                                取消
+                            </button>
+                            <button
+                                onClick={saveChatFaq}
+                                disabled={savingFaq}
+                                className="flex items-center gap-1.5 px-5 py-2.5 bg-orange hover:bg-orange-dark text-white font-syne font-bold text-sm rounded-lg transition-colors disabled:opacity-60"
+                            >
+                                <Check size={14} />
+                                {savingFaq ? '保存中...' : '保存 FAQ'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

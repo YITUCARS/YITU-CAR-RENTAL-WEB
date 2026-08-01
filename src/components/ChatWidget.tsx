@@ -5,7 +5,7 @@ import { doc, onSnapshot } from 'firebase/firestore'
 import { MessageCircle, SendHorizontal, X, Headset, BellDot, Phone, User, ArrowRight } from 'lucide-react'
 import { ensureAnonymousAuth, getFirebaseFirestore } from '@/lib/firebase'
 import {
-    ChatMessage, ChatSession,
+    ChatFaq, ChatMessage, ChatSession, DEFAULT_FAQS,
     getInitialBotMessage, matchFaqReply,
     getNoMatchReply, getSupportConfirmedReply, getAgentJoinedReply,
     buildTelegramMessage,
@@ -147,6 +147,7 @@ export default function ChatWidget() {
     const [unansweredCount, setUnansweredCount] = useState(0)
     // Whether to show the contact collection form
     const [showContactForm, setShowContactForm] = useState(false)
+    const [faqs, setFaqs] = useState<ChatFaq[]>(DEFAULT_FAQS)
 
     const latestTimestampRef = useRef(0)
     const messagesEndRef = useRef<HTMLDivElement | null>(null)
@@ -181,6 +182,15 @@ export default function ChatWidget() {
     }
 
     useEffect(() => { openRef.current = open }, [open])
+
+    useEffect(() => {
+        fetch('/api/public/chat-faqs')
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data?.faqs) && data.faqs.length > 0) setFaqs(data.faqs)
+            })
+            .catch(() => {})
+    }, [])
 
     useEffect(() => {
         const existing = window.localStorage.getItem(STORAGE_KEY)
@@ -252,7 +262,7 @@ export default function ChatWidget() {
         addLocalMessage(trimmed, 'user', now)
         await saveMessageToFirestore(trimmed, 'user', now)
 
-        const faqReply = matchFaqReply(trimmed)
+        const faqReply = matchFaqReply(trimmed, faqs)
 
         if (faqReply) {
             // Reset unanswered counter on a successful FAQ match
@@ -417,6 +427,25 @@ export default function ChatWidget() {
                     {/* Input area */}
                     <div className="border-t border-black/10 bg-white px-4 py-3">
                         {error && <div className="mb-2 text-[12px] text-red-600">{error}</div>}
+
+                        {status === 'bot' && !showContactForm && faqs.length > 0 && (
+                            <div className="mb-3">
+                                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
+                                    Common Questions
+                                </div>
+                                <div className="flex max-h-[92px] flex-wrap gap-1.5 overflow-y-auto pr-1">
+                                    {faqs.slice(0, 8).map((faq, index) => (
+                                        <button
+                                            key={faq.id || `${faq.question}-${index}`}
+                                            onClick={() => handleFaqMessage(faq.question)}
+                                            className="rounded-full border border-orange/20 bg-orange/5 px-3 py-1.5 text-left text-[11.5px] font-semibold text-navy transition-colors hover:border-orange/40 hover:bg-orange/10"
+                                        >
+                                            {faq.question}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Human support button (bot mode only) */}
                         {showSupportButton && (

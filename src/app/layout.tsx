@@ -4,6 +4,7 @@ import './globals.css'
 import '@fortawesome/fontawesome-free/css/all.min.css'
 import { Syne, DM_Sans, Montserrat } from 'next/font/google'
 import ChatWidget from '@/components/ChatWidget'
+import CookieConsentBanner from '@/components/ui/CookieConsentBanner'
 import messages from '../../messages/en.json'
 
 const syne = Syne({
@@ -60,6 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <NextIntlClientProvider locale="en" messages={messages}>
           {children}
           <ChatWidget />
+          <CookieConsentBanner />
         </NextIntlClientProvider>
       </body>
       </html>

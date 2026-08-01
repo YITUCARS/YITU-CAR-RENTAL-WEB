@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import { ArrowRight, Play, MapPin, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
+import type { TouchEvent } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import faviconMark from '@/app/icon.png/android-chrome-512x512.png'
@@ -40,6 +41,8 @@ export default function HeroSection({ initialDeals }: { initialDeals?: any[] }) 
   const [current, setCurrent] = useState(0)
   const [paused, setPaused] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const touchStartXRef = useRef<number | null>(null)
+  const touchMovedRef = useRef(false)
   const router = useRouter()
 
   const scrollToBooking = () =>
@@ -50,6 +53,32 @@ export default function HeroSection({ initialDeals }: { initialDeals?: any[] }) 
   function next() { setCurrent(c => (c + 1) % ads.length) }
   function prev() { setCurrent(c => (c - 1 + ads.length) % ads.length) }
   function goTo(i: number) { setCurrent(i) }
+  function handleMobileAdClick() {
+    if (touchMovedRef.current) {
+      touchMovedRef.current = false
+      return
+    }
+    if (ad?.slug) router.push(`/deals/${ad.slug}`)
+  }
+  function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
+    touchStartXRef.current = event.touches[0]?.clientX ?? null
+    touchMovedRef.current = false
+    setPaused(true)
+  }
+  function handleTouchEnd(event: TouchEvent<HTMLDivElement>) {
+    const startX = touchStartXRef.current
+    touchStartXRef.current = null
+    setPaused(false)
+    if (startX == null || ads.length <= 1) return
+
+    const endX = event.changedTouches[0]?.clientX ?? startX
+    const deltaX = endX - startX
+    if (Math.abs(deltaX) < 42) return
+
+    touchMovedRef.current = true
+    if (deltaX < 0) next()
+    else prev()
+  }
 
   // Client-side fallback: if SSR provided no deals, fetch from API
   useEffect(() => {
@@ -256,7 +285,9 @@ const ad = ads[current] ?? null
             className={`mt-7 block overflow-hidden rounded-[28px] border border-white/50 bg-navy shadow-[0_22px_60px_rgba(15,23,42,0.18)] lg:hidden ${ad?.slug ? 'cursor-pointer' : ''}`}
             onMouseEnter={() => setPaused(true)}
             onMouseLeave={() => setPaused(false)}
-            onClick={() => ad?.slug && router.push(`/deals/${ad.slug}`)}
+            onClick={handleMobileAdClick}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
           >
             <div className="relative h-[210px] w-full overflow-hidden bg-gray-100">
               {ads.length > 0 ? (
@@ -289,34 +320,18 @@ const ad = ads[current] ?? null
                   {ad?.title || t('Hero.carouselFallbackTitle')}
                 </div>
               </div>
-            </div>
-            <div className="flex items-center justify-between gap-3 px-4 py-3" onClick={e => e.stopPropagation()}>
-              <button
-                onClick={prev}
-                disabled={ads.length <= 1}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/12 text-white transition-all hover:bg-white/25 disabled:opacity-30"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <div className="flex items-center gap-1.5">
+              <div className="absolute right-4 top-4 flex items-center gap-1.5 rounded-full bg-black/18 px-2.5 py-2 backdrop-blur-sm" onClick={e => e.stopPropagation()}>
                 {ads.map((_, i) => (
                   <button
                     key={i}
                     onClick={() => goTo(i)}
                     className={`rounded-full transition-all ${
-                      i === current ? 'h-2 w-6 bg-orange' : 'h-2 w-2 bg-white/30'
+                      i === current ? 'h-1.5 w-5 bg-white/85' : 'h-1.5 w-1.5 bg-white/35 hover:bg-white/60'
                     }`}
                     aria-label={`Go to slide ${i + 1}`}
                   />
                 ))}
               </div>
-              <button
-                onClick={next}
-                disabled={ads.length <= 1}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/12 text-white transition-all hover:bg-white/25 disabled:opacity-30"
-              >
-                <ChevronRight size={16} />
-              </button>
             </div>
           </div>
 
