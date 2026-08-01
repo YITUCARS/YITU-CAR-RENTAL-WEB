@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { rcmCall, toRCMDate } from '@/lib/rcm'
+import { notifyWebsiteBookingCreated } from '@/lib/rcm-telegram'
 
 function normalizePhoneForRcm(phone: string) {
   const display = (phone || '').trim().replace(/\s+/g, '')
@@ -89,6 +90,18 @@ export async function POST(req: NextRequest) {
 
     console.log('[create-booking] RCM result keys:', Object.keys(result || {}))
     console.log('[create-booking] RCM result:', JSON.stringify(result, null, 2))
+
+    try {
+      await notifyWebsiteBookingCreated({
+        body: {
+          ...body,
+          source: body.source || (req.headers.get('x-openid') ? 'wechat_miniprogram' : ''),
+        },
+        result,
+      })
+    } catch (error) {
+      console.error('[create-booking] Telegram notification failed:', error instanceof Error ? error.message : error)
+    }
 
     return NextResponse.json({
       success: true,

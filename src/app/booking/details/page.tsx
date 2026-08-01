@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { User, Mail, Phone, Plane, MessageSquare, ChevronDown } from 'lucide-react'
 import { useBooking } from '@/lib/booking-context'
 import BookingFlowHeader from '@/components/booking/BookingFlowHeader'
+import MobileBookingSummary from '@/components/booking/MobileBookingSummary'
 import Navbar from '@/components/layout/Navbar'
 import { useRef } from 'react'
 
@@ -215,7 +216,31 @@ export default function DetailsPage() {
 
             <BookingFlowHeader current={4} onBack={() => router.back()} />
 
-            <main className="max-w-[900px] mx-auto px-10 py-10">
+            <main className="max-w-[900px] mx-auto px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+                <MobileBookingSummary
+                    subtitle={booking.vehicleName}
+                    total={`$${grandTotal.toLocaleString()}`}
+                    totalLabel="Total"
+                >
+                    <div className="space-y-2 text-[13px] text-muted">
+                        <div className="flex justify-between gap-3">
+                            <span>Vehicle</span>
+                            <span className="max-w-[210px] text-right font-medium text-navy">{booking.vehicleName}</span>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                            <span>Pick-up</span>
+                            <span className="text-right font-medium text-navy">{booking.pickupDate} {booking.pickupTime}</span>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                            <span>Drop-off</span>
+                            <span className="text-right font-medium text-navy">{booking.dropoffDate} {booking.dropoffTime}</span>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                            <span>Duration</span>
+                            <span className="font-semibold text-orange">{booking.days} days</span>
+                        </div>
+                    </div>
+                </MobileBookingSummary>
                 <div className="flex gap-8 items-start flex-col lg:flex-row">
 
                     <div className="flex-1">
@@ -267,7 +292,7 @@ export default function DetailsPage() {
                         </p>
                     </div>
 
-                    <div className="lg:w-72 flex-shrink-0 sticky top-24">
+                    <div className="hidden lg:block lg:w-72 flex-shrink-0 sticky top-24">
                         <div className="bg-white border border-black/10 rounded-card p-5">
                             <h3 className="font-syne font-bold text-navy text-[15px] mb-4">Booking Summary</h3>
                             <div className="space-y-2 text-[13px] text-muted mb-4">

@@ -70,13 +70,13 @@ const ad = ads[current] ?? null
   const stats = [
     { value: '100', suffix: '+', label: t('Hero.stats.vehiclesFleet') },
     { value: '8', suffix: '+', label: t('Hero.stats.yearsOfService') },
-    { value: '3', suffix: '', label: t('Hero.stats.nzLocations') },
+    { value: '2', suffix: '', label: t('Hero.stats.nzLocations') },
   ]
 
   return (
       <section
           id="home"
-          className="relative min-h-screen pt-[120px] pb-[60px] px-5 sm:px-10 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center overflow-hidden"
+          className="relative min-h-screen pt-[110px] pb-[60px] px-5 sm:px-10 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10 items-center overflow-hidden"
       >
         <div
             className="absolute left-[2%] bottom-[5%] h-[260px] w-[40%] opacity-[0.28] pointer-events-none z-0"
@@ -90,7 +90,7 @@ const ad = ads[current] ?? null
 
         {/* 蓝色斜纹背景 */}
         <div
-            className="absolute right-0 top-0 bottom-0 w-[62%] opacity-[0.18] pointer-events-none z-0"
+            className="absolute right-0 top-0 bottom-0 hidden w-[62%] opacity-[0.18] pointer-events-none z-0 lg:block"
             style={{
               background: 'linear-gradient(135deg,#1a2b6b 0%,#243580 100%)',
               clipPath: 'polygon(30% 0,100% 0,100% 100%,0 100%)',
@@ -99,7 +99,7 @@ const ad = ads[current] ?? null
 
         {/* 径向渐变 */}
         <div
-            className="absolute inset-0 pointer-events-none z-0"
+            className="absolute inset-0 pointer-events-none z-0 hidden lg:block"
             style={{
               background:
                   'radial-gradient(ellipse 70% 60% at 75% 50%,rgba(26,43,107,.35) 0%,transparent 70%), radial-gradient(ellipse 50% 40% at 20% 80%,rgba(232,67,26,.08) 0%,transparent 60%)',
@@ -252,7 +252,75 @@ const ad = ads[current] ?? null
             </div>
           </div>
 
-          <div className="flex gap-9 mt-12 pt-8 border-t border-black/10 flex-wrap">
+          <div
+            className={`mt-7 block overflow-hidden rounded-[28px] border border-white/50 bg-navy shadow-[0_22px_60px_rgba(15,23,42,0.18)] lg:hidden ${ad?.slug ? 'cursor-pointer' : ''}`}
+            onMouseEnter={() => setPaused(true)}
+            onMouseLeave={() => setPaused(false)}
+            onClick={() => ad?.slug && router.push(`/deals/${ad.slug}`)}
+          >
+            <div className="relative h-[210px] w-full overflow-hidden bg-gray-100">
+              {ads.length > 0 ? (
+                ads.map((item, index) => (
+                  <Image
+                    key={item.id ?? `${item.image_url}-${index}`}
+                    src={item.image_url}
+                    alt={item.title}
+                    fill
+                    quality={78}
+                    sizes="(max-width: 1024px) 92vw, 0vw"
+                    className={`object-cover transition-opacity duration-700 ${
+                      index === current ? 'opacity-100' : 'opacity-0'
+                    }`}
+                    {...(index === 0
+                      ? { priority: true, placeholder: 'blur' as const, blurDataURL: BLUR_DATA_URL }
+                      : { loading: 'lazy' as const }
+                    )}
+                  />
+                ))
+              ) : (
+                <div className="h-full w-full bg-gray-100" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-navy/90 via-navy/25 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
+                <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.22em] text-white/65">
+                  {ad?.label || t('Hero.brandLabel')}
+                </div>
+                <div className="font-syne text-[1.45rem] font-extrabold leading-tight drop-shadow">
+                  {ad?.title || t('Hero.carouselFallbackTitle')}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-3 px-4 py-3" onClick={e => e.stopPropagation()}>
+              <button
+                onClick={prev}
+                disabled={ads.length <= 1}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/12 text-white transition-all hover:bg-white/25 disabled:opacity-30"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <div className="flex items-center gap-1.5">
+                {ads.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => goTo(i)}
+                    className={`rounded-full transition-all ${
+                      i === current ? 'h-2 w-6 bg-orange' : 'h-2 w-2 bg-white/30'
+                    }`}
+                    aria-label={`Go to slide ${i + 1}`}
+                  />
+                ))}
+              </div>
+              <button
+                onClick={next}
+                disabled={ads.length <= 1}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/12 text-white transition-all hover:bg-white/25 disabled:opacity-30"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex gap-5 sm:gap-9 mt-8 lg:mt-12 pt-6 lg:pt-8 border-t border-black/10 flex-wrap">
             {stats.map((s) => (
                 <div key={s.label} className="text-center">
                   <strong className="font-syne font-extrabold text-[2.2rem] text-navy leading-none block">

@@ -8,6 +8,7 @@ import type { StripeElementLocale } from '@stripe/stripe-js'
 import { useLocale } from 'next-intl'
 import { useBooking, calcAfterHourBreakdown, splitMandatoryFees, formatAfterHourFeeLabel } from '@/lib/booking-context'
 import BookingFlowHeader from '@/components/booking/BookingFlowHeader'
+import MobileBookingSummary from '@/components/booking/MobileBookingSummary'
 import StripeCheckout from '@/components/booking/StripeCheckout'
 import { getStripe, STRIPE_MODE } from '@/lib/stripe-client'
 import Navbar from '@/components/layout/Navbar'
@@ -174,10 +175,15 @@ function PaymentContent() {
                     pickupTime: freshBooking.pickupTime,
                     dropoffDate: freshBooking.dropoffDate,
                     dropoffTime: freshBooking.dropoffTime,
+                    pickupLocation: freshBooking.pickupLocation,
                     pickupLocationId: freshBooking.pickupLocationId,
+                    dropoffLocation: freshBooking.dropoffLocation,
                     dropoffLocationId: freshBooking.dropoffLocationId,
+                    vehicleName: freshBooking.vehicleName,
                     vehicleCategoryId: Number(freshBooking.vehicleId),
                     vehicleCategoryTypeId: freshBooking.vehicleCategoryTypeId,
+                    totalAmount: fullAmount,
+                    paymentType,
                     selectedInsuranceId: freshBooking.selectedInsuranceId,
                     extras: freshBooking.extras,
                     driverAge: freshBooking.driverAge,
@@ -254,7 +260,38 @@ function PaymentContent() {
                 }
             />
 
-            <main className="max-w-[900px] mx-auto px-10 py-10">
+            <main className="max-w-[900px] mx-auto px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+                <MobileBookingSummary
+                    subtitle={stage === 'select' ? `${booking.vehicleName} · choose payment` : `${booking.vehicleName} · secure payment`}
+                    total={`$${payAmount.toLocaleString()}`}
+                    totalLabel="Paying Now"
+                >
+                    <div className="space-y-2 text-[13px] text-muted">
+                        <div className="flex justify-between gap-3">
+                            <span>Total booking</span>
+                            <span className="font-medium text-navy">${fullAmount.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                            <span>Paying now</span>
+                            <span className="font-syne font-extrabold text-orange">${payAmount.toLocaleString()}</span>
+                        </div>
+                        {paymentType === 'deposit' && (
+                            <div className="flex justify-between gap-3 text-[12px]">
+                                <span>Due at pickup</span>
+                                <span>${(fullAmount - depositAmount).toLocaleString()}</span>
+                            </div>
+                        )}
+                        <div className="border-t border-black/10 pt-2">
+                            <div className="flex justify-between gap-3">
+                                <span>Vehicle</span>
+                                <span className="max-w-[210px] truncate text-right font-medium text-navy">{booking.vehicleName || 'Vehicle'}</span>
+                            </div>
+                            <div className="mt-1 text-[11px]">
+                                {daysFromUrl} day{daysFromUrl !== 1 ? 's' : ''} × ${(booking.pricePerDay || pricePerDayFromUrl).toLocaleString()}/day
+                            </div>
+                        </div>
+                    </div>
+                </MobileBookingSummary>
                 <div className="flex gap-8 items-start flex-col lg:flex-row">
                     <div className="flex-1">
                         <h2 className="font-syne font-bold text-navy text-xl mb-6">
@@ -378,7 +415,7 @@ function PaymentContent() {
                         )}
                     </div>
 
-                    <div className="lg:w-72 flex-shrink-0 sticky top-24">
+                    <div className="hidden lg:block lg:w-72 flex-shrink-0 sticky top-24">
                         <div className="bg-white border border-black/10 rounded-card p-5">
                             <h3 className="font-syne font-bold text-navy text-[15px] mb-4">Booking Summary</h3>
                             <div className="space-y-2 text-[13px] text-muted mb-4">

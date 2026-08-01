@@ -146,7 +146,7 @@ export default function ExtrasPage() {
                 }
             />
 
-            <main className="max-w-[900px] mx-auto px-10 py-10">
+            <main className="max-w-[900px] mx-auto px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
                 <div className="flex gap-8 items-start flex-col lg:flex-row">
                     <div className="flex-1 flex flex-col gap-6">
 
@@ -156,19 +156,19 @@ export default function ExtrasPage() {
                                 <h2 className="font-syne font-bold text-navy text-xl mb-3">Required Fees</h2>
                                 <div className="flex flex-col gap-3">
                                     {mandatoryFees.map(fee => (
-                                        <div key={fee.id} className="bg-orange/5 border border-orange/30 rounded-card p-5 flex items-start gap-4">
-                                            <div className="w-11 h-11 bg-orange/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                                        <div key={fee.id} className="bg-orange/5 border border-orange/30 rounded-[22px] p-4 sm:rounded-card sm:p-5 flex items-start gap-3 sm:gap-4">
+                                            <div className="w-10 h-10 sm:w-11 sm:h-11 bg-orange/20 rounded-xl flex items-center justify-center flex-shrink-0">
                                                 <AlertCircle size={20} className="text-orange" />
                                             </div>
                                             <div className="flex-1">
-                                                <div className="flex items-center justify-between">
+                                                <div className="flex items-start justify-between gap-3">
                                                     <div className="font-syne font-bold text-[14px] text-navy">
                                                         {isAfterHourMandatoryFee(fee) ? formatAfterHourFeeLabel(fee) : (fee.name || 'One-Way Relocation Fee')}
                                                     </div>
                                                     <span className="text-[11px] bg-orange/15 text-orange font-bold px-3 py-1 rounded-full flex-shrink-0">Required</span>
                                                 </div>
                                                 {fee.feedescription && (
-                                                    <div className="text-[12.5px] text-muted mt-0.5 leading-relaxed">{fee.feedescription}</div>
+                                                    <div className="text-[12.5px] text-muted mt-1 leading-relaxed max-sm:max-h-[3.4em] max-sm:overflow-hidden">{fee.feedescription}</div>
                                                 )}
                                                 <div className="text-[12px] text-orange font-semibold mt-1.5">
                                                     +${fee.fees} (one-time fee)
@@ -178,12 +178,12 @@ export default function ExtrasPage() {
                                     ))}
 
                                     {isUnder26 && (
-                                        <div className="bg-orange/5 border border-orange/30 rounded-card p-5 flex items-start gap-4">
-                                            <div className="w-11 h-11 bg-orange/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                                        <div className="bg-orange/5 border border-orange/30 rounded-[22px] p-4 sm:rounded-card sm:p-5 flex items-start gap-3 sm:gap-4">
+                                            <div className="w-10 h-10 sm:w-11 sm:h-11 bg-orange/20 rounded-xl flex items-center justify-center flex-shrink-0">
                                                 <AlertCircle size={20} className="text-orange" />
                                             </div>
                                             <div className="flex-1">
-                                                <div className="flex items-center justify-between">
+                                                <div className="flex items-start justify-between gap-3">
                                                     <div className="font-syne font-bold text-[14px] text-navy">Young Driver Fee</div>
                                                     <span className="text-[11px] bg-orange/15 text-orange font-bold px-3 py-1 rounded-full flex-shrink-0">Required</span>
                                                 </div>
@@ -207,14 +207,14 @@ export default function ExtrasPage() {
                                 <div className="flex flex-col gap-3">
                                     {booking.insuranceOptions.map(ins => (
                                         <button key={ins.id} onClick={() => setSelectedInsuranceId(ins.id)}
-                                                className={`text-left bg-white border rounded-card p-5 flex items-start gap-4 transition-all w-full
+                                                className={`text-left bg-white border rounded-[22px] p-4 sm:rounded-card sm:p-5 flex items-start gap-3 sm:gap-4 transition-all w-full
                         ${selectedInsuranceId === ins.id ? 'border-orange/50 shadow-card' : 'border-black/10 hover:border-orange/20'}`}>
-                                            <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors
+                                            <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors
                         ${selectedInsuranceId === ins.id ? 'bg-orange' : 'bg-orange/10'}`}>
                                                 <Shield size={20} className={selectedInsuranceId === ins.id ? 'text-white' : 'text-orange'} />
                                             </div>
                                             <div className="flex-1">
-                                                <div className="flex items-center justify-between">
+                                                <div className="flex items-start justify-between gap-3">
                                                     <div className="font-syne font-bold text-[14px] text-navy">{ins.name}</div>
                                                     {selectedInsuranceId === ins.id && (
                                                         <div className="w-5 h-5 bg-orange rounded-full flex items-center justify-center flex-shrink-0">
@@ -223,7 +223,7 @@ export default function ExtrasPage() {
                                                     )}
                                                 </div>
                                                 {ins.feedescription && (
-                                                    <div className="text-[12.5px] text-muted mt-0.5 leading-relaxed">{ins.feedescription}</div>
+                                                    <div className="text-[12.5px] text-muted mt-1 leading-relaxed max-sm:max-h-[3.4em] max-sm:overflow-hidden">{ins.feedescription}</div>
                                                 )}
                                                 <div className="text-[12px] font-semibold mt-1.5 text-orange">
                                                     {ins.fees === 0 ? 'Included — no extra charge' : `+$${ins.fees}/day ($${ins.fees * booking.days} total)`}
@@ -259,26 +259,28 @@ export default function ExtrasPage() {
 
                                         return (
                                             <div key={extra.id}
-                                                 className={`bg-white border rounded-card p-5 flex items-center gap-4 transition-all
+                                                 className={`bg-white border rounded-[22px] p-4 sm:rounded-card sm:p-5 flex flex-col gap-4 transition-all sm:flex-row sm:items-center
                           ${qty > 0 ? 'border-orange/40 shadow-card' : 'border-black/10'}`}>
-                                                <div className="w-11 h-11 bg-orange/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                                                    <Icon size={20} className="text-orange" />
-                                                </div>
-                                                <div className="flex-1">
-                                                    <div className="font-syne font-bold text-[14px] text-navy">{extra.name}</div>
-                                                    {extra.feedescription && (
-                                                        <div className="text-[12.5px] text-muted mt-0.5 leading-relaxed">{extra.feedescription}</div>
-                                                    )}
-                                                    <div className="text-[12px] text-orange font-semibold mt-1">
-                                                        +${extra.fees} {isDaily ? 'per day' : 'per rental'}
-                                                        {isDaily && booking.days > 0 && (
-                                                            <span className="text-muted font-normal ml-1">
+                                                <div className="flex items-start gap-3 sm:flex-1 sm:gap-4">
+                                                    <div className="w-10 h-10 sm:w-11 sm:h-11 bg-orange/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                                                        <Icon size={20} className="text-orange" />
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="font-syne font-bold text-[14px] text-navy">{extra.name}</div>
+                                                        {extra.feedescription && (
+                                                            <div className="text-[12.5px] text-muted mt-1 leading-relaxed max-sm:max-h-[3.4em] max-sm:overflow-hidden">{extra.feedescription}</div>
+                                                        )}
+                                                        <div className="text-[12px] text-orange font-semibold mt-1.5">
+                                                            +${extra.fees} {isDaily ? 'per day' : 'per rental'}
+                                                            {isDaily && booking.days > 0 && (
+                                                                <span className="text-muted font-normal ml-1">
                                 ({extra.maximumprice > 0 ? `max $${extra.maximumprice}` : `$${totalPrice} total`})
                               </span>
-                                                        )}
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                                <div className="flex items-center justify-end gap-2 flex-shrink-0 rounded-2xl bg-off-white px-3 py-2 sm:bg-transparent sm:p-0">
                                                     {extra.qtyapply ? (
                                                         <>
                                                             <button onClick={() => changeExtra(id, -1, 9)}
@@ -311,7 +313,7 @@ export default function ExtrasPage() {
                     </div>
 
                     {/* Order Summary */}
-                    <div className="lg:w-72 flex-shrink-0 sticky top-24">
+                    <div className="w-full max-w-[360px] mx-auto lg:mx-0 lg:w-72 flex-shrink-0 lg:sticky lg:top-24">
                         <div className="bg-white border border-black/10 rounded-card p-5">
                             <h3 className="font-syne font-bold text-navy text-[15px] mb-4">Order Summary</h3>
                             <div className="space-y-2 text-[13px]">

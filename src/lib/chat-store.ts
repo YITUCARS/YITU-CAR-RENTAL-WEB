@@ -34,6 +34,21 @@ export async function ensureChatSession(sessionId: string) {
     return snapshot.data() as ChatSession
 }
 
+
+export async function findChatSessionByTelegramMessageId(messageId: number | string | null | undefined) {
+    const numericMessageId = Number(messageId)
+    if (!Number.isFinite(numericMessageId)) return null
+
+    const snapshot = await getAdminDb()
+        .collection('chats')
+        .where('lastTelegramMessageId', '==', numericMessageId)
+        .limit(1)
+        .get()
+
+    if (snapshot.empty) return null
+    return snapshot.docs[0].data() as ChatSession
+}
+
 export async function appendMessages(sessionId: string, messages: ChatMessage[], updates?: Partial<ChatSession>) {
     const ref = getAdminDb().collection('chats').doc(sessionId)
     await ref.set({

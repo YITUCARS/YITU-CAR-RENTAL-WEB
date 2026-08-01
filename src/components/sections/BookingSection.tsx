@@ -12,11 +12,12 @@ import {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const LOCATIONS = ['Christchurch', 'Queenstown', 'Auckland']
+const ACTIVE_LOCATIONS = ['Christchurch', 'Queenstown']
 
 const DROPOFF_RULES: Record<string, string[]> = {
   'Christchurch': ['Christchurch', 'Queenstown'],
   'Queenstown':   ['Queenstown', 'Christchurch'],
-  'Auckland':     ['Auckland'],
+  'Auckland':     ['Christchurch'],
 }
 
 // ─── BookingSection ───────────────────────────────────────────────────────────
@@ -44,9 +45,15 @@ export default function BookingSection() {
   }, [])
 
   function handlePickupLocationChange(val: string) {
+    if (!ACTIVE_LOCATIONS.includes(val)) return
     setPickupLocation(val)
     const allowed = DROPOFF_RULES[val] || []
     if (!allowed.includes(dropoffLocation)) setDropoffLocation(allowed[0] || val)
+  }
+
+  function handleDropoffLocationChange(val: string) {
+    if (!ACTIVE_LOCATIONS.includes(val)) return
+    setDropoffLocation(val)
   }
 
   function handlePickupDateChange(d: string) {
@@ -77,6 +84,8 @@ export default function BookingSection() {
   const locationOptions = LOCATIONS.map(location => ({
     value: location,
     label: t(`Locations.names.${location}`),
+    disabled: !ACTIVE_LOCATIONS.includes(location),
+    hint: !ACTIVE_LOCATIONS.includes(location) ? 'Coming soon' : '',
   }))
 
   function handleSearch() {
@@ -91,7 +100,7 @@ export default function BookingSection() {
   }
 
   return (
-    <section id="booking" className="relative z-20 px-4 sm:px-10" style={{ marginTop: '-90px' }}>
+    <section id="booking" className="relative z-20 mt-6 px-4 sm:-mt-10 sm:px-10 lg:-mt-[90px]">
       <div className="floating-anchor max-w-[1400px] mx-auto">
         <div ref={floatRef} className="floating-inner rounded-2xl p-2" style={{
           background: 'rgba(255,255,255,0.15)',
@@ -117,8 +126,19 @@ export default function BookingSection() {
               options={allowedDropoffs.map(location => ({
                 value: location,
                 label: t(`Locations.names.${location}`),
-              }))}
-              onChange={setDropoffLocation}
+                disabled: !ACTIVE_LOCATIONS.includes(location),
+                hint: !ACTIVE_LOCATIONS.includes(location) ? 'Coming soon' : '',
+              })).concat(
+                LOCATIONS
+                  .filter(location => !allowedDropoffs.includes(location))
+                  .map(location => ({
+                    value: location,
+                    label: t(`Locations.names.${location}`),
+                    disabled: true,
+                    hint: 'Coming soon',
+                  }))
+              )}
+              onChange={handleDropoffLocationChange}
             />
             <DateTimePicker
               label={t('BookingSearch.pickupDate')}

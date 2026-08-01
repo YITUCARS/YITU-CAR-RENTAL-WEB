@@ -246,7 +246,14 @@ export default function ManageBookingModal({ open, onClose }: ManageBookingModal
   }
 
   const reasonId = (r: CancelReason) => String(r.id ?? r.cancelreasonid ?? '')
-  const reasonLabel = (r: CancelReason) => r.name ?? r.cancelreason ?? ''
+  const reasonLabel = (r: CancelReason) => (
+    r.name ??
+    r.cancelreason ??
+    (r as any).reason ??
+    (r as any).label ??
+    (r as any).description ??
+    ''
+  )
 
   return (
     <div
@@ -443,10 +450,10 @@ export default function ManageBookingModal({ open, onClose }: ManageBookingModal
                   </div>
                 ) : cancelReasons.length > 0 ? (
                   <select value={selectedReason} onChange={e => setSelectedReason(e.target.value)}
-                    className="w-full bg-white border-[1.5px] border-black/10 rounded-[9px] px-3.5 py-3 text-[14px] text-navy focus:outline-none focus:border-orange transition-colors">
-                    <option value="">Select a reason…</option>
+                    className="w-full bg-white border-[1.5px] border-black/10 rounded-[9px] px-3.5 py-3 text-[14px] text-slate-900 focus:outline-none focus:border-orange transition-colors [color-scheme:light]">
+                    <option value="" className="bg-white text-slate-900">Select a reason…</option>
                     {cancelReasons.map(r => (
-                      <option key={reasonId(r)} value={reasonId(r)}>{reasonLabel(r)}</option>
+                      <option key={reasonId(r)} value={reasonId(r)} className="bg-white text-slate-900">{reasonLabel(r)}</option>
                     ))}
                   </select>
                 ) : (

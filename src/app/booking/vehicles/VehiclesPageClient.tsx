@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useLocale } from 'next-intl'
 import { Users, Briefcase, ArrowRight, Search, SlidersHorizontal, Tag } from 'lucide-react'
 import { useBooking, calcDays, calcAfterHourBreakdown, LOCATION_IDS } from '@/lib/booking-context'
 import BookingFlowHeader from '@/components/booking/BookingFlowHeader'
@@ -47,11 +48,164 @@ type SearchFormState = {
 }
 
 const LOCATIONS = ['Christchurch', 'Queenstown', 'Auckland']
+const ACTIVE_LOCATIONS = ['Christchurch', 'Queenstown']
 
 const DROPOFF_RULES: Record<string, string[]> = {
     Christchurch: ['Christchurch', 'Queenstown'],
     Queenstown: ['Queenstown', 'Christchurch'],
-    Auckland: ['Auckland'],
+    Auckland: ['Christchurch'],
+}
+
+const VEHICLES_COPY = {
+    en: {
+        refineSearch: 'Refine Search',
+        adjustTrip: 'Adjust your trip and filters',
+        pickupLocation: 'Pick-up Location',
+        dropoffLocation: 'Drop-off Location',
+        pickupDate: 'Pick-up Date',
+        pickupTime: 'Pick-up Time',
+        dropoffDate: 'Drop-off Date',
+        dropoffTime: 'Drop-off Time',
+        maxPriceDay: 'Max Price / Day',
+        vehicleType: 'Vehicle Type',
+        allTypes: 'All types',
+        promoCode: 'Promo Code',
+        enterPromoCode: 'Enter promo code',
+        apply: 'Apply',
+        promoHelp: 'Press Apply or Update Results to search with this code',
+        driverAge: 'Driver Age',
+        under26: 'Under 26',
+        updateResults: 'Update Results',
+        unappliedTitle: 'Search changes are not applied yet',
+        unappliedBody: 'Click Update Results before selecting a vehicle so pricing and availability match the latest trip details.',
+        pickup: 'Pick-up',
+        dropoff: 'Drop-off',
+        duration: 'Duration',
+        day: 'day',
+        days: 'days',
+        vehicleGroupsAvailable: 'vehicle groups available',
+        resultsHint: 'Results update from your new dates, times, locations, price cap, and vehicle type filter.',
+        youngDriverFeeApplies: 'Young Driver Fee applies · +$30/day',
+        noVehiclesAvailable: 'No vehicles available',
+        noVehiclesAvailableBody: 'No vehicles are available for your selected dates and locations. Try adjusting your pick-up or drop-off times.',
+        searchAgain: 'Search again',
+        trySearchAgain: 'Try search again',
+        noVehiclesMatch: 'No vehicles match these filters',
+        noVehiclesMatchBody: 'Try increasing the max price or switching to another vehicle type.',
+        noImage: 'No image',
+        adults: 'Adults',
+        largeSmallBags: (large: number, small: number) => `${large} Large + ${small} Small bags`,
+        perDay: '/day',
+        youngDriverFee: '+ Young Driver Fee',
+        promoApplied: (code: string) => `Promo ${code} applied · save`,
+        total: 'total',
+        priceUnavailable: 'Price unavailable',
+        updateResultsFirst: 'Update Results First',
+        select: 'Select',
+        bookingTimeNotice: 'Booking Time Notice',
+        christchurchTiming: 'Christchurch Location does not accept bookings less than 6 hours from now.',
+        otherTiming: 'Other Locations do not accept bookings less than 24 hours from now.',
+        timingBody: 'Some vehicles may be unavailable for your selected dates. Please adjust your pick-up date and time and search again.',
+        timingCta: "Got it, I'll adjust my dates",
+        close: 'Close',
+        unavailableLoad: 'Unable to load available vehicles. Please try again.',
+        networkError: 'Network error. Please try again.',
+    },
+    zh: {
+        refineSearch: '筛选搜索',
+        adjustTrip: '调整行程和筛选条件',
+        pickupLocation: '取车地点',
+        dropoffLocation: '还车地点',
+        pickupDate: '取车日期',
+        pickupTime: '取车时间',
+        dropoffDate: '还车日期',
+        dropoffTime: '还车时间',
+        maxPriceDay: '每日最高价格',
+        vehicleType: '车辆类型',
+        allTypes: '全部类型',
+        promoCode: '优惠码',
+        enterPromoCode: '输入优惠码',
+        apply: '应用',
+        promoHelp: '请点击“应用”或“更新结果”，使用该优惠码重新搜索',
+        driverAge: '驾驶员年龄',
+        under26: '26岁以下',
+        updateResults: '更新结果',
+        unappliedTitle: '搜索条件尚未应用',
+        unappliedBody: '请选择车辆前先点击“更新结果”，确保价格和库存与最新行程一致。',
+        pickup: '取车',
+        dropoff: '还车',
+        duration: '租期',
+        day: '天',
+        days: '天',
+        vehicleGroupsAvailable: '组车型可预订',
+        resultsHint: '结果会根据最新日期、时间、地点、价格上限和车型筛选更新。',
+        youngDriverFeeApplies: '适用年轻驾驶员费用 · +$30/天',
+        noVehiclesAvailable: '暂无可预订车辆',
+        noVehiclesAvailableBody: '当前日期和地点暂无可订车辆，请尝试调整取车或还车时间。',
+        searchAgain: '重新搜索',
+        trySearchAgain: '再次搜索',
+        noVehiclesMatch: '没有符合筛选条件的车辆',
+        noVehiclesMatchBody: '请尝试提高价格上限，或切换其他车辆类型。',
+        noImage: '暂无图片',
+        adults: '位乘客',
+        largeSmallBags: (large: number, small: number) => `${large} 个大箱 + ${small} 个小箱`,
+        perDay: '/天',
+        youngDriverFee: '+ 年轻驾驶员费',
+        promoApplied: (code: string) => `优惠码 ${code} 已应用 · 共节省`,
+        total: '总价',
+        priceUnavailable: '价格暂不可用',
+        updateResultsFirst: '请先更新结果',
+        select: '选择',
+        bookingTimeNotice: '预订时间提示',
+        christchurchTiming: '基督城门店不接受距离当前时间少于 6 小时的预订。',
+        otherTiming: '其他门店不接受距离当前时间少于 24 小时的预订。',
+        timingBody: '你选择的日期可能导致部分车辆不可预订，请调整取车日期和时间后重新搜索。',
+        timingCta: '好的，我来调整日期',
+        close: '关闭',
+        unavailableLoad: '无法加载可预订车辆，请稍后再试。',
+        networkError: '网络错误，请稍后再试。',
+    },
+} as const
+
+const LOCATION_LABELS: Record<'en' | 'zh', Record<string, string>> = {
+    en: {
+        Christchurch: 'Christchurch',
+        Queenstown: 'Queenstown',
+        Auckland: 'Auckland',
+    },
+    zh: {
+        Christchurch: '基督城',
+        Queenstown: '皇后镇',
+        Auckland: '奥克兰',
+    },
+}
+
+function getVehicleCopy(locale: string) {
+    return locale === 'zh' ? VEHICLES_COPY.zh : VEHICLES_COPY.en
+}
+
+function getLocationOptions(locale: string, locations: string[]) {
+    const labels = locale === 'zh' ? LOCATION_LABELS.zh : LOCATION_LABELS.en
+    return locations.map(location => ({
+        value: location,
+        label: labels[location] || location,
+        disabled: !ACTIVE_LOCATIONS.includes(location),
+        hint: !ACTIVE_LOCATIONS.includes(location) ? 'Coming soon' : '',
+    }))
+}
+
+function getLocationLabel(locale: string, location: string) {
+    const labels = locale === 'zh' ? LOCATION_LABELS.zh : LOCATION_LABELS.en
+    return labels[location] || location
+}
+
+function getAvailabilityLabel(locale: string, message: string) {
+    if (locale !== 'zh') return message
+    const normalized = message.trim().toLowerCase()
+    if (normalized === 'available') return '可预订'
+    if (normalized === 'fully booked') return '已订满'
+    if (normalized === 'unavailable for selected dates') return '所选日期不可订'
+    return message
 }
 
 function sortCategoryTypes(types: RCMCategoryType[]) {
@@ -130,6 +284,8 @@ function VehicleSearchCard({
     vehicleTypeOptions,
     promoCode,
     setPromoCode,
+    copy,
+    locale,
     compact = false,
 }: {
     form: SearchFormState
@@ -142,15 +298,28 @@ function VehicleSearchCard({
     vehicleTypeOptions: RCMCategoryType[]
     promoCode: string
     setPromoCode: (value: string) => void
+    copy: typeof VEHICLES_COPY.en | typeof VEHICLES_COPY.zh
+    locale: string
     compact?: boolean
 }) {
     const allowedDropoffs = DROPOFF_RULES[form.pickupLocation] || LOCATIONS
+    const locationOptions = getLocationOptions(locale, LOCATIONS)
+    const dropoffOptions = [
+        ...getLocationOptions(locale, allowedDropoffs),
+        ...getLocationOptions(locale, LOCATIONS.filter(location => !allowedDropoffs.includes(location))).map(option => ({
+            ...option,
+            disabled: true,
+            hint: option.hint || 'Coming soon',
+        })),
+    ]
     const nzMin = getNZMinPickup()
     const sameDay = form.pickupDate === form.dropoffDate
     const pickupMinTime = form.pickupDate === nzMin.minDate ? nzMin.minHour : undefined
     const dropoffMinTime = sameDay ? form.pickupTime : undefined
 
     function updateField<K extends keyof SearchFormState>(field: K, value: SearchFormState[K]) {
+        if ((field === 'pickupLocation' || field === 'dropoffLocation') && !ACTIVE_LOCATIONS.includes(value as string)) return
+
         setForm(current => {
             const next = { ...current, [field]: value }
 
@@ -183,9 +352,9 @@ function VehicleSearchCard({
         <div className={`rounded-[28px] border border-black/10 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.08)] ${compact ? 'p-3' : 'p-5'}`}>
             <div className={`flex items-center justify-between gap-3 ${compact ? 'mb-2' : 'mb-5'}`}>
                 <div>
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-muted font-bold">Refine Search</div>
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-muted font-bold">{copy.refineSearch}</div>
                     <h3 className={`font-syne text-navy ${compact ? 'text-[1rem] font-bold' : 'text-[1.1rem] font-extrabold'}`}>
-                        Adjust your trip and filters
+                        {copy.adjustTrip}
                     </h3>
                 </div>
                 <div className="w-10 h-10 rounded-2xl bg-orange/10 flex items-center justify-center flex-shrink-0">
@@ -196,15 +365,15 @@ function VehicleSearchCard({
             {/* ── Location fields ── */}
             <div className={`grid ${compact ? 'grid-cols-1 gap-2' : 'grid-cols-1 sm:grid-cols-2 gap-3'} ${compact ? '' : 'mb-3'}`}>
                 <LocationSelect
-                    label="Pick-up Location"
+                    label={copy.pickupLocation}
                     value={form.pickupLocation}
-                    options={LOCATIONS}
+                    options={locationOptions}
                     onChange={v => updateField('pickupLocation', v)}
                 />
                 <LocationSelect
-                    label="Drop-off Location"
+                    label={copy.dropoffLocation}
                     value={form.dropoffLocation}
-                    options={allowedDropoffs}
+                    options={dropoffOptions}
                     onChange={v => updateField('dropoffLocation', v)}
                 />
             </div>
@@ -212,7 +381,7 @@ function VehicleSearchCard({
             {/* ── Date/Time fields ── */}
             <div className={`grid ${compact ? 'grid-cols-1 gap-2' : 'grid-cols-2 xl:grid-cols-4 gap-3'}`}>
                 <DateTimePicker
-                    label="Pick-up Date"
+                    label={copy.pickupDate}
                     value={form.pickupDate}
                     rangeEnd={form.dropoffDate}
                     time={form.pickupTime}
@@ -221,29 +390,29 @@ function VehicleSearchCard({
                     onChange={d => updateField('pickupDate', d)}
                     onRangeEndChange={d => updateField('dropoffDate', d)}
                     onTimeChange={t => updateField('pickupTime', t)}
-                    timeLabel="Pick-up Time"
+                    timeLabel={copy.pickupTime}
                     showTime={false}
                     enableRangeSelection
                 />
                 <TimeSelect
-                    label="Pick-up Time"
+                    label={copy.pickupTime}
                     value={form.pickupTime}
                     minTime={pickupMinTime}
                     onChange={t => updateField('pickupTime', t)}
                 />
                 <DateTimePicker
-                    label="Drop-off Date"
+                    label={copy.dropoffDate}
                     value={form.dropoffDate}
                     time={form.dropoffTime}
                     minDate={form.pickupDate || nzMin.minDate}
                     minTime={dropoffMinTime}
                     onChange={d => updateField('dropoffDate', d)}
                     onTimeChange={t => updateField('dropoffTime', t)}
-                    timeLabel="Drop-off Time"
+                    timeLabel={copy.dropoffTime}
                     showTime={false}
                 />
                 <TimeSelect
-                    label="Drop-off Time"
+                    label={copy.dropoffTime}
                     value={form.dropoffTime}
                     minTime={dropoffMinTime}
                     onChange={t => updateField('dropoffTime', t)}
@@ -254,7 +423,7 @@ function VehicleSearchCard({
             <div className={`${compact ? 'mt-2' : 'mt-4'} grid ${compact ? 'grid-cols-1 gap-2' : 'grid-cols-1 xl:grid-cols-4 gap-4'} items-end`}>
                 <div>
                     <div className="flex items-center justify-between gap-3 mb-1.5">
-                        <span className="text-[10.5px] text-muted uppercase tracking-[0.14em] font-bold">Max Price / Day</span>
+                        <span className="text-[10.5px] text-muted uppercase tracking-[0.14em] font-bold">{copy.maxPriceDay}</span>
                         <span className="text-[12px] font-semibold text-orange">${maxPrice}</span>
                     </div>
                     <input
@@ -269,13 +438,13 @@ function VehicleSearchCard({
                 </div>
 
                 <label className="block">
-                    <span className="text-[10.5px] text-muted uppercase tracking-[0.14em] font-bold mb-1.5 block">Vehicle Type</span>
+                    <span className="text-[10.5px] text-muted uppercase tracking-[0.14em] font-bold mb-1.5 block">{copy.vehicleType}</span>
                     <select
                         value={vehicleType}
                         onChange={e => setVehicleType(e.target.value)}
                         className={`w-full rounded-xl border border-black/10 bg-off-white px-4 ${compact ? 'py-2' : 'py-3'} text-[14px] text-navy outline-none focus:border-orange`}
                     >
-                        <option value="all">All types</option>
+                        <option value="all">{copy.allTypes}</option>
                         {vehicleTypeOptions.map(option => (
                             <option key={option.id} value={String(option.id)}>
                                 {option.vehiclecategorytype}
@@ -286,7 +455,7 @@ function VehicleSearchCard({
 
                 <label className="block">
                     <span className="flex items-center gap-1.5 text-[10.5px] text-muted uppercase tracking-[0.14em] font-bold mb-1.5">
-                        <Tag size={11} className="text-orange" /> Promo Code
+                        <Tag size={11} className="text-orange" /> {copy.promoCode}
                     </span>
                     <div className={`rounded-xl border border-black/10 bg-off-white px-4 ${compact ? 'py-2' : 'py-3'} flex items-center gap-2`}>
                         <input
@@ -294,7 +463,7 @@ function VehicleSearchCard({
                             value={promoCode}
                             onChange={e => setPromoCode(e.target.value.toUpperCase())}
                             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onSearch() } }}
-                            placeholder="Enter promo code"
+                            placeholder={copy.enterPromoCode}
                             className="flex-1 bg-transparent text-[14px] font-semibold tracking-[0.14em] text-navy outline-none placeholder:text-muted/55"
                         />
                         {promoCode && (
@@ -303,20 +472,20 @@ function VehicleSearchCard({
                                 onClick={onSearch}
                                 className="text-[11px] font-bold text-white bg-orange hover:bg-orange-dark px-3 py-1 rounded-lg transition-colors whitespace-nowrap"
                             >
-                                Apply
+                                {copy.apply}
                             </button>
                         )}
                     </div>
                     {promoCode && (
                         <div className="mt-1.5 text-[11px] text-muted">
-                            Press Apply or Update Results to search with this code
+                            {copy.promoHelp}
                         </div>
                     )}
                 </label>
 
                 <div className={`${compact ? '' : 'xl:min-w-[170px]'}`}>
                     <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-[10.5px] text-muted uppercase tracking-[0.14em] font-bold">Driver Age</span>
+                        <span className="text-[10.5px] text-muted uppercase tracking-[0.14em] font-bold">{copy.driverAge}</span>
                     </div>
                     <div className={`flex gap-2 ${compact ? 'mb-2' : 'mb-3'}`}>
                         <button
@@ -337,14 +506,14 @@ function VehicleSearchCard({
                                     : 'border-black/10 text-muted hover:border-orange hover:text-orange'
                             }`}
                         >
-                            Under 26
+                            {copy.under26}
                         </button>
                     </div>
                     <button
                         onClick={onSearch}
                         className={`w-full inline-flex items-center justify-center gap-2 rounded-xl bg-orange hover:bg-orange-dark text-white font-syne font-bold text-[14px] px-5 ${compact ? 'py-2' : 'py-3'} shadow-orange-glow transition-all`}
                     >
-                        <Search size={16} /> Update Results
+                        <Search size={16} /> {copy.updateResults}
                     </button>
                 </div>
             </div>
@@ -355,10 +524,15 @@ function VehicleSearchCard({
 export default function VehiclesPage() {
     const router = useRouter()
     const params = useSearchParams()
+    const locale = useLocale()
+    const copy = getVehicleCopy(locale)
     const { booking, setBooking } = useBooking()
 
-    const initialPickupLocation = params.get('pickupLocation') || booking.pickupLocation || 'Christchurch'
-    const initialDropoffLocation = params.get('dropoffLocation') || booking.dropoffLocation || 'Christchurch'
+    const requestedPickupLocation = params.get('pickupLocation') || booking.pickupLocation || 'Christchurch'
+    const initialPickupLocation = ACTIVE_LOCATIONS.includes(requestedPickupLocation) ? requestedPickupLocation : 'Christchurch'
+    const requestedDropoffLocation = params.get('dropoffLocation') || booking.dropoffLocation || 'Christchurch'
+    const validInitialDropoffs = DROPOFF_RULES[initialPickupLocation] || ACTIVE_LOCATIONS
+    const initialDropoffLocation = validInitialDropoffs.includes(requestedDropoffLocation) ? requestedDropoffLocation : validInitialDropoffs[0]
     const defaultPickup = new Date(); defaultPickup.setDate(defaultPickup.getDate() + 2)
     const defaultDropoff = new Date(); defaultDropoff.setDate(defaultDropoff.getDate() + 9)
     const initialPickupDate = params.get('pickupDate') || booking.pickupDate || toYMD(defaultPickup)
@@ -387,8 +561,19 @@ export default function VehiclesPage() {
     const [showStickySearch, setShowStickySearch] = useState(false)
     const [promoCode, setPromoCode] = useState(initialPromoCode.toUpperCase())
     const [showTimingModal, setShowTimingModal] = useState(false)
+    const [appliedSearchForm, setAppliedSearchForm] = useState<SearchFormState>(searchForm)
+    const [appliedPromoCode, setAppliedPromoCode] = useState(initialPromoCode.toUpperCase())
 
-    const days = calcDays(searchForm.pickupDate, searchForm.pickupTime, searchForm.dropoffDate, searchForm.dropoffTime)
+    const days = calcDays(appliedSearchForm.pickupDate, appliedSearchForm.pickupTime, appliedSearchForm.dropoffDate, appliedSearchForm.dropoffTime)
+    const hasUnappliedSearchChanges =
+        searchForm.pickupLocation !== appliedSearchForm.pickupLocation ||
+        searchForm.dropoffLocation !== appliedSearchForm.dropoffLocation ||
+        searchForm.pickupDate !== appliedSearchForm.pickupDate ||
+        searchForm.pickupTime !== appliedSearchForm.pickupTime ||
+        searchForm.dropoffDate !== appliedSearchForm.dropoffDate ||
+        searchForm.dropoffTime !== appliedSearchForm.dropoffTime ||
+        searchForm.driverAge !== appliedSearchForm.driverAge ||
+        promoCode.trim().toUpperCase() !== appliedPromoCode
 
     useEffect(() => {
         function onScroll() {
@@ -464,6 +649,8 @@ export default function VehiclesPage() {
                 const cars: RCMVehicle[] = result.data.availablecars
                 setVehicles(cars)
                 setSearchResults(result.data)
+                setAppliedSearchForm(form)
+                setAppliedPromoCode(activePromoCode)
                 const pickupMs = new Date(`${form.pickupDate}T${form.pickupTime}:00`).getTime()
                 const hoursUntilPickup = (pickupMs - Date.now()) / 36e5
                 const minHours = form.pickupLocation === 'Christchurch' ? 6 : 24
@@ -480,18 +667,18 @@ export default function VehiclesPage() {
                 if (activePromoCode) query.set('promoCode', activePromoCode)
                 const newSearch = `?${query.toString()}`
                 if (window.location.search !== newSearch) {
-                    window.history.replaceState(null, '', `/booking/vehicles${newSearch}`)
+                    window.history.replaceState(null, '', `/${locale}/booking/vehicles${newSearch}`)
                 }
             } else {
                 setVehicles([])
                 setSearchResults(null)
-                setError(result.error || 'Unable to load available vehicles. Please try again.')
+                setError(result.error || copy.unavailableLoad)
             }
         } catch (error) {
             console.error('Vehicle search request failed:', error)
             setVehicles([])
             setSearchResults(null)
-            setError('Network error. Please try again.')
+            setError(copy.networkError)
         } finally {
             setLoading(false)
         }
@@ -540,6 +727,7 @@ export default function VehiclesPage() {
     }, [vehicles, vehicleType, maxPrice, days])
 
     function selectVehicle(vehicle: RCMVehicle) {
+        if (hasUnappliedSearchChanges) return
         if (!isVehicleSelectable(vehicle)) return
 
         const pricing = getVehiclePricing(vehicle, days)
@@ -557,7 +745,7 @@ export default function VehiclesPage() {
             basePricePerDay: vehicle.avgrate,
             pricePerDay: pricing.effectivePerDay,
             days,
-            promoCode: promoCode.trim().toUpperCase(),
+            promoCode: appliedPromoCode,
             promoDiscountType: '',
             promoDiscountValue: 0,
             promoDiscountAmount: pricing.promoDiscount,
@@ -565,7 +753,7 @@ export default function VehiclesPage() {
             selectedInsuranceId: vehicleInsurance.find((item: any) => item.isdefault)?.id ?? null,
         }))
 
-        router.push('/booking/extras')
+        router.push(`/${locale}/booking/extras`)
     }
 
     return (
@@ -578,21 +766,21 @@ export default function VehiclesPage() {
                 summary={
                     <div className="flex flex-wrap gap-6 text-[13px] text-muted">
                         <div>
-                            <span className="block text-[10px] uppercase tracking-wider mb-0.5 text-muted/70">Pick-up</span>
-                            <span className="font-semibold text-navy">{searchForm.pickupLocation} · {searchForm.pickupDate} {searchForm.pickupTime}</span>
+                            <span className="block text-[10px] uppercase tracking-wider mb-0.5 text-muted/70">{copy.pickup}</span>
+                            <span className="font-semibold text-navy">{getLocationLabel(locale, appliedSearchForm.pickupLocation)} · {appliedSearchForm.pickupDate} {appliedSearchForm.pickupTime}</span>
                         </div>
                         <div>
-                            <span className="block text-[10px] uppercase tracking-wider mb-0.5 text-muted/70">Drop-off</span>
-                            <span className="font-semibold text-navy">{searchForm.dropoffLocation} · {searchForm.dropoffDate} {searchForm.dropoffTime}</span>
+                            <span className="block text-[10px] uppercase tracking-wider mb-0.5 text-muted/70">{copy.dropoff}</span>
+                            <span className="font-semibold text-navy">{getLocationLabel(locale, appliedSearchForm.dropoffLocation)} · {appliedSearchForm.dropoffDate} {appliedSearchForm.dropoffTime}</span>
                         </div>
                         <div>
-                            <span className="block text-[10px] uppercase tracking-wider mb-0.5 text-muted/70">Duration</span>
-                            <span className="font-semibold text-orange">{days} day{days !== 1 ? 's' : ''}</span>
+                            <span className="block text-[10px] uppercase tracking-wider mb-0.5 text-muted/70">{copy.duration}</span>
+                            <span className="font-semibold text-orange">{days} {days === 1 ? copy.day : copy.days}</span>
                         </div>
                         <div>
-                            <span className="block text-[10px] uppercase tracking-wider mb-0.5 text-muted/70">Driver Age</span>
-                            <span className={`font-semibold ${searchForm.driverAge === 'under26' ? 'text-orange' : 'text-navy'}`}>
-                                {searchForm.driverAge === 'under26' ? 'Under 26' : '26+'}
+                            <span className="block text-[10px] uppercase tracking-wider mb-0.5 text-muted/70">{copy.driverAge}</span>
+                            <span className={`font-semibold ${appliedSearchForm.driverAge === 'under26' ? 'text-orange' : 'text-navy'}`}>
+                                {appliedSearchForm.driverAge === 'under26' ? copy.under26 : '26+'}
                             </span>
                         </div>
                     </div>
@@ -611,7 +799,27 @@ export default function VehiclesPage() {
                     vehicleTypeOptions={vehicleTypeOptions}
                     promoCode={promoCode}
                     setPromoCode={setPromoCode}
+                    copy={copy}
+                    locale={locale}
                 />
+
+                {hasUnappliedSearchChanges && (
+                    <div className="mt-4 rounded-2xl border border-orange/30 bg-orange/10 px-5 py-4 text-[13px] text-navy flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <div className="font-syne font-bold">{copy.unappliedTitle}</div>
+                            <div className="text-muted mt-0.5">
+                                {copy.unappliedBody}
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => loadVehicles(searchForm)}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange hover:bg-orange-dark text-white font-syne font-bold text-[13px] px-4 py-2 transition-all"
+                        >
+                            <Search size={15} /> {copy.updateResults}
+                        </button>
+                    </div>
+                )}
 
                 <div className="mt-8 grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-8 items-start">
                     <aside className="hidden lg:block" aria-hidden="true">
@@ -653,7 +861,7 @@ export default function VehiclesPage() {
                             <div className="text-center py-20 text-muted">
                                 <p>{error}</p>
                                 <button onClick={() => loadVehicles(searchForm)} className="mt-4 text-orange underline text-sm">
-                                    Try search again
+                                    {copy.trySearchAgain}
                                 </button>
                             </div>
                         )}
@@ -663,37 +871,37 @@ export default function VehiclesPage() {
                                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
                                     <div>
                                         <h2 className="font-syne font-bold text-navy text-xl">
-                                            {filteredVehicles.length} vehicle groups available
+                                            {filteredVehicles.length} {copy.vehicleGroupsAvailable}
                                         </h2>
                                         <p className="text-[13px] text-muted mt-1">
-                                            Results update from your new dates, times, locations, price cap, and vehicle type filter.
+                                            {copy.resultsHint}
                                         </p>
                                     </div>
-                                    {searchForm.driverAge === 'under26' && (
+                                    {appliedSearchForm.driverAge === 'under26' && (
                                         <span className="text-[12px] bg-orange/10 text-orange font-semibold px-3 py-1.5 rounded-full">
-                                            Young Driver Fee applies · +$30/day
+                                            {copy.youngDriverFeeApplies}
                                         </span>
                                     )}
                                 </div>
 
                                 {vehicles.length === 0 ? (
                                     <div className="bg-white border border-black/10 rounded-card p-8 text-center">
-                                        <h3 className="font-syne font-bold text-navy text-lg">No vehicles available</h3>
+                                        <h3 className="font-syne font-bold text-navy text-lg">{copy.noVehiclesAvailable}</h3>
                                         <p className="text-muted text-[14px] mt-2">
-                                            No vehicles are available for your selected dates and locations. Try adjusting your pick-up or drop-off times.
+                                            {copy.noVehiclesAvailableBody}
                                         </p>
                                         <button
                                             onClick={() => loadVehicles(searchForm)}
                                             className="mt-4 text-orange underline text-sm"
                                         >
-                                            Search again
+                                            {copy.searchAgain}
                                         </button>
                                     </div>
                                 ) : filteredVehicles.length === 0 ? (
                                     <div className="bg-white border border-black/10 rounded-card p-8 text-center">
-                                        <h3 className="font-syne font-bold text-navy text-lg">No vehicles match these filters</h3>
+                                        <h3 className="font-syne font-bold text-navy text-lg">{copy.noVehiclesMatch}</h3>
                                         <p className="text-muted text-[14px] mt-2">
-                                            Try increasing the max price or switching to another vehicle type.
+                                            {copy.noVehiclesMatchBody}
                                         </p>
                                     </div>
                                 ) : (
@@ -716,7 +924,7 @@ export default function VehiclesPage() {
                                                         />
                                                     ) : (
                                                         <div className="w-full py-12 flex items-center justify-center text-muted text-sm">
-                                                            No image
+                                                            {copy.noImage}
                                                         </div>
                                                     )}
                                                 </div>
@@ -737,18 +945,18 @@ export default function VehiclesPage() {
                                                         <div className="flex gap-4 flex-wrap mb-3">
                                                             <span className="flex items-center gap-1.5 text-[13px] text-muted">
                                                                 <Users size={13} className="text-orange" />
-                                                                {vehicle.numberofadults} Adults
+                                                                {vehicle.numberofadults} {copy.adults}
                                                             </span>
                                                             <span className="flex items-center gap-1.5 text-[13px] text-muted">
                                                                 <Briefcase size={13} className="text-orange" />
-                                                                {vehicle.numberoflargecases} Large + {vehicle.numberofsmallcases} Small bags
+                                                                {copy.largeSmallBags(vehicle.numberoflargecases, vehicle.numberofsmallcases)}
                                                             </span>
                                                         </div>
                                                         {vehicle.availablemessage && (
                                                             <span className={`text-[11px] px-2.5 py-1 rounded-full font-medium ${
                                                                 selectable ? 'bg-green-50 text-green-700' : 'bg-orange/10 text-orange'
                                                             }`}>
-                                                                {vehicle.availablemessage}
+                                                                {getAvailabilityLabel(locale, vehicle.availablemessage)}
                                                             </span>
                                                         )}
                                                     </div>
@@ -758,38 +966,38 @@ export default function VehiclesPage() {
                                                             {selectable ? (
                                                                 <>
                                                                     <div className="text-[16px] text-muted mb-0.5">
-                                                                        $<PriceDisplay value={pricing.effectivePerDay} />/day × {days} days
-                                                                        {searchForm.driverAge === 'under26' && (
-                                                                            <span className="text-orange ml-1">+ Young Driver Fee</span>
+                                                                        $<PriceDisplay value={pricing.effectivePerDay} />{copy.perDay} × {days} {days === 1 ? copy.day : copy.days}
+                                                                        {appliedSearchForm.driverAge === 'under26' && (
+                                                                            <span className="text-orange ml-1">{copy.youngDriverFee}</span>
                                                                         )}
                                                                     </div>
                                                                     {pricing.promoDiscount > 0 && (
                                                                         <div className="text-[11px] text-green-700 font-medium mb-1">
-                                                                            Promo {promoCode} applied
+                                                                            {copy.promoApplied(appliedPromoCode)} $<PriceDisplay value={pricing.promoDiscount} /> {copy.total}
                                                                         </div>
                                                                     )}
                                                                     <div className="font-syne font-extrabold text-[1.8rem] text-navy leading-none">
                                                                         <span className="text-[13px] font-bold">NZD</span>&nbsp;$<PriceDisplay value={pricing.discountedTotal} />
-                                                                        <span className="text-[13px] font-normal text-muted ml-1">total</span>
+                                                                        <span className="text-[13px] font-normal text-muted ml-1">{copy.total}</span>
                                                                     </div>
                                                                 </>
                                                             ) : (
                                                                 <div className="text-[13px] text-muted font-medium">
-                                                                    Price unavailable
+                                                                    {copy.priceUnavailable}
                                                                 </div>
                                                             )}
                                                         </div>
                                                         <button
                                                             type="button"
-                                                            disabled={!selectable}
+                                                            disabled={!selectable || hasUnappliedSearchChanges}
                                                             onClick={() => selectVehicle(vehicle)}
                                                             className={`flex items-center gap-2 text-white font-syne font-bold text-[14px] px-6 py-3 rounded-xl transition-all ${
-                                                                selectable
+                                                                selectable && !hasUnappliedSearchChanges
                                                                     ? 'bg-orange hover:bg-orange-dark hover:scale-[1.02] shadow-orange-glow'
                                                                     : 'bg-gray-300 text-white/90 cursor-not-allowed shadow-none'
                                                             }`}
                                                         >
-                                                            Select <ArrowRight size={15} />
+                                                            {hasUnappliedSearchChanges ? copy.updateResultsFirst : copy.select} <ArrowRight size={15} />
                                                         </button>
                                                     </div>
                                                 </div>
@@ -821,6 +1029,8 @@ export default function VehiclesPage() {
                         vehicleTypeOptions={vehicleTypeOptions}
                         promoCode={promoCode}
                         setPromoCode={setPromoCode}
+                        copy={copy}
+                        locale={locale}
                         compact
                     />
                 </div>
@@ -832,7 +1042,7 @@ export default function VehiclesPage() {
                         <button
                             onClick={() => setShowTimingModal(false)}
                             className="absolute top-4 right-4 text-muted hover:text-navy transition-colors"
-                            aria-label="Close"
+                            aria-label={copy.close}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                         </button>
@@ -840,24 +1050,24 @@ export default function VehiclesPage() {
                             <div className="w-10 h-10 rounded-full bg-orange/10 flex items-center justify-center flex-shrink-0">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                             </div>
-                            <h2 className="font-syne font-bold text-navy text-lg">Booking Time Notice</h2>
+                            <h2 className="font-syne font-bold text-navy text-lg">{copy.bookingTimeNotice}</h2>
                         </div>
                         <div className="space-y-3 text-[14px] text-gray-700 leading-relaxed mb-6">
                             <div className="flex gap-2.5">
                                 <span className="text-orange font-bold mt-0.5">•</span>
-                                <p><span className="font-semibold text-navy">Christchurch Location</span> does not accept bookings less than <span className="font-semibold">6 hours</span> from now.</p>
+                                <p>{copy.christchurchTiming}</p>
                             </div>
                             <div className="flex gap-2.5">
                                 <span className="text-orange font-bold mt-0.5">•</span>
-                                <p><span className="font-semibold text-navy">Other Locations</span> do not accept bookings less than <span className="font-semibold">24 hours</span> from now.</p>
+                                <p>{copy.otherTiming}</p>
                             </div>
                         </div>
-                        <p className="text-[13px] text-muted mb-6">Some vehicles may be unavailable for your selected dates. Please adjust your pick-up date and time and search again.</p>
+                        <p className="text-[13px] text-muted mb-6">{copy.timingBody}</p>
                         <button
                             onClick={() => setShowTimingModal(false)}
                             className="w-full bg-orange hover:bg-orange-dark text-white font-syne font-bold text-[14px] py-3 rounded-xl transition-colors"
                         >
-                            Got it, I'll adjust my dates
+                            {copy.timingCta}
                         </button>
                     </div>
                 </div>

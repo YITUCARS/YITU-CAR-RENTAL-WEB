@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { rcmConfirmPayment } from '@/lib/rcm'
 import { getWechatPayConfig, wechatPayGet } from '@/lib/wechat-pay'
+import { notifyWebsitePaymentReceived } from '@/lib/rcm-telegram'
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -124,6 +125,18 @@ export async function POST(req: NextRequest) {
       } else if (error) {
         throw error
       }
+    }
+
+    try {
+      await notifyWebsitePaymentReceived({
+        reservationRef,
+        amount: depositNzd,
+        paymentIntentId: outTradeNo,
+        paymentMethod: 'wechatpay',
+        paymentChannel: 'wechat_miniprogram',
+      })
+    } catch (error) {
+      console.error('[wx/pay/confirm] Telegram payment notification failed:', error instanceof Error ? error.message : error)
     }
 
     return NextResponse.json({

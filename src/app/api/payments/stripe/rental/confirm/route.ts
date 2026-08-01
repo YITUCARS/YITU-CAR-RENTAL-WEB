@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { rcmCall } from '@/lib/rcm'
+import { notifyWebsitePaymentReceived } from '@/lib/rcm-telegram'
 
 function normalizeStripeMode(value: unknown) {
   const mode = String(value || '').toLowerCase()
@@ -165,6 +166,23 @@ export async function POST(req: NextRequest) {
           data: rcmResult,
         },
         { status: 502 },
+      )
+    }
+
+    try {
+      await notifyWebsitePaymentReceived({
+        reservationRef,
+        amount,
+        paymentIntentId: pi.id,
+        chargeId:
+          typeof pi.latest_charge === 'string' ? pi.latest_charge : charge?.id || '',
+        paymentMethod: paymentMethodType || brand,
+        paymentChannel,
+      })
+    } catch (error) {
+      console.error(
+        '[stripe rental confirm] Telegram payment notification failed:',
+        error instanceof Error ? error.message : error,
       )
     }
 

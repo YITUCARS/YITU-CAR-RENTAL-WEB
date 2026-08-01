@@ -286,3 +286,6 @@ insert into public.rate_master_rates (category_id, season_id, price_1_3, price_4
 --   Toyota Prado or Similar  →  120/100/80
 --   Toyota RAV4 or Similar  →  90/70/50
 --   Toyota Vellfire 8 Seats  →  240/220/200
+
+-- Reload PostgREST schema cache so new columns are visible to the API immediately
+notify pgrst, 'reload schema';

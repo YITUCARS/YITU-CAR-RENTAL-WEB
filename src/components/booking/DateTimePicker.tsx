@@ -21,7 +21,12 @@ const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
+const MONTH_NAMES_ZH = [
+  '一月', '二月', '三月', '四月', '五月', '六月',
+  '七月', '八月', '九月', '十月', '十一月', '十二月',
+]
 const DOW_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+const DOW_LABELS_ZH = ['日', '一', '二', '三', '四', '五', '六']
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -44,7 +49,7 @@ export function nextTimeSlot(time: string) {
 }
 
 function formatDisplay(ymd: string, locale: string) {
-  if (!ymd) return 'Select date'
+  if (!ymd) return locale === 'zh' ? '选择日期' : 'Select date'
   return parseYMD(ymd).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-NZ', {
     day: 'numeric', month: 'short', year: 'numeric',
   })
@@ -173,6 +178,8 @@ export function DateTimePicker({
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ]
   const todayYMD = toYMD(new Date())
+  const monthNames = locale === 'zh' ? MONTH_NAMES_ZH : MONTH_NAMES
+  const dowLabels = locale === 'zh' ? DOW_LABELS_ZH : DOW_LABELS
   const previewEnd = selectingRange && hoverDate && hoverDate > rangeAnchor ? hoverDate : undefined
   const displayRangeEnd = previewEnd || rangeEnd
 
@@ -233,7 +240,7 @@ export function DateTimePicker({
                   <ChevronLeft size={15} className="text-white" />
                 </button>
                 <span className="text-[13px] font-syne font-bold text-white tracking-wide">
-                  {MONTH_NAMES[viewMonth]} {viewYear}
+                  {monthNames[viewMonth]} {viewYear}
                 </span>
                 <button
                   onClick={nextMonth}
@@ -245,7 +252,7 @@ export function DateTimePicker({
 
               {/* Day-of-week headers */}
               <div className="grid grid-cols-7 px-3 pt-3 pb-1">
-                {DOW_LABELS.map(d => (
+                {dowLabels.map(d => (
                   <div key={d} className="text-center text-[10px] font-bold text-muted uppercase tracking-wide py-0.5">
                     {d}
                   </div>
@@ -436,7 +443,7 @@ export function TimeSelect({
 
 // ─── LocationSelect ───────────────────────────────────────────────────────────
 
-type LocationOption = string | { value: string; label: string }
+type LocationOption = string | { value: string; label: string; disabled?: boolean; hint?: string }
 
 export function LocationSelect({ label, value, options, onChange }: {
   label: string; value: string; options: LocationOption[]; onChange: (val: string) => void
@@ -444,7 +451,7 @@ export function LocationSelect({ label, value, options, onChange }: {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const normalizedOptions = options.map(option =>
-    typeof option === 'string' ? { value: option, label: option } : option
+    typeof option === 'string' ? { value: option, label: option, disabled: false, hint: '' } : option
   )
   const selectedLabel = normalizedOptions.find(option => option.value === value)?.label ?? value
 
@@ -475,15 +482,27 @@ export function LocationSelect({ label, value, options, onChange }: {
           {normalizedOptions.map(opt => (
             <div
               key={opt.value}
-              onClick={() => { onChange(opt.value); setOpen(false) }}
+              aria-disabled={opt.disabled ? 'true' : undefined}
+              onClick={() => {
+                if (opt.disabled) return
+                onChange(opt.value)
+                setOpen(false)
+              }}
               className={`flex items-center justify-between px-4 py-3.5 cursor-pointer transition-colors text-[14px] font-dm
-                ${opt.value === value ? 'bg-orange/10 text-orange font-semibold' : 'text-navy hover:bg-off-white'}`}
+                ${opt.disabled
+                  ? 'cursor-not-allowed bg-slate-50 text-slate-400'
+                  : opt.value === value
+                  ? 'bg-orange/10 text-orange font-semibold'
+                  : 'text-navy hover:bg-off-white'}`}
             >
               <div className="flex items-center gap-2.5">
-                <MapPin size={13} className={opt.value === value ? 'text-orange' : 'text-muted'} />
-                {opt.label}
+                <MapPin size={13} className={opt.disabled ? 'text-slate-300' : opt.value === value ? 'text-orange' : 'text-muted'} />
+                <div className="flex flex-col">
+                  <span>{opt.label}</span>
+                  {opt.hint && <span className="text-[10px] uppercase tracking-[0.14em] text-slate-400">{opt.hint}</span>}
+                </div>
               </div>
-              {opt.value === value && <Check size={14} className="text-orange" />}
+              {opt.value === value && !opt.disabled && <Check size={14} className="text-orange" />}
             </div>
           ))}
         </div>

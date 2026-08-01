@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useRef } from 'react'
-import { Plus, Pencil, Trash2, Upload, X, Check, LogOut, FileText, RefreshCw, Star, Save, Tag, Copy, Image, ChevronUp, ChevronDown } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload, X, Check, LogOut, FileText, RefreshCw, Star, Save, Tag, Copy, Image, ChevronUp, ChevronDown, ExternalLink, Ticket } from 'lucide-react'
 import type { VehicleRecord } from '@/lib/db/repository'
 import Papa from 'papaparse'
 import RateManager from '@/components/admin/RateManager'
@@ -9,6 +9,8 @@ import RateManager from '@/components/admin/RateManager'
 const CATEGORIES = ['sedan', 'suv', 'mpv', 'van']
 const FUELS = ['Petrol', 'Diesel', 'Hybrid', 'Electric']
 const DRIVES = ['FWD', 'AWD', 'RWD']
+const VANTU_TICKETS_URL = 'https://vantugroup.com/en/tickets'
+type AdminTab = 'fleet' | 'rcm' | 'promo' | 'banners' | 'deals' | 'gallery' | 'blog' | 'tickets' | 'rates'
 
 interface GalleryImage {
     name: string
@@ -37,7 +39,7 @@ export default function AdminPage() {
     const csvRef = useRef<HTMLInputElement>(null)
 
     // ── RCM tab ──────────────────────────────────────────────────────────────
-    const [activeTab, setActiveTab] = useState<'fleet' | 'rcm' | 'promo' | 'banners' | 'deals' | 'gallery' | 'blog' | 'rates'>('fleet')
+    const [activeTab, setActiveTab] = useState<AdminTab>('fleet')
     const [rcmVehicles, setRcmVehicles] = useState<any[]>([])
     const [rcmLoading, setRcmLoading] = useState(false)
     const [featured, setFeatured] = useState<Map<number, any>>(new Map())
@@ -74,6 +76,9 @@ export default function AdminPage() {
     const [editingBlog, setEditingBlog] = useState<any | null>(null)
     const [blogImgUploading, setBlogImgUploading] = useState(false)
     const blogFileRef = useRef<HTMLInputElement>(null)
+    const [vantuTicketsUrl, setVantuTicketsUrl] = useState('')
+    const [vantuTicketsLoading, setVantuTicketsLoading] = useState(false)
+    const [vantuTicketsError, setVantuTicketsError] = useState('')
 
     const showToast = (msg: string) => {
         setToast(msg)
@@ -81,6 +86,17 @@ export default function AdminPage() {
     }
 
     const headers = { 'x-admin-token': token, 'Content-Type': 'application/json' }
+    const activeTabLabel: Record<AdminTab, string> = {
+        fleet: '车队管理',
+        rcm: 'RCM 库存 & 首页配置',
+        promo: '优惠码管理',
+        banners: '广告轮播',
+        deals: '优惠活动',
+        gallery: 'Gallery 图库',
+        blog: 'Blog 管理',
+        tickets: '门票预订',
+        rates: '价格管理',
+    }
 
     async function login() {
         const res = await fetch('/api/admin/vehicles', {
@@ -98,7 +114,33 @@ export default function AdminPage() {
 
     useEffect(() => { if (authed) load() }, [authed])
 
+    useEffect(() => {
+        if (!authed || activeTab !== 'tickets' || vantuTicketsUrl || vantuTicketsLoading) return
+        loadVantuTicketsUrl()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, authed, vantuTicketsUrl, vantuTicketsLoading])
+
     // ── RCM helpers ──────────────────────────────────────────────────────────
+
+    async function loadVantuTicketsUrl() {
+        setVantuTicketsLoading(true)
+        setVantuTicketsError('')
+        try {
+            const res = await fetch('/api/admin/vantu-ticket-access', {
+                headers: { 'x-admin-token': token },
+            })
+            const data = await res.json()
+            if (!res.ok || !data.url) {
+                throw new Error(data.message || `HTTP ${res.status}`)
+            }
+            setVantuTicketsUrl(data.url)
+        } catch (err: any) {
+            setVantuTicketsUrl('')
+            setVantuTicketsError(err.message || '无法生成 Vantu 分销商订票入口')
+        } finally {
+            setVantuTicketsLoading(false)
+        }
+    }
 
     async function loadRCMVehicles() {
         setRcmLoading(true)
@@ -636,7 +678,7 @@ export default function AdminPage() {
 
             {/* Header */}
             <div className="bg-navy text-white px-8 py-4 flex items-center justify-between">
-                <div className="font-syne font-extrabold text-lg">YITU Admin <span className="text-orange">·</span> 车队管理</div>
+                <div className="font-syne font-extrabold text-lg">YITU Admin <span className="text-orange">·</span> {activeTabLabel[activeTab]}</div>
                 <div className="flex items-center gap-3">
                     {activeTab === 'fleet' && (
                         <>
@@ -720,6 +762,19 @@ export default function AdminPage() {
                             </button>
                         </>
                     )}
+                    {activeTab === 'tickets' && (
+                        <a
+                            href={vantuTicketsUrl || VANTU_TICKETS_URL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-disabled={!vantuTicketsUrl}
+                            className={`flex items-center gap-1.5 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors ${
+                                vantuTicketsUrl ? 'bg-orange hover:bg-orange-dark' : 'bg-white/10 opacity-60 pointer-events-none'
+                            }`}
+                        >
+                            <ExternalLink size={14} /> {vantuTicketsLoading ? '生成中...' : '新窗口打开'}
+                        </a>
+                    )}
                     <button onClick={() => setAuthed(false)} className="text-white/50 hover:text-white">
                         <LogOut size={18} />
                     </button>
@@ -727,7 +782,7 @@ export default function AdminPage() {
             </div>
 
             {/* Tab navigation */}
-            <div className="bg-white border-b border-black/10 px-8 flex gap-0">
+            <div className="bg-white border-b border-black/10 px-8 flex gap-0 overflow-x-auto">
                 <button
                     onClick={() => setActiveTab('fleet')}
                     className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors ${activeTab === 'fleet' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
@@ -769,6 +824,12 @@ export default function AdminPage() {
                     className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors ${activeTab === 'blog' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
                 >
                     Blog 管理
+                </button>
+                <button
+                    onClick={() => setActiveTab('tickets')}
+                    className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'tickets' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
+                >
+                    门票预订
                 </button>
                 <button
                     onClick={() => setActiveTab('rates')}
@@ -1804,6 +1865,75 @@ export default function AdminPage() {
                                 {saving ? '保存中...' : '保存'}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Ticket booking tab ── */}
+            {activeTab === 'tickets' && (
+                <div className="px-8 py-6 space-y-4">
+                    <div className="bg-white rounded-2xl border border-black/10 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                            <div className="w-11 h-11 rounded-xl bg-orange/10 text-orange flex items-center justify-center flex-shrink-0">
+                                <Ticket size={22} />
+                            </div>
+                            <div>
+                                <h2 className="font-syne font-extrabold text-xl text-navy">Vantu 门票预订</h2>
+                                <p className="text-sm text-muted mt-1">
+                                    管理员可以在这里使用 YITU 专属的 Vantu 分销商订票入口。页面会显示门票参考价，但线上只收取 1 NZD 用于确认并出票。
+                                </p>
+                                {vantuTicketsError && (
+                                    <p className="text-sm text-red-600 mt-2">
+                                        {vantuTicketsError}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                            <button
+                                type="button"
+                                onClick={loadVantuTicketsUrl}
+                                disabled={vantuTicketsLoading}
+                                className="inline-flex items-center justify-center gap-2 border border-black/10 hover:border-orange text-navy font-syne font-bold text-sm px-5 py-3 rounded-xl transition-colors disabled:opacity-60"
+                            >
+                                <RefreshCw size={16} className={vantuTicketsLoading ? 'animate-spin' : ''} /> 重新生成链接
+                            </button>
+                            <a
+                                href={vantuTicketsUrl || VANTU_TICKETS_URL}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-disabled={!vantuTicketsUrl}
+                                className={`inline-flex items-center justify-center gap-2 text-white font-syne font-bold text-sm px-5 py-3 rounded-xl transition-colors ${
+                                    vantuTicketsUrl ? 'bg-navy hover:bg-navy/90' : 'bg-navy/40 pointer-events-none'
+                                }`}
+                            >
+                                <ExternalLink size={16} /> 新窗口打开订票页
+                            </a>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl border border-black/10 overflow-hidden shadow-sm">
+                        {vantuTicketsUrl ? (
+                            <iframe
+                                src={vantuTicketsUrl}
+                                title="Vantu YITU distributor ticket booking"
+                                className="w-full h-[78vh] min-h-[720px] bg-white"
+                                loading="lazy"
+                                referrerPolicy="strict-origin-when-cross-origin"
+                                allow="payment *"
+                            />
+                        ) : (
+                            <div className="min-h-[420px] flex items-center justify-center text-center p-8">
+                                <div>
+                                    <div className="font-syne font-bold text-navy">
+                                        {vantuTicketsLoading ? '正在生成 YITU 专属订票入口...' : '暂时无法打开 YITU 专属订票入口'}
+                                    </div>
+                                    <div className="text-sm text-muted mt-2">
+                                        {vantuTicketsError || '请点击“重新生成链接”再试一次。'}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

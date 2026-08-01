@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/rcm-telegram-sync",
+      "schedule": "0 20 * * *"
+    }
+  ]
+}

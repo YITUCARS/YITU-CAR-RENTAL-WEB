@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import ManageBookingModal from '@/components/ui/ManageBookingModal'
+import EmailSubscribePoster from '@/components/ui/EmailSubscribePoster'
 
 export default function HomeClient({ children }: { children: React.ReactNode }) {
   const [modalOpen, setModalOpen] = useState(false)
@@ -25,6 +26,7 @@ export default function HomeClient({ children }: { children: React.ReactNode }) 
     <>
       <Navbar onManageBooking={() => setModalOpen(true)} />
       <ManageBookingModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <EmailSubscribePoster />
       <main>{children}</main>
       <Footer onManageBooking={() => setModalOpen(true)} />
     </>

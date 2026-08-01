@@ -38,14 +38,14 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'YITU Car Rental — New Zealand',
   description:
-      'New Zealand\'s trusted car rental since 2011. Unlimited KM, clean modern fleet, four locations nationwide. Auckland, Christchurch, Queenstown, Wellington.',
-  keywords: 'car rental New Zealand, Auckland car hire, Christchurch rental, NZ road trip',
+      'New Zealand\'s trusted car rental since 2011. Unlimited KM, clean modern fleet, Christchurch and Queenstown locations.',
+  keywords: 'car rental New Zealand, Christchurch rental, Queenstown car hire, NZ road trip',
   icons: {
     icon: '/YITU LOGO.PNG',
   },
   openGraph: {
     title: 'YITU Car Rental — New Zealand',
-    description: 'Trusted NZ car rental since 2011. Unlimited KM. 4 locations.',
+    description: 'Trusted NZ car rental since 2011. Unlimited KM. 2 locations.',
     type: 'website',
   },
 }
