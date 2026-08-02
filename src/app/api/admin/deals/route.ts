@@ -11,7 +11,15 @@ function getSupabase() {
 }
 
 function auth(req: NextRequest) {
-    return req.headers.get('x-admin-token') === process.env.ADMIN_PASSWORD
+    // 网站后台：管理员口令
+    if (req.headers.get('x-admin-token') === process.env.ADMIN_PASSWORD) return true
+    // 小程序后台：管理员 openid（复用 WX_ADMIN_OPENIDS，与 wx-users 一致）
+    const openid = req.headers.get('x-openid') || ''
+    const allowed = (process.env.WX_ADMIN_OPENIDS || '')
+        .split(',')
+        .map(item => item.trim())
+        .filter(Boolean)
+    return !!openid && allowed.includes(openid)
 }
 
 export async function GET(req: NextRequest) {
