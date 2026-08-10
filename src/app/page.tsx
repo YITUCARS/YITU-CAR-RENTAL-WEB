@@ -9,9 +9,49 @@ import LocationsSection from '@/components/sections/LocationsSection'
 import ContactSection from '@/components/sections/ContactSection'
 import CTASplitSection from '@/components/sections/CTASplitSection'
 import ReviewsSection from '@/components/sections/ReviewsSection'
+import SeoLandingSection, {homeSeoJsonLd} from '@/components/sections/SeoLandingSection'
+import type {Metadata} from 'next'
 
 // Always fetch fresh data from Supabase on every request
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  title: {
+    absolute: 'New Zealand Car Rental & Car Hire | YITU Car Rental',
+  },
+  description:
+    'Book reliable car rental in New Zealand with YITU. Unlimited kilometres, clean modern cars, SUVs and vans, plus Christchurch and Queenstown pick-up locations.',
+  alternates: {
+    canonical: 'https://www.yiturentalcars.co.nz/',
+    languages: {
+      'en-NZ': 'https://www.yiturentalcars.co.nz/en',
+      'zh-Hans': 'https://www.yiturentalcars.co.nz/zh',
+    },
+  },
+  openGraph: {
+    title: 'New Zealand Car Rental & Car Hire | YITU Car Rental',
+    description:
+      'Reliable New Zealand car hire with unlimited kilometres, Christchurch and Queenstown locations, SUVs, vans and bilingual support.',
+    url: 'https://www.yiturentalcars.co.nz/',
+    siteName: 'YITU Car Rental',
+    type: 'website',
+    images: [
+      {
+        url: 'https://www.yiturentalcars.co.nz/vehicles-bg.jpg',
+        width: 2575,
+        height: 1437,
+        alt: 'YITU Car Rental New Zealand vehicle handover',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'New Zealand Car Rental & Car Hire | YITU Car Rental',
+    description:
+      'Book reliable car rental in New Zealand with unlimited kilometres and Christchurch or Queenstown pick-up.',
+    images: ['https://www.yiturentalcars.co.nz/vehicles-bg.jpg'],
+  },
+}
 
 async function getFeaturedVehicles() {
   try {
@@ -55,6 +95,10 @@ export default async function HomePage() {
 
   return (
     <HomeClient>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{__html: JSON.stringify(homeSeoJsonLd)}}
+      />
       <HeroSection initialDeals={deals} />
       <BookingSection />
       <StatsStrip />
@@ -66,6 +110,9 @@ export default async function HomePage() {
       </div>
       <div className="reveal">
         <ReviewsSection />
+      </div>
+      <div className="reveal">
+        <SeoLandingSection />
       </div>
       <div className="reveal">
         <LocationsSection />

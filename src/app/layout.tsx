@@ -37,17 +37,53 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: 'YITU Car Rental — New Zealand',
+  metadataBase: new URL('https://www.yiturentalcars.co.nz'),
+  title: {
+    default: 'New Zealand Car Rental & Car Hire | YITU Car Rental',
+    template: '%s | YITU Car Rental',
+  },
   description:
-      'New Zealand\'s trusted car rental since 2011. Unlimited KM, clean modern fleet, Christchurch and Queenstown locations.',
-  keywords: 'car rental New Zealand, Christchurch rental, Queenstown car hire, NZ road trip',
+      'Book reliable car rental in New Zealand with YITU. Unlimited kilometres, clean modern fleet, Christchurch and Queenstown pick-up locations.',
+  keywords: [
+    'new zealand car rental',
+    'car rental New Zealand',
+    'car hire New Zealand',
+    'Christchurch car rental',
+    'Queenstown car rental',
+    'South Island car hire',
+    'NZ road trip rental car',
+  ],
+  alternates: {
+    canonical: '/',
+    languages: {
+      'en-NZ': '/en',
+      'zh-Hans': '/zh',
+    },
+  },
   icons: {
     icon: '/YITU LOGO.PNG',
   },
   openGraph: {
-    title: 'YITU Car Rental — New Zealand',
-    description: 'Trusted NZ car rental since 2011. Unlimited KM. 2 locations.',
+    title: 'New Zealand Car Rental & Car Hire | YITU Car Rental',
+    description: 'Trusted NZ car rental since 2011. Unlimited kilometres. Christchurch and Queenstown locations.',
+    url: 'https://www.yiturentalcars.co.nz/',
+    siteName: 'YITU Car Rental',
     type: 'website',
+    locale: 'en_NZ',
+    images: [
+      {
+        url: '/vehicles-bg.jpg',
+        width: 2575,
+        height: 1437,
+        alt: 'YITU Car Rental New Zealand',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'New Zealand Car Rental & Car Hire | YITU Car Rental',
+    description: 'Reliable New Zealand car rental with unlimited kilometres and South Island locations.',
+    images: ['/vehicles-bg.jpg'],
   },
 }
 
