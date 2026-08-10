@@ -1,83 +1,16 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { rcmCall } from '@/lib/rcm'
+import { rcmCall, rcmSaveRebillingToken } from '@/lib/rcm'
 import { notifyWebsitePaymentReceived } from '@/lib/rcm-telegram'
-
-function normalizeStripeMode(value: unknown) {
-  const mode = String(value || '').toLowerCase()
-  return mode === 'live' || mode === 'production' ? 'live' : 'test'
-}
-
-function normalizePaymentChannel(value: unknown) {
-  return String(value || '').toLowerCase() === 'vantu_app'
-    ? 'vantu_app'
-    : 'yitu_web'
-}
-
-function getStripeSecretKey(mode: string, channel: string) {
-  if (channel === 'vantu_app') {
-    const key =
-      mode === 'live'
-        ? process.env.VANTU_STRIPE_LIVE_SECRET_KEY
-        : process.env.VANTU_STRIPE_TEST_SECRET_KEY
-    if (!key) {
-      throw new Error(
-        mode === 'live'
-          ? 'Missing VANTU_STRIPE_LIVE_SECRET_KEY.'
-          : 'Missing VANTU_STRIPE_TEST_SECRET_KEY.',
-      )
-    }
-    return key
-  }
-  const key =
-    mode === 'live'
-      ? process.env.STRIPE_LIVE_SECRET_KEY
-      : process.env.STRIPE_TEST_SECRET_KEY || process.env.STRIPE_SECRET_KEY
-  if (!key) {
-    throw new Error(
-      mode === 'live'
-        ? 'Missing STRIPE_LIVE_SECRET_KEY.'
-        : 'Missing STRIPE_TEST_SECRET_KEY.',
-    )
-  }
-  return key
-}
-
-function formatRcmDate(date = new Date()) {
-  const dd = String(date.getDate()).padStart(2, '0')
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const yyyy = date.getFullYear()
-  return `${dd}/${mm}/${yyyy}`
-}
-
-function asMoneyFromCents(value: unknown) {
-  const cents = Number(value)
-  if (!Number.isFinite(cents) || cents <= 0) return 0
-  return Math.round(cents) / 100
-}
-
-async function retrievePaymentIntent(
-  paymentIntentId: string,
-  stripeMode: string,
-  paymentChannel: string,
-) {
-  const params = new URLSearchParams()
-  params.append('expand[]', 'latest_charge')
-  const stripeRes = await fetch(
-    `https://api.stripe.com/v1/payment_intents/${encodeURIComponent(paymentIntentId)}?${params.toString()}`,
-    {
-      headers: {
-        Authorization: `Bearer ${getStripeSecretKey(stripeMode, paymentChannel)}`,
-      },
-    },
-  )
-  const data = await stripeRes.json()
-  if (!stripeRes.ok) {
-    throw new Error(data?.error?.message || 'Unable to retrieve Stripe payment.')
-  }
-  return data
-}
+import {
+  asMoneyFromCents,
+  formatRcmDate,
+  normalizePaymentChannel,
+  normalizeStripeMode,
+  retrievePaymentIntent,
+  upsertSavedPaymentMethod,
+} from '@/lib/stripe-rental'
 
 export async function POST(req: NextRequest) {
   try {
@@ -116,10 +49,11 @@ export async function POST(req: NextRequest) {
     }
 
     const charge = typeof pi.latest_charge === 'object' ? pi.latest_charge : null
+    const paymentMethod = typeof pi.payment_method === 'object' ? pi.payment_method : null
     const paymentMethodType = String(
       charge?.payment_method_details?.type || '',
     ).toLowerCase()
-    const card = charge?.payment_method_details?.card
+    const card = charge?.payment_method_details?.card || paymentMethod?.card
     const billing = charge?.billing_details
     const reservationRef = String(
       pi.metadata?.rcm_reservation_ref || body.reservationRef || '',
@@ -169,6 +103,69 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    let rcmRebillingTokenResult: any = null
+    const stripePaymentMethodId = String(
+      typeof pi.payment_method === 'string' ? pi.payment_method : pi.payment_method?.id || '',
+    )
+    const stripeCustomerId = String(
+      typeof pi.customer === 'string' ? pi.customer : pi.customer?.id || '',
+    )
+    const reusableCard = Boolean(stripeCustomerId && stripePaymentMethodId && paymentMethodType === 'card')
+
+    if (reusableCard) {
+      try {
+        rcmRebillingTokenResult = await rcmSaveRebillingToken({
+          reservationRef,
+          rebillingToken: stripeCustomerId,
+          cardHolder: billing?.name || '',
+          cardNumber: last4,
+          cardExpiry: expMonth && expYear ? `${expMonth}/${expYear}` : '',
+          payType: 'Credit Card',
+          paySource:
+            paymentChannel === 'vantu_app'
+              ? 'Stripe via Vantu App'
+              : 'Stripe via YituCarRental Web',
+        })
+      } catch (error) {
+        rcmRebillingTokenResult = {
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        }
+        console.error(
+          '[stripe rental confirm] RCM rebilling token save failed:',
+          rcmRebillingTokenResult.error,
+        )
+      }
+    }
+
+    await upsertSavedPaymentMethod({
+      reservation_ref: reservationRef,
+      payment_channel: paymentChannel,
+      stripe_mode: stripeMode,
+      stripe_customer_id: stripeCustomerId,
+      stripe_payment_method_id: stripePaymentMethodId,
+      latest_payment_intent_id: pi.id,
+      latest_charge_id:
+        typeof pi.latest_charge === 'string' ? pi.latest_charge : charge?.id || '',
+      customer_email: billing?.email || '',
+      customer_name: billing?.name || '',
+      customer_phone: billing?.phone || '',
+      payment_method_type: paymentMethodType,
+      card_brand: String(card?.brand || ''),
+      card_last4: String(card?.last4 || ''),
+      card_exp_month: card?.exp_month || null,
+      card_exp_year: card?.exp_year || null,
+      reusable: reusableCard,
+      last_payment_amount: amount,
+      last_payment_at: new Date().toISOString(),
+      metadata: {
+        source: 'confirm_payment',
+        rcm_confirmed: true,
+        rcm_rebilling_token: rcmRebillingTokenResult,
+        setup_future_usage: pi.setup_future_usage || '',
+      },
+    })
+
     try {
       await notifyWebsitePaymentReceived({
         reservationRef,
@@ -196,6 +193,7 @@ export async function POST(req: NextRequest) {
       paymentMethodBrand: card?.brand || '',
       stripeMode,
       paymentChannel,
+      rcmRebillingToken: rcmRebillingTokenResult,
       data: rcmResult,
     })
   } catch (err: any) {

@@ -42,6 +42,13 @@ export function parseYMD(ymd: string): Date {
   return new Date(y, m - 1, d)
 }
 
+export function getNZDatePlusDays(days: number) {
+  const nzToday = new Date().toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
+  const date = parseYMD(nzToday)
+  date.setDate(date.getDate() + days)
+  return toYMD(date)
+}
+
 export function nextTimeSlot(time: string) {
   const [hour, minute] = time.split(':').map(Number)
   const totalMinutes = Math.min(hour * 60 + minute + 30, 23 * 60 + 30)

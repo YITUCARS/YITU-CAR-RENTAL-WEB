@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { Cookie, ShieldCheck, X } from 'lucide-react'
 
-const STORAGE_KEY = 'yitu-cookie-consent'
+const COOKIE_STORAGE_KEY = 'yitu-cookie-consent'
+const PRIVACY_NOTICE_STORAGE_KEY = 'yitu-privacy-notice-acknowledged'
 
 type CookieChoice = 'all' | 'essential'
 
@@ -15,6 +16,7 @@ const COPY = {
       'YITU uses essential cookies for security, booking flow and customer identification. With your consent, we may also use cookies or similar technologies to understand page visits, personalise features and improve our website.',
     acceptAll: 'Accept all',
     essentialOnly: 'Essential only',
+    acknowledge: 'Got it',
     privacy: 'Privacy Notice',
     saved: 'Cookie preference saved',
   },
@@ -25,6 +27,7 @@ const COPY = {
       'YITU 会使用必要 Cookie 保障网站安全、预订流程和客户识别。在您同意的情况下，我们也可能使用 Cookie 或类似技术了解页面访问、提供个性化功能并改进网站体验。',
     acceptAll: '接受全部',
     essentialOnly: '仅必要',
+    acknowledge: '我知道了',
     privacy: '隐私声明',
     saved: 'Cookie 偏好已保存',
   },
@@ -39,23 +42,38 @@ export default function CookieConsentBanner() {
   const [visible, setVisible] = useState(false)
   const [locale, setLocale] = useState<'en' | 'zh'>('en')
   const [saved, setSaved] = useState(false)
+  const [cookieChoiceSaved, setCookieChoiceSaved] = useState(false)
 
   useEffect(() => {
     setLocale(getLocaleFromPath())
-    setVisible(window.localStorage.getItem(STORAGE_KEY) == null)
+    const hasCookieChoice = window.localStorage.getItem(COOKIE_STORAGE_KEY) != null
+    const hasPrivacyAck = window.localStorage.getItem(PRIVACY_NOTICE_STORAGE_KEY) === 'true'
+    setCookieChoiceSaved(hasCookieChoice)
+    setVisible(!hasPrivacyAck || !hasCookieChoice)
   }, [])
 
   function saveChoice(choice: CookieChoice) {
     window.localStorage.setItem(
-      STORAGE_KEY,
+      COOKIE_STORAGE_KEY,
       JSON.stringify({
         choice,
         savedAt: new Date().toISOString(),
         version: 1,
       }),
     )
+    setCookieChoiceSaved(true)
     setSaved(true)
-    window.setTimeout(() => setVisible(false), 420)
+  }
+
+  function acknowledgeNotice() {
+    window.localStorage.setItem(PRIVACY_NOTICE_STORAGE_KEY, 'true')
+    if (cookieChoiceSaved) setVisible(false)
+  }
+
+  function closeNotice() {
+    if (!cookieChoiceSaved) saveChoice('essential')
+    window.localStorage.setItem(PRIVACY_NOTICE_STORAGE_KEY, 'true')
+    setVisible(false)
   }
 
   if (!visible) return null
@@ -93,24 +111,35 @@ export default function CookieConsentBanner() {
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
-            <button
-              onClick={() => saveChoice('all')}
-              className="inline-flex h-11 items-center justify-center rounded-2xl bg-orange px-5 font-syne text-[13px] font-bold text-white shadow-orange-glow transition-colors hover:bg-orange-dark"
-            >
-              {copy.acceptAll}
-            </button>
-            <button
-              onClick={() => saveChoice('essential')}
-              className="inline-flex h-11 items-center justify-center rounded-2xl border border-black/10 bg-white px-5 font-syne text-[13px] font-bold text-navy transition-colors hover:border-orange/35 hover:text-orange"
-            >
-              {copy.essentialOnly}
-            </button>
+            {!cookieChoiceSaved ? (
+              <>
+                <button
+                  onClick={() => saveChoice('all')}
+                  className="inline-flex h-11 items-center justify-center rounded-2xl bg-orange px-5 font-syne text-[13px] font-bold text-white shadow-orange-glow transition-colors hover:bg-orange-dark"
+                >
+                  {copy.acceptAll}
+                </button>
+                <button
+                  onClick={() => saveChoice('essential')}
+                  className="inline-flex h-11 items-center justify-center rounded-2xl border border-black/10 bg-white px-5 font-syne text-[13px] font-bold text-navy transition-colors hover:border-orange/35 hover:text-orange"
+                >
+                  {copy.essentialOnly}
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={acknowledgeNotice}
+                className="inline-flex h-11 items-center justify-center rounded-2xl bg-navy px-5 font-syne text-[13px] font-bold text-white transition-colors hover:bg-navy/90"
+              >
+                {copy.acknowledge}
+              </button>
+            )}
           </div>
         </div>
 
         <button
           aria-label="Close cookie notice"
-          onClick={() => saveChoice('essential')}
+          onClick={closeNotice}
           className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-navy/5 text-muted transition-colors hover:bg-navy/10 hover:text-navy"
         >
           <X size={15} />

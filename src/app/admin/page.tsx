@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useRef } from 'react'
-import { Plus, Pencil, Trash2, Upload, X, Check, LogOut, FileText, RefreshCw, Star, Save, Tag, Copy, Image, ChevronUp, ChevronDown, ExternalLink, Ticket, MessageCircle } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload, X, Check, LogOut, FileText, RefreshCw, Star, Save, Tag, Copy, Image, ChevronUp, ChevronDown, ExternalLink, Ticket, MessageCircle, CreditCard } from 'lucide-react'
 import type { VehicleRecord } from '@/lib/db/repository'
 import Papa from 'papaparse'
 import RateManager from '@/components/admin/RateManager'
@@ -9,8 +9,7 @@ import RateManager from '@/components/admin/RateManager'
 const CATEGORIES = ['sedan', 'suv', 'mpv', 'van']
 const FUELS = ['Petrol', 'Diesel', 'Hybrid', 'Electric']
 const DRIVES = ['FWD', 'AWD', 'RWD']
-const VANTU_TICKETS_URL = 'https://vantugroup.com/en/tickets'
-type AdminTab = 'fleet' | 'rcm' | 'promo' | 'banners' | 'deals' | 'gallery' | 'blog' | 'tickets' | 'faq' | 'rates'
+type AdminTab = 'fleet' | 'rcm' | 'promo' | 'banners' | 'deals' | 'gallery' | 'blog' | 'tickets' | 'faq' | 'stripe' | 'rates'
 
 interface GalleryImage {
     name: string
@@ -88,10 +87,14 @@ export default function AdminPage() {
     const [vantuTicketsUrl, setVantuTicketsUrl] = useState('')
     const [vantuTicketsLoading, setVantuTicketsLoading] = useState(false)
     const [vantuTicketsError, setVantuTicketsError] = useState('')
+    const [vantuTicketsOpening, setVantuTicketsOpening] = useState(false)
     const [chatFaqs, setChatFaqs] = useState<ChatFaqAdmin[]>([])
     const [chatFaqsLoading, setChatFaqsLoading] = useState(false)
     const [editingFaq, setEditingFaq] = useState<ChatFaqAdmin | null>(null)
     const [savingFaq, setSavingFaq] = useState(false)
+    const [stripeChargeForm, setStripeChargeForm] = useState({ reservationRef: '', amount: '', description: '' })
+    const [stripeChargeLoading, setStripeChargeLoading] = useState(false)
+    const [stripeChargeResult, setStripeChargeResult] = useState<{ success: boolean; message: string } | null>(null)
 
     const showToast = (msg: string) => {
         setToast(msg)
@@ -109,6 +112,7 @@ export default function AdminPage() {
         blog: 'Blog 管理',
         tickets: '门票预订',
         faq: 'Live Support FAQ',
+        stripe: 'Stripe 补扣款',
         rates: '价格管理',
     }
 
@@ -148,11 +152,33 @@ export default function AdminPage() {
                 throw new Error(data.message || `HTTP ${res.status}`)
             }
             setVantuTicketsUrl(data.url)
+            return data.url as string
         } catch (err: any) {
             setVantuTicketsUrl('')
             setVantuTicketsError(err.message || '无法生成 Vantu 分销商订票入口')
+            return ''
         } finally {
             setVantuTicketsLoading(false)
+        }
+    }
+
+    async function openVantuTicketsWindow() {
+        const popup = window.open('about:blank', '_blank')
+        if (popup) popup.opener = null
+        setVantuTicketsOpening(true)
+        try {
+            const url = await loadVantuTicketsUrl()
+            if (!url) throw new Error('无法生成 Vantu 分销商订票入口')
+            if (popup) {
+                popup.location.href = url
+            } else {
+                window.open(url, '_blank', 'noopener,noreferrer')
+            }
+        } catch (err: any) {
+            if (popup) popup.close()
+            showToast(err.message || '无法打开 Vantu 订票页')
+        } finally {
+            setVantuTicketsOpening(false)
         }
     }
 
@@ -300,6 +326,38 @@ export default function AdminPage() {
             loadChatFaqs()
         } else {
             showToast('❌ ' + (data.error || '删除失败'))
+        }
+    }
+
+    async function chargeSavedStripeCard() {
+        setStripeChargeLoading(true)
+        setStripeChargeResult(null)
+        try {
+            const amount = Number(stripeChargeForm.amount)
+            if (!stripeChargeForm.reservationRef.trim()) throw new Error('请输入 Reservation Ref')
+            if (!Number.isFinite(amount) || amount <= 0) throw new Error('请输入有效金额')
+            const res = await fetch('/api/admin/stripe/off-session-charge', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    reservationRef: stripeChargeForm.reservationRef.trim(),
+                    amountCents: Math.round(amount * 100),
+                    currency: 'nzd',
+                    description: stripeChargeForm.description.trim(),
+                }),
+            })
+            const data = await res.json()
+            if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}`)
+            setStripeChargeResult({
+                success: true,
+                message: `扣款成功：NZD ${Number(data.amount || amount).toFixed(2)} · ${data.paymentIntentId}`,
+            })
+            showToast('✅ Stripe 补扣款成功')
+        } catch (err: any) {
+            setStripeChargeResult({ success: false, message: err.message || 'Stripe 补扣款失败' })
+            showToast('❌ ' + (err.message || 'Stripe 补扣款失败'))
+        } finally {
+            setStripeChargeLoading(false)
         }
     }
 
@@ -834,17 +892,14 @@ export default function AdminPage() {
                         </>
                     )}
                     {activeTab === 'tickets' && (
-                        <a
-                            href={vantuTicketsUrl || VANTU_TICKETS_URL}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-disabled={!vantuTicketsUrl}
-                            className={`flex items-center gap-1.5 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors ${
-                                vantuTicketsUrl ? 'bg-orange hover:bg-orange-dark' : 'bg-white/10 opacity-60 pointer-events-none'
-                            }`}
+                        <button
+                            type="button"
+                            onClick={openVantuTicketsWindow}
+                            disabled={vantuTicketsLoading || vantuTicketsOpening}
+                            className="flex items-center gap-1.5 bg-orange hover:bg-orange-dark text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors disabled:opacity-60"
                         >
-                            <ExternalLink size={14} /> {vantuTicketsLoading ? '生成中...' : '新窗口打开'}
-                        </a>
+                            <ExternalLink size={14} /> {vantuTicketsLoading || vantuTicketsOpening ? '打开中...' : '新窗口打开'}
+                        </button>
                     )}
                     {activeTab === 'faq' && (
                         <>
@@ -931,6 +986,12 @@ export default function AdminPage() {
                     className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'faq' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
                 >
                     Live Support FAQ
+                </button>
+                <button
+                    onClick={() => setActiveTab('stripe')}
+                    className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'stripe' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
+                >
+                    Stripe 补扣款
                 </button>
                 <button
                     onClick={() => setActiveTab('rates')}
@@ -1981,7 +2042,7 @@ export default function AdminPage() {
                             <div>
                                 <h2 className="font-syne font-extrabold text-xl text-navy">Vantu 门票预订</h2>
                                 <p className="text-sm text-muted mt-1">
-                                    管理员可以在这里使用 YITU 专属的 Vantu 分销商订票入口。页面会显示门票参考价，但线上只收取 1 NZD 用于确认并出票。
+                                    管理员可以在这里使用 YITU 专属的 Vantu 分销商订票入口。页面会显示门票参考价，但线上只收取 1 NZD 用于确认并出票。Stripe 支付需要在新窗口完成，避免被嵌入页面拦截。
                                 </p>
                                 {vantuTicketsError && (
                                     <p className="text-sm text-red-600 mt-2">
@@ -1999,42 +2060,47 @@ export default function AdminPage() {
                             >
                                 <RefreshCw size={16} className={vantuTicketsLoading ? 'animate-spin' : ''} /> 重新生成链接
                             </button>
-                            <a
-                                href={vantuTicketsUrl || VANTU_TICKETS_URL}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                aria-disabled={!vantuTicketsUrl}
-                                className={`inline-flex items-center justify-center gap-2 text-white font-syne font-bold text-sm px-5 py-3 rounded-xl transition-colors ${
-                                    vantuTicketsUrl ? 'bg-navy hover:bg-navy/90' : 'bg-navy/40 pointer-events-none'
-                                }`}
+                            <button
+                                type="button"
+                                onClick={openVantuTicketsWindow}
+                                disabled={vantuTicketsLoading || vantuTicketsOpening}
+                                className="inline-flex items-center justify-center gap-2 bg-navy hover:bg-navy/90 text-white font-syne font-bold text-sm px-5 py-3 rounded-xl transition-colors disabled:opacity-60"
                             >
-                                <ExternalLink size={16} /> 新窗口打开订票页
-                            </a>
+                                <ExternalLink size={16} /> {vantuTicketsLoading || vantuTicketsOpening ? '正在打开...' : '新窗口打开订票页'}
+                            </button>
                         </div>
                     </div>
 
                     <div className="bg-white rounded-2xl border border-black/10 overflow-hidden shadow-sm">
-                        {vantuTicketsUrl ? (
-                            <iframe
-                                src={vantuTicketsUrl}
-                                title="Vantu YITU distributor ticket booking"
-                                className="w-full h-[78vh] min-h-[720px] bg-white"
-                                loading="lazy"
-                                referrerPolicy="strict-origin-when-cross-origin"
-                                allow="payment *"
-                            />
-                        ) : (
-                            <div className="min-h-[420px] flex items-center justify-center text-center p-8">
-                                <div>
-                                    <div className="font-syne font-bold text-navy">
-                                        {vantuTicketsLoading ? '正在生成 YITU 专属订票入口...' : '暂时无法打开 YITU 专属订票入口'}
-                                    </div>
-                                    <div className="text-sm text-muted mt-2">
-                                        {vantuTicketsError || '请点击“重新生成链接”再试一次。'}
-                                    </div>
+                        <div className="min-h-[420px] flex items-center justify-center text-center p-8 bg-gradient-to-br from-orange/10 via-white to-navy/10">
+                            <div className="max-w-xl">
+                                <div className="w-16 h-16 rounded-2xl bg-navy text-white flex items-center justify-center mx-auto mb-5 shadow-lg">
+                                    <ExternalLink size={28} />
                                 </div>
+                                <h3 className="font-syne font-extrabold text-2xl text-navy">
+                                    请在新窗口完成门票预订和 Stripe 支付
+                                </h3>
+                                <p className="text-sm text-muted mt-3 leading-6">
+                                    Stripe Checkout 不适合在 admin 嵌入框里直接打开。点击下方按钮后，系统会生成最新的 YITU 专属签名链接，并在新窗口进入 Vantu 订票页，付款页就可以正常跳转。
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={openVantuTicketsWindow}
+                                    disabled={vantuTicketsLoading || vantuTicketsOpening}
+                                    className="mt-6 inline-flex items-center justify-center gap-2 bg-orange hover:bg-orange-dark text-white font-syne font-bold text-sm px-6 py-3 rounded-xl transition-colors disabled:opacity-60"
+                                >
+                                    <ExternalLink size={16} /> {vantuTicketsLoading || vantuTicketsOpening ? '正在打开...' : '打开 YITU 专属订票页'}
+                                </button>
+                                <div className="text-xs text-muted mt-4">
+                                    {vantuTicketsUrl ? '最新链接已生成，有效约 15 分钟。' : '如果窗口没有打开，请允许浏览器弹窗后再试一次。'}
+                                </div>
+                                {vantuTicketsError && (
+                                    <div className="text-sm text-red-600 mt-3">
+                                        {vantuTicketsError}
+                                    </div>
+                                )}
                             </div>
-                        )}
+                        </div>
                     </div>
                 </div>
             )}
@@ -2123,6 +2189,77 @@ export default function AdminPage() {
                                 </tbody>
                             </table>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* ── Rate Manager tab ── */}
+            {activeTab === 'stripe' && (
+                <div className="px-8 py-6 space-y-4">
+                    <div className="bg-white rounded-2xl border border-black/10 p-5 flex items-start gap-3">
+                        <div className="w-11 h-11 rounded-xl bg-orange/10 text-orange flex items-center justify-center flex-shrink-0">
+                            <CreditCard size={22} />
+                        </div>
+                        <div>
+                            <h2 className="font-syne font-extrabold text-xl text-navy">Stripe 已保存卡补扣款</h2>
+                            <p className="text-sm text-muted mt-1 leading-6">
+                                只适用于客户曾在网站用银行卡付款、并成功保存 reusable payment method 的订单。Alipay 或未保存卡的订单不能自动补扣，需要让客户重新付款。
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl border border-black/10 p-6 max-w-2xl">
+                        <div className="grid gap-4">
+                            <label className="grid gap-1.5">
+                                <span className="text-[12px] uppercase tracking-wide text-muted font-bold">Reservation Ref</span>
+                                <input
+                                    value={stripeChargeForm.reservationRef}
+                                    onChange={e => setStripeChargeForm(current => ({ ...current, reservationRef: e.target.value }))}
+                                    placeholder="例如 0021583F2E26FDF"
+                                    className="w-full rounded-xl border border-black/10 bg-off-white px-4 py-3 text-sm outline-none focus:border-orange"
+                                />
+                            </label>
+                            <label className="grid gap-1.5">
+                                <span className="text-[12px] uppercase tracking-wide text-muted font-bold">Amount NZD</span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={stripeChargeForm.amount}
+                                    onChange={e => setStripeChargeForm(current => ({ ...current, amount: e.target.value }))}
+                                    placeholder="例如 65.00"
+                                    className="w-full rounded-xl border border-black/10 bg-off-white px-4 py-3 text-sm outline-none focus:border-orange"
+                                />
+                            </label>
+                            <label className="grid gap-1.5">
+                                <span className="text-[12px] uppercase tracking-wide text-muted font-bold">Description / Note</span>
+                                <input
+                                    value={stripeChargeForm.description}
+                                    onChange={e => setStripeChargeForm(current => ({ ...current, description: e.target.value }))}
+                                    placeholder="例如 Additional cleaning fee"
+                                    className="w-full rounded-xl border border-black/10 bg-off-white px-4 py-3 text-sm outline-none focus:border-orange"
+                                />
+                            </label>
+
+                            {stripeChargeResult && (
+                                <div className={`rounded-xl px-4 py-3 text-sm ${
+                                    stripeChargeResult.success
+                                        ? 'bg-green-50 text-green-700 border border-green-200'
+                                        : 'bg-red-50 text-red-700 border border-red-200'
+                                }`}>
+                                    {stripeChargeResult.message}
+                                </div>
+                            )}
+
+                            <button
+                                type="button"
+                                onClick={chargeSavedStripeCard}
+                                disabled={stripeChargeLoading}
+                                className="inline-flex items-center justify-center gap-2 bg-orange hover:bg-orange-dark text-white font-syne font-bold text-sm px-5 py-3 rounded-xl transition-colors disabled:opacity-60"
+                            >
+                                <CreditCard size={16} /> {stripeChargeLoading ? '扣款中...' : '扣已保存卡并同步 RCM'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

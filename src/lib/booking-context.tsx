@@ -103,23 +103,19 @@ const BookingContext = createContext<{
 const STORAGE_KEY = 'yitu-booking'
 
 export function BookingProvider({ children }: { children: React.ReactNode }) {
-    const [booking, setBooking] = useState<BookingState>(() => {
-        if (typeof window === 'undefined') return defaultState
-
-        const savedBooking = window.sessionStorage.getItem(STORAGE_KEY)
-        if (!savedBooking) return defaultState
-
-        try {
-            const parsedBooking = JSON.parse(savedBooking) as Partial<BookingState>
-            return { ...defaultState, ...parsedBooking }
-        } catch {
-            window.sessionStorage.removeItem(STORAGE_KEY)
-            return defaultState
-        }
-    })
+    const [booking, setBooking] = useState<BookingState>(defaultState)
     const [isHydrated, setIsHydrated] = useState(false)
 
     useEffect(() => {
+        const savedBooking = window.sessionStorage.getItem(STORAGE_KEY)
+        if (savedBooking) {
+            try {
+                const parsedBooking = JSON.parse(savedBooking) as Partial<BookingState>
+                setBooking({ ...defaultState, ...parsedBooking })
+            } catch {
+                window.sessionStorage.removeItem(STORAGE_KEY)
+            }
+        }
         setIsHydrated(true)
     }, [])
 

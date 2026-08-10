@@ -1,54 +1,14 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-
-function normalizeStripeMode(value: unknown) {
-  const mode = String(value || '').toLowerCase()
-  return mode === 'live' || mode === 'production' ? 'live' : 'test'
-}
-
-function normalizePaymentChannel(value: unknown) {
-  return String(value || '').toLowerCase() === 'vantu_app'
-    ? 'vantu_app'
-    : 'yitu_web'
-}
-
-function getStripeSecretKey(mode: string, channel: string) {
-  if (channel === 'vantu_app') {
-    const key =
-      mode === 'live'
-        ? process.env.VANTU_STRIPE_LIVE_SECRET_KEY
-        : process.env.VANTU_STRIPE_TEST_SECRET_KEY
-    if (!key) {
-      throw new Error(
-        mode === 'live'
-          ? 'Missing VANTU_STRIPE_LIVE_SECRET_KEY.'
-          : 'Missing VANTU_STRIPE_TEST_SECRET_KEY.',
-      )
-    }
-    return key
-  }
-  const key =
-    mode === 'live'
-      ? process.env.STRIPE_LIVE_SECRET_KEY
-      : process.env.STRIPE_TEST_SECRET_KEY || process.env.STRIPE_SECRET_KEY
-  if (!key) {
-    throw new Error(
-      mode === 'live'
-        ? 'Missing STRIPE_LIVE_SECRET_KEY.'
-        : 'Missing STRIPE_TEST_SECRET_KEY.',
-    )
-  }
-  return key
-}
-
-function cents(value: unknown) {
-  const amount = Number(value)
-  if (!Number.isFinite(amount) || amount <= 0) {
-    throw new Error('Invalid payment amount.')
-  }
-  return Math.round(amount)
-}
+import {
+  cents,
+  createStripeCustomer,
+  getStripeSecretKey,
+  normalizePaymentChannel,
+  normalizeStripeMode,
+  upsertSavedPaymentMethod,
+} from '@/lib/stripe-rental'
 
 export async function POST(req: NextRequest) {
   try {
@@ -63,10 +23,27 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       )
     }
+    const customerEmail = String(body.customerEmail || body.email || '').trim().toLowerCase()
+    const customerName = String(
+      body.customerName ||
+        [body.firstName, body.lastName].filter(Boolean).join(' ') ||
+        '',
+    ).trim()
+    const customerPhone = String(body.customerPhone || body.phone || '').trim()
+
+    const customer = await createStripeCustomer({
+      stripeMode,
+      paymentChannel,
+      reservationRef,
+      email: customerEmail,
+      name: customerName,
+      phone: customerPhone,
+    })
 
     const params = new URLSearchParams()
     params.set('amount', String(amount))
     params.set('currency', String(body.currency || 'nzd').toLowerCase())
+    params.set('customer', String(customer.id))
     params.set(
       'description',
       body.description || `YITU rental ${reservationRef}`,
@@ -79,6 +56,9 @@ export async function POST(req: NextRequest) {
     // when it is enabled in Stripe for this account/currency.
     params.append('payment_method_types[]', 'card')
     params.append('payment_method_types[]', 'alipay')
+    // Save reusable card credentials without applying setup_future_usage to
+    // Alipay, which Stripe explicitly rejects for this payment method type.
+    params.set('payment_method_options[card][setup_future_usage]', 'off_session')
     // Do not pass receipt_email here. App-entered emails can contain invisible
     // whitespace or be non-final customer contact data, and Stripe rejects the
     // whole PaymentIntent for an invalid receipt_email.
@@ -112,6 +92,24 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    await upsertSavedPaymentMethod({
+      reservation_ref: reservationRef,
+      reservation_no: String(body.reservationNo || ''),
+      payment_channel: paymentChannel,
+      stripe_mode: stripeMode,
+      stripe_customer_id: String(customer.id),
+      latest_payment_intent_id: String(data.id || ''),
+      customer_email: customerEmail,
+      customer_name: customerName,
+      customer_phone: customerPhone,
+      reusable: false,
+      metadata: {
+        source: 'create_intent',
+        amount_cents: amount,
+        currency: String(body.currency || 'nzd').toLowerCase(),
+      },
+    })
+
     return NextResponse.json({
       success: true,
       id: data.id,
@@ -119,6 +117,7 @@ export async function POST(req: NextRequest) {
       status: data.status,
       stripeMode,
       paymentChannel,
+      customerId: customer.id,
     })
   } catch (err: any) {
     console.error('[stripe rental create-intent] error:', err.message)

@@ -195,3 +195,40 @@ export async function rcmConfirmPayment(params: {
         emailoption: 1,
     })
 }
+
+export function isRcmRebillingTokenConfigured() {
+    return true
+}
+
+export async function rcmSaveRebillingToken(params: {
+    reservationRef: string
+    rebillingToken: string
+    supplierId?: number
+    cardHolder?: string
+    cardNumber?: string
+    cardExpiry?: string
+    payType?: string
+    paySource?: string
+}) {
+    const supplierId = Number(
+        params.supplierId || process.env.RCM_REBILLING_SUPPLIER_ID || 5,
+    )
+    if (!supplierId) {
+        return {
+            skipped: true,
+            reason: 'RCM_REBILLING_SUPPLIER_ID or RCM_STRIPE_SUPPLIER_ID is not configured.',
+        }
+    }
+
+    return postToRCM({
+        method: 'rebillingtoken',
+        reservationref: params.reservationRef,
+        paytype: params.payType || 'Credit Card',
+        supplierid: supplierId,
+        paysource: params.paySource || 'Website',
+        rebillingtoken: params.rebillingToken,
+        cardnumber: params.cardNumber || '',
+        cardexpiry: params.cardExpiry || '',
+        cardholder: params.cardHolder || '',
+    })
+}

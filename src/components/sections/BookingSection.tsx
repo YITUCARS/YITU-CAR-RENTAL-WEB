@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { Search, User, Tag, X } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import {
-  toYMD, parseYMD, nextTimeSlot, getNZMinPickup,
+  toYMD, parseYMD, nextTimeSlot, getNZMinPickup, getNZDatePlusDays,
   DateTimePicker, LocationSelect,
 } from '@/components/booking/DateTimePicker'
 
@@ -28,9 +28,9 @@ export default function BookingSection() {
 
   const [pickupLocation, setPickupLocation]   = useState('Christchurch')
   const [dropoffLocation, setDropoffLocation] = useState('Christchurch')
-  const [pickupDate, setPickupDate]           = useState<string>(() => { const d = new Date(); d.setDate(d.getDate() + 2); return toYMD(d) })
+  const [pickupDate, setPickupDate]           = useState<string>(() => getNZDatePlusDays(2))
   const [pickupTime, setPickupTime]           = useState<string>(() => getNZMinPickup().minHour)
-  const [dropoffDate, setDropoffDate]         = useState<string>(() => { const d = new Date(); d.setDate(d.getDate() + 9); return toYMD(d) })
+  const [dropoffDate, setDropoffDate]         = useState<string>(() => getNZDatePlusDays(9))
   const [dropoffTime, setDropoffTime]         = useState<string>(() => getNZMinPickup().minHour)
   const [driverAge, setDriverAge]             = useState<'over26' | 'under26'>('over26')
   const [promoCode, setPromoCode]             = useState('')

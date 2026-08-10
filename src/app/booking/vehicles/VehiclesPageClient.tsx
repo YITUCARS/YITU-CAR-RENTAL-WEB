@@ -8,7 +8,7 @@ import { useBooking, calcDays, calcAfterHourBreakdown, LOCATION_IDS } from '@/li
 import BookingFlowHeader from '@/components/booking/BookingFlowHeader'
 import Navbar from '@/components/layout/Navbar'
 import {
-  toYMD, parseYMD, nextTimeSlot, getNZMinPickup,
+  toYMD, parseYMD, nextTimeSlot, getNZMinPickup, getNZDatePlusDays,
   DateTimePicker, LocationSelect, TimeSelect,
 } from '@/components/booking/DateTimePicker'
 
@@ -526,21 +526,19 @@ export default function VehiclesPage() {
     const params = useSearchParams()
     const locale = useLocale()
     const copy = getVehicleCopy(locale)
-    const { booking, setBooking } = useBooking()
+    const { booking, setBooking, isHydrated } = useBooking()
 
-    const requestedPickupLocation = params.get('pickupLocation') || booking.pickupLocation || 'Christchurch'
+    const requestedPickupLocation = params.get('pickupLocation') || 'Christchurch'
     const initialPickupLocation = ACTIVE_LOCATIONS.includes(requestedPickupLocation) ? requestedPickupLocation : 'Christchurch'
-    const requestedDropoffLocation = params.get('dropoffLocation') || booking.dropoffLocation || 'Christchurch'
+    const requestedDropoffLocation = params.get('dropoffLocation') || 'Christchurch'
     const validInitialDropoffs = DROPOFF_RULES[initialPickupLocation] || ACTIVE_LOCATIONS
     const initialDropoffLocation = validInitialDropoffs.includes(requestedDropoffLocation) ? requestedDropoffLocation : validInitialDropoffs[0]
-    const defaultPickup = new Date(); defaultPickup.setDate(defaultPickup.getDate() + 2)
-    const defaultDropoff = new Date(); defaultDropoff.setDate(defaultDropoff.getDate() + 9)
-    const initialPickupDate = params.get('pickupDate') || booking.pickupDate || toYMD(defaultPickup)
+    const initialPickupDate = params.get('pickupDate') || ''
     const initialPickupTime = params.get('pickupTime') || '10:00'
-    const initialDropoffDate = params.get('dropoffDate') || booking.dropoffDate || toYMD(defaultDropoff)
+    const initialDropoffDate = params.get('dropoffDate') || ''
     const initialDropoffTime = params.get('dropoffTime') || '10:00'
-    const initialDriverAge = (params.get('driverAge') as DriverAge) || booking.driverAge || 'over26'
-    const initialPromoCode = params.get('promoCode') || booking.promoCode || ''
+    const initialDriverAge = (params.get('driverAge') as DriverAge) || 'over26'
+    const initialPromoCode = params.get('promoCode') || ''
 
     const [searchForm, setSearchForm] = useState<SearchFormState>({
         pickupLocation: initialPickupLocation,
@@ -585,11 +583,11 @@ export default function VehiclesPage() {
         return () => window.removeEventListener('scroll', onScroll)
     }, [])
 
-    async function loadVehicles(form: SearchFormState) {
+    async function loadVehicles(form: SearchFormState, promoOverride?: string) {
         setLoading(true)
         setError('')
 
-        const activePromoCode = promoCode.trim().toUpperCase()
+        const activePromoCode = (promoOverride ?? promoCode).trim().toUpperCase()
         const nextDays = calcDays(form.pickupDate, form.pickupTime, form.dropoffDate, form.dropoffTime)
         const isNewSearch =
             form.pickupDate !== booking.pickupDate ||
@@ -685,9 +683,34 @@ export default function VehiclesPage() {
     }
 
     useEffect(() => {
-        loadVehicles(searchForm)
+        if (!isHydrated) return
+
+        const hydratedPickupLocation = ACTIVE_LOCATIONS.includes(params.get('pickupLocation') || booking.pickupLocation)
+            ? params.get('pickupLocation') || booking.pickupLocation
+            : 'Christchurch'
+        const hydratedDropoffRules = DROPOFF_RULES[hydratedPickupLocation] || ACTIVE_LOCATIONS
+        const requestedHydratedDropoff = params.get('dropoffLocation') || booking.dropoffLocation || hydratedPickupLocation
+        const hydratedDropoffLocation = hydratedDropoffRules.includes(requestedHydratedDropoff)
+            ? requestedHydratedDropoff
+            : hydratedDropoffRules[0]
+        const nextPromoCode = (params.get('promoCode') || booking.promoCode || '').toUpperCase()
+        const nextSearchForm: SearchFormState = {
+            pickupLocation: hydratedPickupLocation,
+            dropoffLocation: hydratedDropoffLocation,
+            pickupDate: params.get('pickupDate') || booking.pickupDate || getNZDatePlusDays(2),
+            pickupTime: params.get('pickupTime') || booking.pickupTime || '10:00',
+            dropoffDate: params.get('dropoffDate') || booking.dropoffDate || getNZDatePlusDays(9),
+            dropoffTime: params.get('dropoffTime') || booking.dropoffTime || '10:00',
+            driverAge: (params.get('driverAge') as DriverAge) || booking.driverAge || 'over26',
+        }
+
+        setSearchForm(nextSearchForm)
+        setAppliedSearchForm(nextSearchForm)
+        setPromoCode(nextPromoCode)
+        setAppliedPromoCode(nextPromoCode)
+        loadVehicles(nextSearchForm, nextPromoCode)
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+    }, [isHydrated])
 
     const vehicleTypeOptions = useMemo(() => {
         const availableTypeIds = new Set(vehicles.map(vehicle => vehicle.vehiclecategorytypeid))
@@ -787,7 +810,7 @@ export default function VehiclesPage() {
                 }
             />
 
-            <main className="max-w-[1260px] mx-auto px-6 lg:px-10 py-10">
+            <main className="max-w-[1400px] mx-auto px-6 lg:px-10 py-10">
                 <VehicleSearchCard
                     form={searchForm}
                     setForm={setSearchForm}
@@ -821,7 +844,7 @@ export default function VehiclesPage() {
                     </div>
                 )}
 
-                <div className="mt-8 grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-8 items-start">
+                <div className="mt-8 grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,1fr)] gap-8 items-start">
                     <aside className="hidden lg:block" aria-hidden="true">
                         <div className="h-[1px]" />
                     </aside>
@@ -1014,7 +1037,7 @@ export default function VehiclesPage() {
 
             <div className="hidden lg:block">
                 <div
-                    className={`fixed left-[max(12px,calc((100vw-1260px)/2+4px))] top-[140px] z-40 w-[280px] max-h-[calc(100vh-160px)] overflow-y-auto rounded-[28px] transition-all duration-300 ${
+                    className={`fixed left-[max(12px,calc((100vw-1400px)/2+8px))] top-[140px] z-40 w-[340px] xl:w-[380px] max-h-[calc(100vh-160px)] overflow-y-auto overflow-x-hidden rounded-[28px] transition-all duration-300 ${
                         showStickySearch ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 -translate-y-4 pointer-events-none'
                     }`}
                 >

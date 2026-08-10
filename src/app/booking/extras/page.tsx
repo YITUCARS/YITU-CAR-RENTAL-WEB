@@ -29,6 +29,12 @@ export default function ExtrasPage() {
 
     useEffect(() => {
         if (!isHydrated) return
+        setExtras(booking.extras || {})
+        setSelectedInsuranceId(booking.selectedInsuranceId)
+    }, [isHydrated, booking.extras, booking.selectedInsuranceId])
+
+    useEffect(() => {
+        if (!isHydrated) return
         if (!booking.vehicleId || !booking.vehicleCategoryTypeId) {
             setLoading(false)
             return
@@ -118,15 +124,23 @@ export default function ExtrasPage() {
     const grandTotal = vehicleTotal + insuranceTotal + extrasTotal + youngDriverTotal + afterHourTotal + relocationTotal
 
     function proceed() {
-        setBooking(b => ({
-            ...b,
-            extras,
-            selectedInsuranceId,
-            afterHourFee: afterHourTotal,
-            relocationFee: relocationTotal,
-            mandatoryFeeIds: mandatoryFees.map((f: any) => f.id),
-            totalAmount: grandTotal,
-        }))
+        setBooking(b => {
+            const nextBooking = {
+                ...b,
+                extras,
+                selectedInsuranceId,
+                afterHourFee: afterHourTotal,
+                relocationFee: relocationTotal,
+                mandatoryFeeIds: mandatoryFees.map((f: any) => f.id),
+                totalAmount: grandTotal,
+            }
+
+            try {
+                sessionStorage.setItem('yitu-booking', JSON.stringify(nextBooking))
+            } catch {}
+
+            return nextBooking
+        })
         router.push('/booking/details')
     }
 

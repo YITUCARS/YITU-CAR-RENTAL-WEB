@@ -217,10 +217,15 @@ function PaymentContent() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     reservationRef,
+                    reservationNo,
                     amountCents: Math.round(payAmount * 100),
                     currency: 'nzd',
                     stripeMode: STRIPE_MODE,
                     description: `YITU rental ${reservationRef} (${paymentType === 'deposit' ? '10% deposit' : 'full payment'})`,
+                    firstName: freshBooking.firstName,
+                    lastName: freshBooking.lastName,
+                    email: freshBooking.email,
+                    phone: freshBooking.phone,
                 }),
             })
             const intentData = await intentRes.json()

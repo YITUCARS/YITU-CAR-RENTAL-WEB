@@ -17,8 +17,13 @@ export default function EmailSubscribePoster() {
     if (typeof window === 'undefined') return
     if (window.sessionStorage.getItem(STORAGE_KEY) === 'true') return
 
-    const timer = window.setTimeout(() => setOpen(true), 9000)
-    return () => window.clearTimeout(timer)
+    function openAfterChatClose() {
+      if (window.sessionStorage.getItem(STORAGE_KEY) === 'true') return
+      window.setTimeout(() => setOpen(true), 450)
+    }
+
+    window.addEventListener('yitu:chat-closed', openAfterChatClose)
+    return () => window.removeEventListener('yitu:chat-closed', openAfterChatClose)
   }, [])
 
   function closePoster() {
