@@ -61,6 +61,27 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ curve: data ?? [] })
         }
 
+        if (view === 'vehicles') {
+            // the individual models behind one class on one pickup date
+            const location = searchParams.get('location') ?? 'CHC_APT'
+            const pickupDate = searchParams.get('pickup')
+            const duration = Number(searchParams.get('duration') ?? 5)
+            const observedDate = searchParams.get('observed')
+            if (!pickupDate) return NextResponse.json({ error: 'pickup is required' }, { status: 400 })
+
+            let query = supabase
+                .from('mi_vehicle_prices')
+                .select('*')
+                .eq('pickup_location_code', location)
+                .eq('pickup_date', pickupDate)
+                .eq('duration_days', duration)
+            if (observedDate) query = query.eq('observed_date', observedDate)
+
+            const { data, error } = await query.order('vehicle_class').order('daily_price', { nullsFirst: false })
+            if (error) throw new Error(error.message)
+            return NextResponse.json({ vehicles: data ?? [] })
+        }
+
         if (view === 'unresolved') {
             const { data, error } = await supabase
                 .from('mi_unresolved_vehicles')
@@ -73,6 +94,7 @@ export async function GET(req: NextRequest) {
         // ---- overview ------------------------------------------------------
         const location = searchParams.get('location') ?? 'CHC_APT'
         const duration = Number(searchParams.get('duration') ?? 5)
+        const requestedPickup = searchParams.get('pickup')
 
         const [summary, health, runs, pickupDates, errors] = await Promise.all([
             supabase.from('mi_dataset_summary').select('*').single(),
@@ -99,13 +121,20 @@ export async function GET(req: NextRequest) {
             .limit(1)
             .maybeSingle()
 
+        // A snapshot is only meaningful for ONE pickup date: mixing an August
+        // pickup with a February one in the same table compares nothing.
+        // Default to the soonest pickup date we hold.
+        const dates = (pickupDates.data ?? []) as Array<{ pickup_date: string }>
+        const pickupDate = requestedPickup ?? dates[0]?.pickup_date ?? null
+
         let market: unknown[] = []
-        if (latestDay?.observed_date) {
+        if (latestDay?.observed_date && pickupDate) {
             const { data, error } = await supabase
                 .from('mi_market_daily')
                 .select('*')
                 .eq('pickup_location_code', location)
                 .eq('observed_date', latestDay.observed_date)
+                .eq('pickup_date', pickupDate)
                 .eq('duration_days', duration)
                 .order('vehicle_class')
             if (error) throw new Error(error.message)
@@ -121,6 +150,7 @@ export async function GET(req: NextRequest) {
             errors: errors.data ?? [],
             market,
             marketObservedDate: latestDay?.observed_date ?? null,
+            marketPickupDate: pickupDate,
         })
     } catch (e: any) {
         // A brand-new install has no market_intel schema yet; say so plainly

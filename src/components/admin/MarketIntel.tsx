@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { RefreshCw, AlertTriangle, TrendingUp, Database, CircleCheck, CircleX, Clock } from 'lucide-react'
+import { RefreshCw, AlertTriangle, TrendingUp, Database, CircleCheck, CircleX, Clock, ChevronRight, ChevronDown } from 'lucide-react'
 
 /**
  * 竞品价格监控 — read-only dashboard over the market-intel dataset.
@@ -12,6 +12,11 @@ import { RefreshCw, AlertTriangle, TrendingUp, Database, CircleCheck, CircleX, C
  */
 
 const API = '/api/admin/market-intel'
+
+const FUEL_LABELS: Record<string, string> = {
+    petrol: '汽油', diesel: '柴油', hybrid: '混动', plugin_hybrid: '插电混动',
+    electric: '纯电', unknown: '未知',
+}
 
 const CLASS_LABELS: Record<string, string> = {
     ECONOMY: '经济型', COMPACT: '紧凑型', MIDSIZE: '中型', FULLSIZE: '大型',
@@ -46,6 +51,13 @@ interface CurvePoint {
     observed_date: string; days_before_pickup: number; offer_count: number
     min_daily_price: number; median_daily_price: number; max_daily_price: number
 }
+interface VehicleRow {
+    vehicle_class: string | null; vehicle_name_raw: string; acriss_code: string | null
+    seats: number | null; bags: number | null; transmission: string; fuel_type: string
+    supplier: string | null; channel: string; availability: string
+    daily_price: number | null; total_price: number | null; lead_time_days: number
+    vehicle_class_method: string
+}
 interface CollectionError {
     id: number; source_code: string; stage: string; message: string; occurred_at: string
 }
@@ -73,6 +85,9 @@ export default function MarketIntel({ token, showToast }: { token: string; showT
     const [sources, setSources] = useState<SourceHealth[]>([])
     const [market, setMarket] = useState<MarketRow[]>([])
     const [marketDate, setMarketDate] = useState<string | null>(null)
+    const [marketPickup, setMarketPickup] = useState<string | null>(null)
+    const [vehicles, setVehicles] = useState<VehicleRow[]>([])
+    const [expanded, setExpanded] = useState<string | null>(null)
     const [pickupDates, setPickupDates] = useState<PickupDate[]>([])
     const [errors, setErrors] = useState<CollectionError[]>([])
     const [runs, setRuns] = useState<RunRow[]>([])
@@ -88,7 +103,8 @@ export default function MarketIntel({ token, showToast }: { token: string; showT
     const load = useCallback(async () => {
         setLoading(true)
         try {
-            const res = await fetch(`${API}?view=overview&duration=${duration}`, { headers })
+            const pickupParam = marketPickup ? `&pickup=${marketPickup}` : ''
+            const res = await fetch(`${API}?view=overview&duration=${duration}${pickupParam}`, { headers })
             const json = await res.json()
             if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`)
 
@@ -102,6 +118,7 @@ export default function MarketIntel({ token, showToast }: { token: string; showT
             setSources(json.sources ?? [])
             setMarket(json.market ?? [])
             setMarketDate(json.marketObservedDate ?? null)
+            setMarketPickup(json.marketPickupDate ?? null)
             setPickupDates(json.pickupDates ?? [])
             setErrors(json.errors ?? [])
             setRuns(json.runs ?? [])
@@ -116,9 +133,20 @@ export default function MarketIntel({ token, showToast }: { token: string; showT
         } finally {
             setLoading(false)
         }
-    }, [headers, duration, curvePickup, showToast])
+    }, [headers, duration, marketPickup, curvePickup, showToast])
 
-    useEffect(() => { load() }, [duration]) // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => { load() }, [duration, marketPickup]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
+        if (!marketPickup) return
+        let cancelled = false
+        const observed = marketDate ? `&observed=${marketDate}` : ''
+        fetch(`${API}?view=vehicles&pickup=${marketPickup}&duration=${duration}${observed}`, { headers })
+            .then((r) => r.json())
+            .then((json) => { if (!cancelled) setVehicles(json.vehicles ?? []) })
+            .catch(() => { /* the class table still works without the detail */ })
+        return () => { cancelled = true }
+    }, [marketPickup, marketDate, duration, headers])
 
     useEffect(() => {
         if (!curvePickup || !curveClass) return
@@ -231,42 +259,118 @@ npm run mi -- sources:sync`}
 
             {/* ---- market snapshot ---- */}
             <section className="mb-7 rounded-2xl border border-navy/10 bg-white p-5 sm:p-6">
-                <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-                    <h3 className="font-syne text-[17px] font-extrabold text-navy">市场快照 · 按车型分类</h3>
-                    <span className="text-[12px] text-muted">
-                        {marketDate ? `观测日 ${marketDate} · 租期 ${duration} 天` : '暂无数据'}
-                    </span>
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h3 className="font-syne text-[17px] font-extrabold text-navy">市场快照 · 按车型分类</h3>
+                        <p className="mt-1 text-[12px] text-muted">
+                            点开任意一行，看这个分类底下的具体车型和各自的报价。
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <select
+                            value={marketPickup ?? ''}
+                            onChange={(e) => { setMarketPickup(e.target.value); setExpanded(null) }}
+                            className="rounded-lg border border-navy/15 bg-white px-2.5 py-1.5 text-[12px] text-navy"
+                        >
+                            {pickupDates.length === 0 && <option value="">暂无数据</option>}
+                            {pickupDates.map((p) => (
+                                <option key={p.pickup_date} value={p.pickup_date}>
+                                    取车 {p.pickup_date}（提前 {p.min_lead_time_days} 天）
+                                </option>
+                            ))}
+                        </select>
+                        <span className="text-[12px] text-muted">
+                            {marketDate ? `观测日 ${marketDate}` : ''}
+                        </span>
+                    </div>
                 </div>
+
                 {market.length === 0 ? (
                     <Empty>还没有采集到数据。运行 <code className="rounded bg-navy/5 px-1">npm run mi -- jobs:generate</code> 开始采集。</Empty>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full min-w-[640px] text-[13px]">
+                        <table className="w-full min-w-[680px] text-[13px]">
                             <thead>
                                 <tr className="border-b border-navy/10 text-left text-[11px] uppercase tracking-wide text-muted">
                                     <th className="pb-2 font-semibold">车型分类</th>
                                     <th className="pb-2 text-right font-semibold">最低</th>
                                     <th className="pb-2 text-right font-semibold">中位数</th>
                                     <th className="pb-2 text-right font-semibold">最高</th>
-                                    <th className="pb-2 text-right font-semibold">报价数</th>
+                                    <th className="pb-2 text-right font-semibold">车型数</th>
                                     <th className="pb-2 text-right font-semibold">供应商</th>
-                                    <th className="pb-2 text-right font-semibold">提前期</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {market.map((row) => (
-                                    <tr key={row.vehicle_class} className="border-b border-navy/5 last:border-0">
-                                        <td className="py-2.5 font-semibold text-navy">
-                                            {CLASS_LABELS[row.vehicle_class] ?? row.vehicle_class}
-                                        </td>
-                                        <td className="py-2.5 text-right tabular-nums text-emerald-700">{money(row.min_daily_price)}</td>
-                                        <td className="py-2.5 text-right font-bold tabular-nums text-navy">{money(row.median_daily_price)}</td>
-                                        <td className="py-2.5 text-right tabular-nums text-rose-700">{money(row.max_daily_price)}</td>
-                                        <td className="py-2.5 text-right tabular-nums text-muted">{row.offer_count}</td>
-                                        <td className="py-2.5 text-right tabular-nums text-muted">{row.supplier_count}</td>
-                                        <td className="py-2.5 text-right tabular-nums text-muted">{row.lead_time_days} 天</td>
-                                    </tr>
-                                ))}
+                                {market.map((row) => {
+                                    const models = vehicles.filter((v) => v.vehicle_class === row.vehicle_class)
+                                    const open = expanded === row.vehicle_class
+                                    return (
+                                        <React.Fragment key={row.vehicle_class}>
+                                            <tr
+                                                onClick={() => setExpanded(open ? null : row.vehicle_class)}
+                                                className="cursor-pointer border-b border-navy/5 hover:bg-orange/5"
+                                            >
+                                                <td className="py-2.5 font-semibold text-navy">
+                                                    <span className="flex items-center gap-1.5">
+                                                        {open ? <ChevronDown size={14} className="text-orange" />
+                                                              : <ChevronRight size={14} className="text-muted" />}
+                                                        {CLASS_LABELS[row.vehicle_class] ?? row.vehicle_class}
+                                                    </span>
+                                                </td>
+                                                <td className="py-2.5 text-right tabular-nums text-emerald-700">{money(row.min_daily_price)}</td>
+                                                <td className="py-2.5 text-right font-bold tabular-nums text-navy">{money(row.median_daily_price)}</td>
+                                                <td className="py-2.5 text-right tabular-nums text-rose-700">{money(row.max_daily_price)}</td>
+                                                <td className="py-2.5 text-right tabular-nums text-muted">{models.length || row.offer_count}</td>
+                                                <td className="py-2.5 text-right tabular-nums text-muted">{row.supplier_count}</td>
+                                            </tr>
+                                            {open && (
+                                                <tr className="border-b border-navy/5 bg-slate-50/70">
+                                                    <td colSpan={6} className="px-2 py-3">
+                                                        {models.length === 0 ? (
+                                                            <div className="px-2 text-[12px] text-muted">这个分类没有车型明细。</div>
+                                                        ) : (
+                                                            <div className="space-y-1">
+                                                                {models.map((m, i) => (
+                                                                    <div key={`${m.vehicle_name_raw}-${i}`}
+                                                                         className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-3 py-2">
+                                                                        <div className="min-w-[240px] flex-1">
+                                                                            <div className="font-semibold text-navy">{m.vehicle_name_raw}</div>
+                                                                            <div className="mt-0.5 flex flex-wrap gap-x-3 text-[11px] text-muted">
+                                                                                {m.acriss_code && <span className="font-mono">{m.acriss_code}</span>}
+                                                                                {m.seats != null && <span>{m.seats} 座</span>}
+                                                                                {m.bags != null && <span>{m.bags} 件行李</span>}
+                                                                                <span>{m.transmission === 'automatic' ? '自动' : m.transmission === 'manual' ? '手动' : '未知'}</span>
+                                                                                <span>{FUEL_LABELS[m.fuel_type] ?? m.fuel_type}</span>
+                                                                                {m.supplier && <span>供应商 {m.supplier}</span>}
+                                                                                {m.vehicle_class_method === 'unresolved' && (
+                                                                                    <span className="text-amber-700">未分类</span>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="text-right">
+                                                                            {m.availability === 'available' ? (
+                                                                                <>
+                                                                                    <div className="font-syne text-[15px] font-extrabold text-navy">
+                                                                                        {money(m.daily_price)}<span className="text-[11px] font-normal text-muted">/天</span>
+                                                                                    </div>
+                                                                                    <div className="text-[11px] text-muted">总价 {money(m.total_price)}</div>
+                                                                                </>
+                                                                            ) : (
+                                                                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+                                                                                    已租完
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </React.Fragment>
+                                    )
+                                })}
                             </tbody>
                         </table>
                         {market.length > 0 && market[0].supplier_count < 3 && (

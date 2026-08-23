@@ -356,6 +356,44 @@ describe('admin bridge views', () => {
     }
   });
 
+  it('expands a class into the individual models behind it', async () => {
+    // the class is what makes competitors comparable; the models are what you
+    // actually price against, so both have to be reachable
+    const { rows } = await db.query<{ vehicle_class: string; vehicle_name_raw: string; daily_price: number | null }>(
+      `select vehicle_class, vehicle_name_raw, daily_price
+         from public.mi_vehicle_prices
+        where duration_days = 5 and vehicle_class is not null
+        order by vehicle_class, daily_price nulls last`,
+    );
+    expect(rows.length).toBeGreaterThan(0);
+
+    const byClass = new Map<string, string[]>();
+    for (const r of rows) {
+      byClass.set(r.vehicle_class, [...(byClass.get(r.vehicle_class) ?? []), r.vehicle_name_raw]);
+    }
+    // at least one class must hold more than one distinct model, or the
+    // expansion would be pointless
+    expect([...byClass.values()].some((names) => new Set(names).size > 1)).toBe(true);
+    expect(rows.every((r) => r.vehicle_name_raw.length > 0)).toBe(true);
+  });
+
+  it('scopes the snapshot to a single pickup date', async () => {
+    // mixing pickup dates in one table compares nothing: an August pickup and
+    // a February one are different markets
+    const { rows } = await db.query<{ vehicle_class: string; n: number }>(
+      `select vehicle_class, count(*)::int as n
+         from public.mi_market_daily
+        where pickup_location_code = 'CHC_APT'
+          and observed_date = (select max(observed_date) from public.mi_market_daily)
+          and pickup_date = (select min(pickup_date) from public.mi_market_daily)
+          and duration_days = 5
+        group by vehicle_class`,
+    );
+    expect(rows.length).toBeGreaterThan(0);
+    // one row per class once a pickup date is fixed
+    expect(rows.every((r) => Number(r.n) === 1)).toBe(true);
+  });
+
   it('exposes runs, errors and the review queue', async () => {
     const runs = await db.query('select * from public.mi_recent_runs');
     const errors = await db.query('select * from public.mi_recent_errors');
