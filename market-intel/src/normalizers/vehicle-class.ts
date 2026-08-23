@@ -59,28 +59,50 @@ export class VehicleClassifier {
       return { vehicleClass: 'VAN_12_SEAT', method: 'rule', confidence: 0.95, matchedPattern: 'seats>=9' };
     }
 
-    // --- mapping table: vehicle name first, then the source's class label ----
-    for (const candidate of [nameKey, fullKey, classKey]) {
-      if (!candidate) continue;
-      const hit = this.match(candidate, input);
-      if (hit) return this.applySeatAdjustments(hit, input);
+    // --- mapping table ------------------------------------------------------
+    // All three text sources are matched, then the best rule across them wins
+    // on priority. Trying the name first and stopping there would let a
+    // priority-90 brand fallback ("mercedes" -> PREMIUM) beat the source's own
+    // far better category label ("mpv"), which is how an 8-seat Vito ended up
+    // classified as a luxury car.
+    const sources: Array<{ key: string; rank: number }> = [
+      { key: nameKey, rank: 0 },
+      { key: fullKey, rank: 1 },
+      { key: classKey, rank: 2 },
+    ].filter((c) => c.key.length > 0);
+
+    let best: { rule: MappingRule; rank: number } | undefined;
+    for (const { key, rank } of sources) {
+      const rule = this.match(key, input);
+      if (!rule) continue;
+      const better =
+        !best ||
+        rule.priority < best.rule.priority ||
+        (rule.priority === best.rule.priority && rank < best.rank);
+      if (better) best = { rule, rank };
     }
 
-    return { method: 'unresolved', confidence: 0 };
+    if (!best) return { method: 'unresolved', confidence: 0 };
+
+    return this.applySeatAdjustments(
+      {
+        vehicleClass: best.rule.vehicleClass,
+        method: 'mapping',
+        confidence: best.rule.confidence,
+        matchedPattern: `${best.rule.matchType}:${best.rule.pattern}`,
+      },
+      input,
+    );
   }
 
-  private match(key: string, input: ClassificationInput): Classification | undefined {
+  /** The highest-priority rule matching this one piece of text. */
+  private match(key: string, input: ClassificationInput): MappingRule | undefined {
     for (const rule of this.rules) {
       if (rule.sourceCode && rule.sourceCode !== input.sourceCode) continue;
       if (rule.seatsMin != null && (input.seats ?? -1) < rule.seatsMin) continue;
       if (rule.seatsMax != null && (input.seats ?? 999) > rule.seatsMax) continue;
       if (!this.test(rule, key)) continue;
-      return {
-        vehicleClass: rule.vehicleClass,
-        method: 'mapping',
-        confidence: rule.confidence,
-        matchedPattern: `${rule.matchType}:${rule.pattern}`,
-      };
+      return rule;
     }
     return undefined;
   }

@@ -92,6 +92,42 @@ sources:
       Disallow:" (no restrictions; only CCBot and cohere-ai are blocked).
       Read from the public search flow only - no RCM API signature is forged.
 
+  - code: a_rentals
+    name: A Rentals
+    type: direct
+    collector: arentals
+    access: browser
+    enabled: true
+    base_url: https://www.arentalscar.com
+    search_url: https://www.arentalscar.com/
+    locations:
+      CHC_APT:
+        code: "656"                     # their own depot id
+        label: "Christchurch"
+      # AKL_APT: { code: "415", label: "Auckland" }
+      # ZQN_APT: { code: "659", label: "Queenstown" }
+      # WLG_APT: { code: "665", label: "Wellington" }
+    rate_limit:
+      max_concurrency: 1
+      min_delay_ms: 20000
+      jitter_ms: 8000
+      max_requests_per_hour: 40
+    retry:
+      max_attempts: 3
+      backoff_ms: 15000
+    timeout_ms: 90000
+    options:
+      form_selector: "form[data-js-booking-form]"
+      results_marker: "step=search-results"
+      vehicle_selector: ".vehicle"
+      wait_after_submit_ms: 25000
+      driver_age_bands: [21, 25, 60]
+    notes: >
+      WordPress booking wizard. robots.txt checked 2026-08-23: only /wp-admin/
+      is disallowed; results live at /?step=search-results and are unrestricted.
+      Prices are rental totals, and each vehicle shows a prepaid (5% off) and a
+      standard rate - we store the standard one and keep prepaid in raw.
+
   # ---- template for the next source, disabled until validated -------------
   #      (Milestone 2 validated yes_rentals above; same pattern for the next.)
   # - code: example_direct

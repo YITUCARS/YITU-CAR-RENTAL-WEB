@@ -1,0 +1,857 @@
+{
+  "source": "a_rentals",
+  "capturedAt": "2026-08-23T09:47:42.232Z",
+  "query": {
+    "pickupLocal": "2026-09-20 10:00:00",
+    "returnLocal": "2026-09-25 10:00:00",
+    "durationDays": 5
+  },
+  "offers": [
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Toyota Aqua Hybrid or Similar",
+      "vehicleClassRaw": "compact",
+      "fuelTypeRaw": "Hybrid",
+      "seats": 5,
+      "bags": 2,
+      "totalPrice": 129.7,
+      "totalPriceRaw": "NZD 129.70",
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "payType": "pay_at_counter",
+      "availability": "available",
+      "availabilityRaw": "NZD 123.20 Includes taxes and surcharges Pay Now (5% Off)",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "fb034f052af50906",
+      "raw": {
+        "vehicle": {
+          "vehId": "23479",
+          "name": "Toyota Aqua Hybrid or Similar",
+          "category": "compact",
+          "seatsText": "5 Passengers",
+          "bagsText": "2 Large",
+          "fuelText": "Hybrid",
+          "driveText": "Front Wheel Drive",
+          "standardPrice": "NZD 129.70",
+          "prepaidPrice": "NZD 123.20",
+          "labels": [
+            "NZD 123.20 Includes taxes and surcharges Pay Now (5% Off)",
+            "NZD 129.70 Includes taxes and surcharges Pay Later"
+          ]
+        },
+        "pricing": {
+          "standardTotalRaw": "NZD 129.70",
+          "prepaidTotalRaw": "NZD 123.20",
+          "prepaidTotal": 123.2,
+          "prepaidDiscount": 5
+        },
+        "drive": "Front Wheel Drive"
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Toyota Prius Hybrid or Similar",
+      "vehicleClassRaw": "medium",
+      "fuelTypeRaw": "Hybrid",
+      "seats": 5,
+      "bags": 3,
+      "totalPrice": 129.9,
+      "totalPriceRaw": "NZD 129.90",
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "payType": "pay_at_counter",
+      "availability": "available",
+      "availabilityRaw": "NZD 123.40 Includes taxes and surcharges Pay Now (5% Off)",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "7b51ae545febb9a5",
+      "raw": {
+        "vehicle": {
+          "vehId": "23480",
+          "name": "Toyota Prius Hybrid or Similar",
+          "category": "medium",
+          "seatsText": "5 Passengers",
+          "bagsText": "3 Large",
+          "fuelText": "Hybrid",
+          "driveText": "Front Wheel Drive",
+          "standardPrice": "NZD 129.90",
+          "prepaidPrice": "NZD 123.40",
+          "labels": [
+            "NZD 123.40 Includes taxes and surcharges Pay Now (5% Off)",
+            "NZD 129.90 Includes taxes and surcharges Pay Later"
+          ]
+        },
+        "pricing": {
+          "standardTotalRaw": "NZD 129.90",
+          "prepaidTotalRaw": "NZD 123.40",
+          "prepaidTotal": 123.4,
+          "prepaidDiscount": 5
+        },
+        "drive": "Front Wheel Drive"
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Toyota RAV4 2019 or Similar",
+      "vehicleClassRaw": "suv",
+      "fuelTypeRaw": "Petrol",
+      "seats": 5,
+      "bags": 4,
+      "totalPrice": 320.05,
+      "totalPriceRaw": "NZD 320.05",
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "payType": "pay_at_counter",
+      "availability": "available",
+      "availabilityRaw": "NZD 304.05 Includes taxes and surcharges Pay Now (5% Off)",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "0795ad951ef7d089",
+      "raw": {
+        "vehicle": {
+          "vehId": "23488",
+          "name": "Toyota RAV4 2019 or Similar",
+          "category": "suv",
+          "seatsText": "5 Passengers",
+          "bagsText": "4 Large",
+          "fuelText": "Petrol",
+          "driveText": "All Wheel Drive",
+          "standardPrice": "NZD 320.05",
+          "prepaidPrice": "NZD 304.05",
+          "labels": [
+            "NZD 304.05 Includes taxes and surcharges Pay Now (5% Off)",
+            "NZD 320.05 Includes taxes and surcharges Pay Later"
+          ]
+        },
+        "pricing": {
+          "standardTotalRaw": "NZD 320.05",
+          "prepaidTotalRaw": "NZD 304.05",
+          "prepaidTotal": 304.05,
+          "prepaidDiscount": 5
+        },
+        "drive": "All Wheel Drive"
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Toyota Rav4 GX 2.5 Hybrid",
+      "vehicleClassRaw": "suv",
+      "fuelTypeRaw": "Hybrid",
+      "seats": 5,
+      "bags": 4,
+      "totalPrice": 330.15,
+      "totalPriceRaw": "NZD 330.15",
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "payType": "pay_at_counter",
+      "availability": "available",
+      "availabilityRaw": "NZD 313.65 Includes taxes and surcharges Pay Now (5% Off)",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "a7488e96ebb674ff",
+      "raw": {
+        "vehicle": {
+          "vehId": "24189",
+          "name": "Toyota Rav4 GX 2.5 Hybrid",
+          "category": "suv",
+          "seatsText": "5 Passengers",
+          "bagsText": "4 Large",
+          "fuelText": "Hybrid",
+          "driveText": "All Wheel Drive",
+          "standardPrice": "NZD 330.15",
+          "prepaidPrice": "NZD 313.65",
+          "labels": [
+            "NZD 313.65 Includes taxes and surcharges Pay Now (5% Off)",
+            "NZD 330.15 Includes taxes and surcharges Pay Later"
+          ]
+        },
+        "pricing": {
+          "standardTotalRaw": "NZD 330.15",
+          "prepaidTotalRaw": "NZD 313.65",
+          "prepaidTotal": 313.65,
+          "prepaidDiscount": 5
+        },
+        "drive": "All Wheel Drive"
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Mitsubishi Outlander or Similar",
+      "vehicleClassRaw": "suv",
+      "fuelTypeRaw": "Petrol",
+      "seats": 7,
+      "bags": 3,
+      "totalPrice": 572.8,
+      "totalPriceRaw": "NZD 572.80",
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "payType": "pay_at_counter",
+      "availability": "available",
+      "availabilityRaw": "NZD 544.15 Includes taxes and surcharges Pay Now (5% Off)",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "fcd7760c74e3e2c4",
+      "raw": {
+        "vehicle": {
+          "vehId": "23484",
+          "name": "Mitsubishi Outlander or Similar",
+          "category": "suv",
+          "seatsText": "7 Passengers",
+          "bagsText": "3 Large",
+          "fuelText": "Petrol",
+          "driveText": null,
+          "standardPrice": "NZD 572.80",
+          "prepaidPrice": "NZD 544.15",
+          "labels": [
+            "NZD 544.15 Includes taxes and surcharges Pay Now (5% Off)",
+            "NZD 572.80 Includes taxes and surcharges Pay Later"
+          ]
+        },
+        "pricing": {
+          "standardTotalRaw": "NZD 572.80",
+          "prepaidTotalRaw": "NZD 544.15",
+          "prepaidTotal": 544.15,
+          "prepaidDiscount": 5
+        },
+        "drive": null
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Toyota Highlander Hybrid",
+      "vehicleClassRaw": "suv",
+      "fuelTypeRaw": "Hybrid",
+      "seats": 7,
+      "bags": 5,
+      "totalPrice": 633.5,
+      "totalPriceRaw": "NZD 633.50",
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "payType": "pay_at_counter",
+      "availability": "available",
+      "availabilityRaw": "NZD 601.80 Includes taxes and surcharges Pay Now (5% Off)",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "2e13f9902e1191c0",
+      "raw": {
+        "vehicle": {
+          "vehId": "23485",
+          "name": "Toyota Highlander Hybrid",
+          "category": "suv",
+          "seatsText": "7 Passengers",
+          "bagsText": "5 Large",
+          "fuelText": "Hybrid",
+          "driveText": "All Wheel Drive",
+          "standardPrice": "NZD 633.50",
+          "prepaidPrice": "NZD 601.80",
+          "labels": [
+            "NZD 601.80 Includes taxes and surcharges Pay Now (5% Off)",
+            "NZD 633.50 Includes taxes and surcharges Pay Later"
+          ]
+        },
+        "pricing": {
+          "standardTotalRaw": "NZD 633.50",
+          "prepaidTotalRaw": "NZD 601.80",
+          "prepaidTotal": 601.8,
+          "prepaidDiscount": 5
+        },
+        "drive": "All Wheel Drive"
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Mercedes Valente or Similar",
+      "vehicleClassRaw": "mpv-2",
+      "fuelTypeRaw": "Diesel",
+      "seats": 8,
+      "bags": 5,
+      "totalPrice": 685.95,
+      "totalPriceRaw": "NZD 685.95",
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "payType": "pay_at_counter",
+      "availability": "available",
+      "availabilityRaw": "NZD 651.65 Includes taxes and surcharges Pay Now (5% Off)",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "31fdfb22a7da53ee",
+      "raw": {
+        "vehicle": {
+          "vehId": "23495",
+          "name": "Mercedes Valente or Similar",
+          "category": "mpv-2",
+          "seatsText": "8 Passengers",
+          "bagsText": "5 Large",
+          "fuelText": "Diesel",
+          "driveText": null,
+          "standardPrice": "NZD 685.95",
+          "prepaidPrice": "NZD 651.65",
+          "labels": [
+            "NZD 651.65 Includes taxes and surcharges Pay Now (5% Off)",
+            "NZD 685.95 Includes taxes and surcharges Pay Later"
+          ]
+        },
+        "pricing": {
+          "standardTotalRaw": "NZD 685.95",
+          "prepaidTotalRaw": "NZD 651.65",
+          "prepaidTotal": 651.65,
+          "prepaidDiscount": 5
+        },
+        "drive": null
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Mercedes Sprinter (New)",
+      "vehicleClassRaw": "van",
+      "fuelTypeRaw": "Diesel",
+      "seats": 12,
+      "bags": 11,
+      "totalPrice": 1207.75,
+      "totalPriceRaw": "NZD 1,207.75",
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "payType": "pay_at_counter",
+      "availability": "available",
+      "availabilityRaw": "NZD 1,147.35 Includes taxes and surcharges Pay Now (5% Off)",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "f1fabbfa7f4715ea",
+      "raw": {
+        "vehicle": {
+          "vehId": "23505",
+          "name": "Mercedes Sprinter (New)",
+          "category": "van",
+          "seatsText": "12 Passengers",
+          "bagsText": "11 Large",
+          "fuelText": "Diesel",
+          "driveText": null,
+          "standardPrice": "NZD 1,207.75",
+          "prepaidPrice": "NZD 1,147.35",
+          "labels": [
+            "NZD 1,147.35 Includes taxes and surcharges Pay Now (5% Off)",
+            "NZD 1,207.75 Includes taxes and surcharges Pay Later"
+          ]
+        },
+        "pricing": {
+          "standardTotalRaw": "NZD 1,207.75",
+          "prepaidTotalRaw": "NZD 1,147.35",
+          "prepaidTotal": 1147.35,
+          "prepaidDiscount": 5
+        },
+        "drive": null
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "MITSUBISHI ASX or Similar",
+      "vehicleClassRaw": "medium suv",
+      "fuelTypeRaw": "Petrol",
+      "seats": 5,
+      "bags": 2,
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "availability": "sold_out",
+      "availabilityRaw": "no price shown",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "e7c997b8bd462530",
+      "raw": {
+        "vehicle": {
+          "vehId": "24528",
+          "name": "MITSUBISHI ASX or Similar",
+          "category": "medium suv",
+          "seatsText": "5 Passengers",
+          "bagsText": "2 Large",
+          "fuelText": "Petrol",
+          "driveText": "Front Wheel Drive",
+          "standardPrice": null,
+          "prepaidPrice": null,
+          "labels": []
+        },
+        "pricing": {
+          "standardTotalRaw": null,
+          "prepaidTotalRaw": null
+        },
+        "drive": "Front Wheel Drive"
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Toyota Rav4 Hybrid",
+      "vehicleClassRaw": "suv",
+      "fuelTypeRaw": "Hybrid",
+      "seats": 5,
+      "bags": 4,
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "availability": "sold_out",
+      "availabilityRaw": "no price shown",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "dff1e9ccea3da9c2",
+      "raw": {
+        "vehicle": {
+          "vehId": "23487",
+          "name": "Toyota Rav4 Hybrid",
+          "category": "suv",
+          "seatsText": "5 Passengers",
+          "bagsText": "4 Large",
+          "fuelText": "Hybrid",
+          "driveText": "All Wheel Drive",
+          "standardPrice": null,
+          "prepaidPrice": null,
+          "labels": []
+        },
+        "pricing": {
+          "standardTotalRaw": null,
+          "prepaidTotalRaw": null
+        },
+        "drive": "All Wheel Drive"
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Toyota Vellfire",
+      "vehicleClassRaw": "mpv-2",
+      "fuelTypeRaw": "Petrol",
+      "seats": 7,
+      "bags": 3,
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "availability": "sold_out",
+      "availabilityRaw": "no price shown",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "7e7f7c1d9b8ec867",
+      "raw": {
+        "vehicle": {
+          "vehId": "23490",
+          "name": "Toyota Vellfire",
+          "category": "mpv-2",
+          "seatsText": "7 Passengers",
+          "bagsText": "3 Large",
+          "fuelText": "Petrol",
+          "driveText": "Front Wheel Drive",
+          "standardPrice": null,
+          "prepaidPrice": null,
+          "labels": []
+        },
+        "pricing": {
+          "standardTotalRaw": null,
+          "prepaidTotalRaw": null
+        },
+        "drive": "Front Wheel Drive"
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Toyota Alphard Hybrid",
+      "vehicleClassRaw": "mpv-2",
+      "fuelTypeRaw": "Hybrid",
+      "seats": 7,
+      "bags": 3,
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "availability": "sold_out",
+      "availabilityRaw": "no price shown",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "140f0dff2a8f78b9",
+      "raw": {
+        "vehicle": {
+          "vehId": "23491",
+          "name": "Toyota Alphard Hybrid",
+          "category": "mpv-2",
+          "seatsText": "7 Passengers",
+          "bagsText": "3 Large",
+          "fuelText": "Hybrid",
+          "driveText": "All Wheel Drive",
+          "standardPrice": null,
+          "prepaidPrice": null,
+          "labels": []
+        },
+        "pricing": {
+          "standardTotalRaw": null,
+          "prepaidTotalRaw": null
+        },
+        "drive": "All Wheel Drive"
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Hyundai Staria 2WD or Similar",
+      "vehicleClassRaw": "mpv-2",
+      "fuelTypeRaw": "Diesel",
+      "seats": 8,
+      "bags": 5,
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "availability": "sold_out",
+      "availabilityRaw": "no price shown",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "1ef8066eee4ead74",
+      "raw": {
+        "vehicle": {
+          "vehId": "23492",
+          "name": "Hyundai Staria 2WD or Similar",
+          "category": "mpv-2",
+          "seatsText": "8 Passengers",
+          "bagsText": "5 Large",
+          "fuelText": "Diesel",
+          "driveText": "Front Wheel Drive",
+          "standardPrice": null,
+          "prepaidPrice": null,
+          "labels": []
+        },
+        "pricing": {
+          "standardTotalRaw": null,
+          "prepaidTotalRaw": null
+        },
+        "drive": "Front Wheel Drive"
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Hyundai Staria Premiums AWD",
+      "vehicleClassRaw": "mpv-2",
+      "fuelTypeRaw": "Diesel",
+      "seats": 8,
+      "bags": 5,
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "availability": "sold_out",
+      "availabilityRaw": "no price shown",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "5a3abad86b771bc1",
+      "raw": {
+        "vehicle": {
+          "vehId": "23493",
+          "name": "Hyundai Staria Premiums AWD",
+          "category": "mpv-2",
+          "seatsText": "8 Passengers",
+          "bagsText": "5 Large",
+          "fuelText": "Diesel",
+          "driveText": "All Wheel Drive",
+          "standardPrice": null,
+          "prepaidPrice": null,
+          "labels": []
+        },
+        "pricing": {
+          "standardTotalRaw": null,
+          "prepaidTotalRaw": null
+        },
+        "drive": "All Wheel Drive"
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Subaru Forester X-Mode",
+      "vehicleClassRaw": "suv",
+      "fuelTypeRaw": "Petrol",
+      "seats": 5,
+      "bags": 4,
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "availability": "sold_out",
+      "availabilityRaw": "no price shown",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "a67fc7ab160e53c7",
+      "raw": {
+        "vehicle": {
+          "vehId": "23486",
+          "name": "Subaru Forester X-Mode",
+          "category": "suv",
+          "seatsText": "5 Passengers",
+          "bagsText": "4 Large",
+          "fuelText": "Petrol",
+          "driveText": "All Wheel Drive",
+          "standardPrice": null,
+          "prepaidPrice": null,
+          "labels": []
+        },
+        "pricing": {
+          "standardTotalRaw": null,
+          "prepaidTotalRaw": null
+        },
+        "drive": "All Wheel Drive"
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Mercedes Vito-Tourer (New)",
+      "vehicleClassRaw": "mpv-2",
+      "fuelTypeRaw": "Diesel",
+      "seats": 8,
+      "bags": 5,
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "availability": "sold_out",
+      "availabilityRaw": "no price shown",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "dc042b442754479c",
+      "raw": {
+        "vehicle": {
+          "vehId": "23496",
+          "name": "Mercedes Vito-Tourer (New)",
+          "category": "mpv-2",
+          "seatsText": "8 Passengers",
+          "bagsText": "5 Large",
+          "fuelText": "Diesel",
+          "driveText": null,
+          "standardPrice": null,
+          "prepaidPrice": null,
+          "labels": []
+        },
+        "pricing": {
+          "standardTotalRaw": null,
+          "prepaidTotalRaw": null
+        },
+        "drive": null
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Toyota Hiace or Similar",
+      "vehicleClassRaw": "van",
+      "fuelTypeRaw": "Diesel",
+      "seats": 12,
+      "bags": 10,
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "availability": "sold_out",
+      "availabilityRaw": "no price shown",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "34130991cb423d81",
+      "raw": {
+        "vehicle": {
+          "vehId": "23504",
+          "name": "Toyota Hiace or Similar",
+          "category": "van",
+          "seatsText": "12 Passengers",
+          "bagsText": "10 Large",
+          "fuelText": "Diesel",
+          "driveText": null,
+          "standardPrice": null,
+          "prepaidPrice": null,
+          "labels": []
+        },
+        "pricing": {
+          "standardTotalRaw": null,
+          "prepaidTotalRaw": null
+        },
+        "drive": null
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Toyota RAV4 AWD or Similar",
+      "vehicleClassRaw": "suv",
+      "fuelTypeRaw": "Petrol",
+      "seats": 5,
+      "bags": 4,
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "availability": "sold_out",
+      "availabilityRaw": "no price shown",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "847ba29a787c5356",
+      "raw": {
+        "vehicle": {
+          "vehId": "23483",
+          "name": "Toyota RAV4 AWD or Similar",
+          "category": "suv",
+          "seatsText": "5 Passengers",
+          "bagsText": "4 Large",
+          "fuelText": "Petrol",
+          "driveText": "All Wheel Drive",
+          "standardPrice": null,
+          "prepaidPrice": null,
+          "labels": []
+        },
+        "pricing": {
+          "standardTotalRaw": null,
+          "prepaidTotalRaw": null
+        },
+        "drive": "All Wheel Drive"
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Mercedes Sprinter",
+      "vehicleClassRaw": "van",
+      "fuelTypeRaw": "Diesel",
+      "seats": 12,
+      "bags": 11,
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "availability": "sold_out",
+      "availabilityRaw": "no price shown",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "b1a11b6c6789902b",
+      "raw": {
+        "vehicle": {
+          "vehId": "23506",
+          "name": "Mercedes Sprinter",
+          "category": "van",
+          "seatsText": "12 Passengers",
+          "bagsText": "11 Large",
+          "fuelText": "Diesel",
+          "driveText": null,
+          "standardPrice": null,
+          "prepaidPrice": null,
+          "labels": []
+        },
+        "pricing": {
+          "standardTotalRaw": null,
+          "prepaidTotalRaw": null
+        },
+        "drive": null
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Toyota Aqua Hybrid 2020-2022 or Similar",
+      "vehicleClassRaw": "compact",
+      "fuelTypeRaw": "Hybrid",
+      "seats": 5,
+      "bags": 2,
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "availability": "sold_out",
+      "availabilityRaw": "no price shown",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "f1c6df0a5599ca3a",
+      "raw": {
+        "vehicle": {
+          "vehId": "24099",
+          "name": "Toyota Aqua Hybrid 2020-2022 or Similar",
+          "category": "compact",
+          "seatsText": "5 Passengers",
+          "bagsText": "2 Large",
+          "fuelText": "Hybrid",
+          "driveText": "Front Wheel Drive",
+          "standardPrice": null,
+          "prepaidPrice": null,
+          "labels": []
+        },
+        "pricing": {
+          "standardTotalRaw": null,
+          "prepaidTotalRaw": null
+        },
+        "drive": "Front Wheel Drive"
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Toyota Prius Hybrid 2020-2022 or Similar",
+      "vehicleClassRaw": "medium",
+      "fuelTypeRaw": "Hybrid",
+      "seats": 5,
+      "bags": 3,
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "availability": "sold_out",
+      "availabilityRaw": "no price shown",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "bb846c1dc48587ae",
+      "raw": {
+        "vehicle": {
+          "vehId": "24100",
+          "name": "Toyota Prius Hybrid 2020-2022 or Similar",
+          "category": "medium",
+          "seatsText": "5 Passengers",
+          "bagsText": "3 Large",
+          "fuelText": "Hybrid",
+          "driveText": "Front Wheel Drive",
+          "standardPrice": null,
+          "prepaidPrice": null,
+          "labels": []
+        },
+        "pricing": {
+          "standardTotalRaw": null,
+          "prepaidTotalRaw": null
+        },
+        "drive": "Front Wheel Drive"
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Toyota Rav4 2WD or Similar",
+      "vehicleClassRaw": "suv",
+      "fuelTypeRaw": "Petrol",
+      "seats": 5,
+      "bags": 4,
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "availability": "sold_out",
+      "availabilityRaw": "no price shown",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "deeeb42f0145c3d5",
+      "raw": {
+        "vehicle": {
+          "vehId": "23482",
+          "name": "Toyota Rav4 2WD or Similar",
+          "category": "suv",
+          "seatsText": "5 Passengers",
+          "bagsText": "4 Large",
+          "fuelText": "Petrol",
+          "driveText": "Front Wheel Drive",
+          "standardPrice": null,
+          "prepaidPrice": null,
+          "labels": []
+        },
+        "pricing": {
+          "standardTotalRaw": null,
+          "prepaidTotalRaw": null
+        },
+        "drive": "Front Wheel Drive"
+      }
+    },
+    {
+      "supplierRaw": "A Rentals",
+      "channel": "A Rentals",
+      "vehicleNameRaw": "Subaru Forester or Similar",
+      "vehicleClassRaw": "suv",
+      "fuelTypeRaw": "Petrol",
+      "seats": 5,
+      "bags": 4,
+      "currency": "NZD",
+      "priceIncludesTaxes": true,
+      "availability": "sold_out",
+      "availabilityRaw": "no price shown",
+      "sourceUrl": "https://www.arentalscar.com?step=search-results",
+      "offerFingerprint": "623096112e955c86",
+      "raw": {
+        "vehicle": {
+          "vehId": "23481",
+          "name": "Subaru Forester or Similar",
+          "category": "suv",
+          "seatsText": "5 Passengers",
+          "bagsText": "4 Large",
+          "fuelText": "Petrol",
+          "driveText": "All Wheel Drive",
+          "standardPrice": null,
+          "prepaidPrice": null,
+          "labels": []
+        },
+        "pricing": {
+          "standardTotalRaw": null,
+          "prepaidTotalRaw": null
+        },
+        "drive": "All Wheel Drive"
+      }
+    }
+  ]
+}

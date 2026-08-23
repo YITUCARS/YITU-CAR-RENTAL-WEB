@@ -1,6 +1,7 @@
 import type { CollectorContext, CollectorFactory, RentalPriceCollector } from './types.js';
 import { createMockCollector } from './mock/mock-collector.js';
 import { createRcmCollector } from './rcm/rcm-collector.js';
+import { createArentalsCollector } from './arentals/arentals-collector.js';
 import { CollectionError } from '../utils/errors.js';
 
 /**
@@ -14,6 +15,8 @@ const registry = new Map<string, CollectorFactory>([
   // Rental Car Manager: powers many NZ independents, so one adapter covers
   // several competitors — each is just another sources.yaml entry
   ['rcm', createRcmCollector],
+  // site-specific: a WordPress booking wizard, not a hosted engine
+  ['arentals', createArentalsCollector],
 ]);
 
 export function registerCollector(id: string, factory: CollectorFactory): void {
