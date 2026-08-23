@@ -120,6 +120,8 @@ sources:
       form_selector: "form[data-js-booking-form]"
       results_marker: "step=search-results"
       vehicle_selector: ".vehicle"
+      # the site answers an impossible request with a modal instead of results
+      error_modal_selector: "#cc-modal"
       wait_after_submit_ms: 25000
       driver_age_bands: [21, 25, 60]
     notes: >
@@ -127,6 +129,8 @@ sources:
       is disallowed; results live at /?step=search-results and are unrestricted.
       Prices are rental totals, and each vehicle shows a prepaid (5% off) and a
       standard rate - we store the standard one and keep prepaid in raw.
+      Christchurch requires 24h advance notice; a search inside that window is
+      declined with a modal and recorded as zero offers, not as a failure.
 
   # ---- template for the next source, disabled until validated -------------
   #      (Milestone 2 validated yes_rentals above; same pattern for the next.)

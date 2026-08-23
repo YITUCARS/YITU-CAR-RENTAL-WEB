@@ -30,6 +30,7 @@ interface ArentalsOptions {
   formSelector: string;
   resultsMarker: string;
   vehicleSelector: string;
+  errorModalSelector: string;
   waitAfterSubmitMs: number;
   driverAgeBands: number[];
 }
@@ -40,6 +41,7 @@ function readOptions(ctx: CollectorContext): ArentalsOptions {
     formSelector: String(raw.form_selector ?? 'form[data-js-booking-form]'),
     resultsMarker: String(raw.results_marker ?? 'step=search-results'),
     vehicleSelector: String(raw.vehicle_selector ?? '.vehicle'),
+    errorModalSelector: String(raw.error_modal_selector ?? '#cc-modal'),
     waitAfterSubmitMs: Number(raw.wait_after_submit_ms ?? 20_000),
     // the site offers age bands, not exact ages
     driverAgeBands: (raw.driver_age_bands as number[]) ?? [21, 25, 60],
@@ -201,21 +203,49 @@ async function runSearch(
     });
   }
 
-  await page
+  // Two legitimate endings to a search: a results page, or the site telling us
+  // it will not quote these dates at all. Waiting only for the first turns a
+  // business rule into a fake outage.
+  const outcome = await page
     .waitForFunction(
-      ([marker, vehSel]) =>
-        location.search.includes(marker as string) &&
-        document.querySelectorAll(vehSel as string).length > 0,
-      [options.resultsMarker, options.vehicleSelector],
+      ([marker, vehSel, modalSel]) => {
+        const modal = document.querySelector(modalSel as string);
+        const modalShown = !!modal && (modal as HTMLElement).offsetParent !== null;
+        if (modalShown) {
+          const text = modal!.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+          return { kind: 'declined', message: text.slice(0, 300) };
+        }
+        if (
+          location.search.includes(marker as string) &&
+          document.querySelectorAll(vehSel as string).length > 0
+        ) {
+          return { kind: 'results', message: '' };
+        }
+        return null;
+      },
+      [options.resultsMarker, options.vehicleSelector, options.errorModalSelector],
       { timeout: options.waitAfterSubmitMs },
     )
+    .then((handle) => handle.jsonValue() as Promise<{ kind: string; message: string }>)
     .catch(() => {
       throw new CollectionError({
         stage: 'search',
-        message: 'search never produced a results page with vehicles',
+        message: 'search produced neither a results page nor an explanation',
         url: page.url(),
       });
     });
+
+  if (outcome.kind === 'declined') {
+    // e.g. "This location requires at least 24 hours advance notice". The
+    // source searched fine and declined to quote, so this is an empty result,
+    // not a failure - failing it would trip the circuit breaker on a source
+    // that is working perfectly.
+    ctx.log.info(
+      { pickupLocal: query.pickupLocal, leadTimeDays: query.leadTimeDays, reason: outcome.message },
+      'source declined to quote these dates',
+    );
+    return [];
+  }
 
   return page.evaluate((vehSel) => {
     // classes the theme uses for grid layout rather than for the category
