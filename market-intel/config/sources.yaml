@@ -1,0 +1,116 @@
+# ---------------------------------------------------------------------------
+# Data sources. This file is the source of truth; `npm run mi -- sources:sync`
+# upserts it into market_intel.sources. Runtime health (last success, failure
+# counts, auto-disable) lives in the database, not here.
+#
+# type:      direct = rental company's own site | ota = marketplace reselling
+#            several suppliers
+# collector: id of the adapter in src/collectors that knows how to read it
+# access:    api  = official/public JSON endpoint we are permitted to call
+#            browser = Playwright against the public search UI
+#
+# Rules that are not negotiable for any adapter added here:
+#   - public, unauthenticated pages/endpoints only
+#   - no CAPTCHA solving, no login walls, no anti-bot evasion
+#   - robots.txt and any published rate limits are respected
+#   - if a source's terms forbid automated access, it does not go in this file
+# ---------------------------------------------------------------------------
+
+sources:
+  # ---- built-in, no network: generates synthetic but realistic offers so the
+  #      whole pipeline (jobs -> collect -> normalize -> store -> analyse) can
+  #      be exercised before a single real site is wired up.
+  - code: mock_direct
+    name: Mock Rentals (synthetic)
+    type: direct
+    collector: mock
+    access: mock
+    # off in production: real sources are live, and synthetic rows would
+    # pollute the dataset. The test suite enables them explicitly.
+    enabled: false
+    base_url: https://example.invalid
+    search_url: https://example.invalid/search
+    locations:
+      CHC_APT:
+        code: CHC
+    options:
+      supplier_count: 1
+      offers_per_search: 8
+      failure_rate: 0.0
+
+  - code: mock_ota
+    name: Mock OTA (synthetic)
+    type: ota
+    collector: mock
+    access: mock
+    enabled: false
+    base_url: https://ota.example.invalid
+    search_url: https://ota.example.invalid/search
+    locations:
+      CHC_APT:
+        code: CHC
+    options:
+      # An OTA fans out across several suppliers; used to prove the
+      # supplier vs channel split works end to end.
+      supplier_count: 4
+      offers_per_search: 18
+      failure_rate: 0.05
+
+  # ---- real sources -------------------------------------------------------
+  - code: yes_rentals
+    name: Yes Rentals
+    type: direct
+    collector: rcm
+    access: browser
+    enabled: true
+    base_url: https://yesrentals.co.nz
+    search_url: https://yesrentals.co.nz/
+    locations:
+      CHC_APT:
+        code: "7"                      # RCM location id, from their own dropdown
+        label: "Christchurch Airport - CHC"
+      # not enabled yet, but this is all it takes when we widen the market:
+      # AKL_APT: { code: "1", label: "Auckland Airport - AKL" }
+      # ZQN_APT: { code: "8", label: "Queenstown Airport - ZQN" }
+    rate_limit:
+      max_concurrency: 1
+      min_delay_ms: 20000            # one search per ~20s, single small operator
+      jitter_ms: 8000
+      max_requests_per_hour: 40
+    retry:
+      max_attempts: 3
+      backoff_ms: 15000
+    timeout_ms: 90000
+    options:
+      form_url: https://yesrentals.co.nz/
+      results_path: /rcmv2/step2
+      wait_after_submit_ms: 15000
+      # "I live in" is left at the site default (New Zealand); we do not set a
+      # residency we have not verified, since it can change what is quoted
+    notes: >
+      RCM v3.2 booking engine. robots.txt checked 2026-08-23: "User-agent: *
+      Disallow:" (no restrictions; only CCBot and cohere-ai are blocked).
+      Read from the public search flow only - no RCM API signature is forged.
+
+  # ---- template for the next source, disabled until validated -------------
+  #      (Milestone 2 validated yes_rentals above; same pattern for the next.)
+  # - code: example_direct
+  #   name: Example Rentals NZ
+  #   type: direct
+  #   collector: example-direct
+  #   access: browser
+  #   enabled: false
+  #   base_url: https://www.example.co.nz
+  #   search_url: https://www.example.co.nz/booking/vehicles
+  #   locations:
+  #     CHC_APT:
+  #       code: "CHC"              # the site's own location id
+  #       label: "Christchurch Airport"
+  #   rate_limit:
+  #     max_concurrency: 1
+  #     min_delay_ms: 15000
+  #     max_requests_per_hour: 40
+  #   retry:
+  #     max_attempts: 3
+  #   timeout_ms: 90000
+  #   notes: "robots.txt checked YYYY-MM-DD; /booking allowed"

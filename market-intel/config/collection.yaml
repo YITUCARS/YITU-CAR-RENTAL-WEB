@@ -1,0 +1,73 @@
+# ---------------------------------------------------------------------------
+# What we search, how often, and how politely.
+# ---------------------------------------------------------------------------
+
+scenarios:
+  # Days between the observation date and the pickup date.
+  # This is the axis the whole project exists for: the same pickup date is
+  # re-observed at shrinking lead times, producing the booking-curve.
+  lead_time_days: [1, 3, 7, 14, 30, 60, 90]
+
+  # Rental lengths tested for every pickup date.
+  duration_days: [1, 3, 5, 7]
+
+  # Local wall-clock times at the pickup location (not UTC).
+  pickup_time: "10:00"
+  return_time: "10:00"
+
+  # One-way rentals are off for now; return location == pickup location.
+  one_way: false
+
+  driver_age: 30
+  # Passed to sources that let us pick a display currency.
+  currency: NZD
+
+schedule:
+  # Reference time-of-day (location local time) for a daily collection run.
+  # The scheduler in Milestone 4 uses this; `jobs:generate` can also be run ad hoc.
+  daily_run_at: "06:00"
+  timezone: Pacific/Auckland
+
+defaults:
+  # Per-source ceilings. Any source may override these in sources.yaml.
+  rate_limit:
+    max_concurrency: 1          # parallel searches against one source
+    min_delay_ms: 6000          # enforced gap between two searches
+    jitter_ms: 2500             # random extra delay, avoids a robotic cadence
+    max_requests_per_hour: 120
+  retry:
+    max_attempts: 3
+    backoff_ms: 5000            # base for exponential backoff
+    backoff_multiplier: 2
+    max_backoff_ms: 120000
+  timeout_ms: 60000
+  # Consecutive failed jobs before the source is auto-disabled and flagged
+  # for a human to look at.
+  disable_after_consecutive_failures: 12
+
+runner:
+  # Global cap across all sources; also bounded by MAX_GLOBAL_CONCURRENCY env.
+  max_concurrency: 2
+  # A claimed job that never reports back is released after this long.
+  job_lock_timeout_ms: 900000
+  # Keep failure screenshots / HTML snapshots for this many days.
+  artifact_retention_days: 14
+
+# ---------------------------------------------------------------------------
+# Target windows: specific pickup dates to track regardless of lead time.
+#
+# The rolling grid above only reaches 90 days out. When we need a particular
+# season - a peak month we are about to price - we name it here and it gets
+# collected on every run, so its whole booking curve is captured from however
+# far out we start until the dates pass.
+# ---------------------------------------------------------------------------
+target_windows:
+  - code: feb_2027
+    description: "February 2027 peak summer, Christchurch"
+    enabled: true
+    locations: [CHC_APT]
+    pickup_from: "2027-02-01"
+    pickup_to: "2027-02-28"
+    every_n_days: 3          # sample every 3rd pickup date across the month
+    duration_days: [3, 5, 7]
+    priority: 50             # ahead of the rolling grid's long lead times

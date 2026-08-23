@@ -1,15 +1,17 @@
 'use client'
 
 import React, { useEffect, useState, useRef } from 'react'
-import { Plus, Pencil, Trash2, Upload, X, Check, LogOut, FileText, RefreshCw, Star, Save, Tag, Copy, Image, ChevronUp, ChevronDown, ExternalLink, Ticket, MessageCircle, CreditCard } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload, X, Check, LogOut, FileText, RefreshCw, Star, Save, Tag, Copy, Image, ChevronUp, ChevronDown, ExternalLink, Ticket, MessageCircle, CreditCard, Menu, LayoutGrid, CarFront, Database, Megaphone, BookOpen, DollarSign, ArrowRight, LineChart, CalendarDays } from 'lucide-react'
 import type { VehicleRecord } from '@/lib/db/repository'
 import Papa from 'papaparse'
 import RateManager from '@/components/admin/RateManager'
+import MarketIntel from '@/components/admin/MarketIntel'
+import AvailabilityBoard from '@/components/admin/AvailabilityBoard'
 
 const CATEGORIES = ['sedan', 'suv', 'mpv', 'van']
 const FUELS = ['Petrol', 'Diesel', 'Hybrid', 'Electric']
 const DRIVES = ['FWD', 'AWD', 'RWD']
-type AdminTab = 'fleet' | 'rcm' | 'promo' | 'banners' | 'deals' | 'gallery' | 'blog' | 'tickets' | 'faq' | 'stripe' | 'rates'
+type AdminTab = 'fleet' | 'rcm' | 'availability' | 'promo' | 'banners' | 'deals' | 'gallery' | 'blog' | 'tickets' | 'faq' | 'stripe' | 'rates' | 'market'
 
 interface GalleryImage {
     name: string
@@ -33,6 +35,50 @@ const EMPTY: Omit<VehicleRecord, 'id' | 'created_at'> = {
     tags: [], image: '', active: true,
 }
 
+function AdminDashboard({ onSelect }: { onSelect: (tab: AdminTab) => void }) {
+    const items: Array<{ tab: AdminTab; label: string; description: string; detail: string; icon: React.ElementType; tone: string }> = [
+        { tab: 'fleet', label: '车队管理', description: '维护车辆、图片和基础价格', detail: '管理手动车辆资料、状态和 CSV 导入。', icon: CarFront, tone: 'bg-orange/10 text-orange' },
+        { tab: 'rcm', label: 'RCM 库存 & 首页配置', description: '同步库存、图片和首页展示', detail: '读取本地缓存，也可以手动刷新 RCM。', icon: Database, tone: 'bg-sky-50 text-sky-700' },
+        { tab: 'availability', label: '车辆可用性', description: '按日期查看车辆占用情况', detail: '用简单时间轴查看预订、可用和未绑定订单。', icon: CalendarDays, tone: 'bg-blue-50 text-blue-700' },
+        { tab: 'rates', label: '价格管理', description: '维护季节价格和渠道规则', detail: '管理车型分类、季节和渠道价格。', icon: DollarSign, tone: 'bg-emerald-50 text-emerald-700' },
+        { tab: 'market', label: '竞品价格监控', description: '竞品报价和提前期价格曲线', detail: '自动采集的竞品价格，含历史涨跌曲线。', icon: LineChart, tone: 'bg-teal-50 text-teal-700' },
+        { tab: 'promo', label: '优惠码管理', description: '查看和维护网站优惠码', detail: '记录和管理网站使用的优惠码。', icon: Tag, tone: 'bg-amber-50 text-amber-700' },
+        { tab: 'banners', label: '广告轮播', description: '管理首页轮播和订阅广告', detail: '更新首页营销图片、标题和状态。', icon: Megaphone, tone: 'bg-rose-50 text-rose-700' },
+        { tab: 'deals', label: '优惠活动', description: '编辑活动内容和展示图片', detail: '创建活动页面和限时促销内容。', icon: Star, tone: 'bg-yellow-50 text-yellow-700' },
+        { tab: 'gallery', label: 'Gallery 图库', description: '上传和管理网站图库', detail: '管理车辆、地点和品牌展示图片。', icon: Image, tone: 'bg-violet-50 text-violet-700' },
+        { tab: 'blog', label: 'Blog 管理', description: '发布和编辑 SEO 内容', detail: '发布文章，持续提升搜索入口。', icon: BookOpen, tone: 'bg-indigo-50 text-indigo-700' },
+        { tab: 'tickets', label: '门票预订', description: '打开分销商门票管理入口', detail: '进入 Vantu 门票预订后台。', icon: Ticket, tone: 'bg-cyan-50 text-cyan-700' },
+        { tab: 'faq', label: 'Live Support FAQ', description: '维护聊天机器人常见问题', detail: '设置用户在不同页面看到的帮助内容。', icon: MessageCircle, tone: 'bg-lime-50 text-lime-700' },
+        { tab: 'stripe', label: 'Stripe 补扣款', description: '处理已保存卡的后续扣款', detail: '按订单处理授权范围内的后续扣款。', icon: CreditCard, tone: 'bg-slate-100 text-slate-700' },
+    ]
+
+    return (
+        <main className="px-5 py-7 sm:px-8 sm:py-10">
+            <div className="mx-auto max-w-[1180px]">
+                <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+                    <div>
+                        <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[2px] text-orange"><span className="h-1.5 w-1.5 rounded-full bg-orange" /> Admin workspace</div>
+                        <h1 className="font-syne text-[clamp(1.8rem,4vw,3rem)] font-extrabold leading-tight text-navy">管理总览</h1>
+                        <p className="mt-2 max-w-[620px] text-[13px] leading-relaxed text-muted">这里可以看到 YITU 后台的全部功能。选择模块即可进入对应的管理页面，右上角主菜单也会一直保留。</p>
+                    </div>
+                    <div className="rounded-2xl border border-orange/20 bg-orange/5 px-4 py-3 text-right"><div className="font-syne text-2xl font-extrabold text-orange">{items.length}</div><div className="text-[11px] font-semibold text-muted">可用管理模块</div></div>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {items.map(item => {
+                        const Icon = item.icon
+                        return <button key={item.tab} type="button" onClick={() => onSelect(item.tab)} className="group rounded-2xl border border-black/8 bg-white p-4 text-left shadow-[0_8px_24px_rgba(15,35,71,0.04)] transition-all hover:-translate-y-0.5 hover:border-orange/35 hover:shadow-[0_14px_30px_rgba(232,67,26,0.1)]">
+                            <div className="flex items-start justify-between gap-3"><span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${item.tone}`}><Icon size={20} /></span><ArrowRight size={16} className="text-black/20 transition-transform group-hover:translate-x-1 group-hover:text-orange" /></div>
+                            <div className="mt-4 font-syne text-[14px] font-extrabold text-navy">{item.label}</div>
+                            <div className="mt-1 text-[12px] font-semibold text-orange">{item.description}</div>
+                            <div className="mt-2 text-[11px] leading-relaxed text-muted">{item.detail}</div>
+                        </button>
+                    })}
+                </div>
+            </div>
+        </main>
+    )
+}
+
 export default function AdminPage() {
     const [token, setToken] = useState('')
     const [authed, setAuthed] = useState(false)
@@ -48,6 +94,8 @@ export default function AdminPage() {
 
     // ── RCM tab ──────────────────────────────────────────────────────────────
     const [activeTab, setActiveTab] = useState<AdminTab>('fleet')
+    const [showAdminDashboard, setShowAdminDashboard] = useState(false)
+    const [adminMenuOpen, setAdminMenuOpen] = useState(false)
     const [rcmVehicles, setRcmVehicles] = useState<any[]>([])
     const [rcmLoading, setRcmLoading] = useState(false)
     const [featured, setFeatured] = useState<Map<number, any>>(new Map())
@@ -105,6 +153,7 @@ export default function AdminPage() {
     const activeTabLabel: Record<AdminTab, string> = {
         fleet: '车队管理',
         rcm: 'RCM 库存 & 首页配置',
+        availability: '车辆可用性',
         promo: '优惠码管理',
         banners: '广告轮播',
         deals: '优惠活动',
@@ -114,13 +163,14 @@ export default function AdminPage() {
         faq: 'Live Support FAQ',
         stripe: 'Stripe 补扣款',
         rates: '价格管理',
+        market: '竞品价格监控',
     }
 
     async function login() {
         const res = await fetch('/api/admin/vehicles', {
             headers: { 'x-admin-token': pw }
         })
-        if (res.ok) { setToken(pw); setAuthed(true) }
+        if (res.ok) { setToken(pw); setAuthed(true); setShowAdminDashboard(true) }
         else showToast('密码错误')
     }
 
@@ -182,12 +232,15 @@ export default function AdminPage() {
         }
     }
 
-    async function loadRCMVehicles() {
+    async function loadRCMVehicles(forceRefresh = false) {
         setRcmLoading(true)
         try {
-            const res = await fetch('/api/admin/rcm-vehicles', { headers: { 'x-admin-token': token } })
+            const res = await fetch(`/api/admin/rcm-vehicles${forceRefresh ? '?refresh=1' : ''}`, { headers: { 'x-admin-token': token } })
             const data = await res.json()
-            if (data.success) setRcmVehicles(data.vehicles)
+            if (data.success) {
+                setRcmVehicles(data.vehicles)
+                if (data.source === 'local-fallback') showToast('⚠️ RCM 暂时不可用，已使用本地缓存')
+            }
             else showToast('⚠️ ' + data.error)
         } finally { setRcmLoading(false) }
     }
@@ -270,6 +323,20 @@ export default function AdminPage() {
     function switchToRCMTab() {
         setActiveTab('rcm')
         loadFeatured()
+        loadRCMVehicles(false)
+    }
+
+    function selectAdminTab(tab: AdminTab) {
+        setAdminMenuOpen(false)
+        setShowAdminDashboard(false)
+        if (tab === 'rcm') return switchToRCMTab()
+        setActiveTab(tab)
+        if (tab === 'promo') loadPromoCodes()
+        if (tab === 'banners') loadBanners()
+        if (tab === 'deals') loadDeals()
+        if (tab === 'gallery') loadGalleryImages()
+        if (tab === 'blog') loadBlogPosts()
+        if (tab === 'faq') loadChatFaqs()
     }
 
     async function loadChatFaqs() {
@@ -806,10 +873,13 @@ export default function AdminPage() {
             )}
 
             {/* Header */}
-            <div className="bg-navy text-white px-8 py-4 flex items-center justify-between">
-                <div className="font-syne font-extrabold text-lg">YITU Admin <span className="text-orange">·</span> {activeTabLabel[activeTab]}</div>
+            <div className="relative bg-navy text-white px-5 py-4 sm:px-8 flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                    <div className="font-syne font-extrabold text-lg truncate">YITU Admin <span className="text-orange">·</span> {showAdminDashboard ? '管理总览' : activeTabLabel[activeTab]}</div>
+                    <div className="mt-0.5 text-[11px] text-white/45">管理网站内容、库存、价格和客户服务</div>
+                </div>
                 <div className="flex items-center gap-3">
-                    {activeTab === 'fleet' && (
+                    {!showAdminDashboard && activeTab === 'fleet' && (
                         <>
                             <input ref={csvRef} type="file" accept=".csv" className="hidden"
                                    onChange={e => e.target.files?.[0] && importCsv(e.target.files[0])} />
@@ -827,10 +897,10 @@ export default function AdminPage() {
                             </button>
                         </>
                     )}
-                    {activeTab === 'rcm' && (
+                    {!showAdminDashboard && activeTab === 'rcm' && (
                         <>
                             <button
-                                onClick={loadRCMVehicles}
+                                onClick={() => loadRCMVehicles(true)}
                                 disabled={rcmLoading}
                                 className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
                             >
@@ -847,7 +917,7 @@ export default function AdminPage() {
                             </button>
                         </>
                     )}
-                    {activeTab === 'promo' && (
+                    {!showAdminDashboard && activeTab === 'promo' && (
                         <button
                             onClick={loadPromoCodes}
                             disabled={promoLoading}
@@ -857,7 +927,7 @@ export default function AdminPage() {
                             刷新
                         </button>
                     )}
-                    {activeTab === 'banners' && (
+                    {!showAdminDashboard && activeTab === 'banners' && (
                         <button
                             onClick={() => setEditingBanner({ image_url: '', title: '', label: '', active: true })}
                             className="flex items-center gap-1.5 bg-orange hover:bg-orange-dark text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors"
@@ -865,7 +935,7 @@ export default function AdminPage() {
                             <Plus size={14} /> 新增轮播图
                         </button>
                     )}
-                    {activeTab === 'deals' && (
+                    {!showAdminDashboard && activeTab === 'deals' && (
                         <button
                             onClick={() => setEditingDeal({ slug: '', title: '', description: '', value: '', unit: '', badge: 'Get Offer', image_url: '', content: '', active: true })}
                             className="flex items-center gap-1.5 bg-orange hover:bg-orange-dark text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors"
@@ -873,7 +943,7 @@ export default function AdminPage() {
                             <Plus size={14} /> 新增活动
                         </button>
                     )}
-                    {activeTab === 'gallery' && (
+                    {!showAdminDashboard && activeTab === 'gallery' && (
                         <>
                             <input
                                 ref={galleryFileRef}
@@ -891,7 +961,7 @@ export default function AdminPage() {
                             </button>
                         </>
                     )}
-                    {activeTab === 'tickets' && (
+                    {!showAdminDashboard && activeTab === 'tickets' && (
                         <button
                             type="button"
                             onClick={openVantuTicketsWindow}
@@ -901,7 +971,7 @@ export default function AdminPage() {
                             <ExternalLink size={14} /> {vantuTicketsLoading || vantuTicketsOpening ? '打开中...' : '新窗口打开'}
                         </button>
                     )}
-                    {activeTab === 'faq' && (
+                    {!showAdminDashboard && activeTab === 'faq' && (
                         <>
                             <button
                                 onClick={loadChatFaqs}
@@ -929,78 +999,82 @@ export default function AdminPage() {
                         <LogOut size={18} />
                     </button>
                 </div>
+
+                <button
+                    type="button"
+                    onClick={() => setAdminMenuOpen(open => !open)}
+                    className="order-first flex shrink-0 items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-[12px] font-bold text-white transition-colors hover:bg-white/15 sm:order-none"
+                    aria-expanded={adminMenuOpen}
+                    aria-label="打开后台功能菜单"
+                >
+                    <Menu size={16} />
+                    <span className="hidden sm:inline">主菜单</span>
+                    <ChevronDown size={14} className={`transition-transform ${adminMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {adminMenuOpen && (
+                    <>
+                        <button type="button" aria-label="关闭菜单" className="fixed inset-0 z-40 cursor-default" onClick={() => setAdminMenuOpen(false)} />
+                        <div className="absolute left-4 right-4 top-[calc(100%+10px)] z-50 rounded-2xl border border-black/10 bg-white p-3 text-navy shadow-[0_24px_60px_rgba(15,35,71,0.2)] sm:left-auto sm:right-8 sm:w-[560px]">
+                            <div className="mb-3 flex items-center justify-between px-2">
+                                <div>
+                                    <div className="font-syne text-[15px] font-extrabold">后台功能</div>
+                                    <div className="mt-0.5 text-[11px] text-muted">选择一个模块开始管理</div>
+                                </div>
+                                <LayoutGrid size={18} className="text-orange" />
+                            </div>
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                {([
+                                    { tab: 'fleet', label: '车队管理', description: '维护车辆、图片和基础价格', icon: CarFront },
+                                    { tab: 'rcm', label: 'RCM 库存 & 首页配置', description: '同步库存、图片和首页展示', icon: Database },
+                                    { tab: 'availability', label: '车辆可用性', description: '按日期查看车辆占用情况', icon: CalendarDays },
+                                    { tab: 'rates', label: '价格管理', description: '维护季节价格和渠道规则', icon: DollarSign },
+                                    { tab: 'market', label: '竞品价格监控', description: '竞品报价和提前期价格曲线', icon: LineChart },
+                                    { tab: 'promo', label: '优惠码管理', description: '查看和维护网站优惠码', icon: Tag },
+                                    { tab: 'banners', label: '广告轮播', description: '管理首页轮播和订阅广告', icon: Megaphone },
+                                    { tab: 'deals', label: '优惠活动', description: '编辑活动内容和展示图片', icon: Star },
+                                    { tab: 'gallery', label: 'Gallery 图库', description: '上传和管理网站图库', icon: Image },
+                                    { tab: 'blog', label: 'Blog 管理', description: '发布和编辑 SEO 内容', icon: BookOpen },
+                                    { tab: 'tickets', label: '门票预订', description: '打开分销商门票管理入口', icon: Ticket },
+                                    { tab: 'faq', label: 'Live Support FAQ', description: '维护聊天机器人常见问题', icon: MessageCircle },
+                                    { tab: 'stripe', label: 'Stripe 补扣款', description: '处理已保存卡的后续扣款', icon: CreditCard },
+                                ] as Array<{ tab: AdminTab; label: string; description: string; icon: React.ElementType }>).map(item => {
+                                    const Icon = item.icon
+                                    const selected = activeTab === item.tab
+                                    return (
+                                        <button
+                                            key={item.tab}
+                                            type="button"
+                                            onClick={() => selectAdminTab(item.tab)}
+                                            className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${selected ? 'border-orange/40 bg-orange/10' : 'border-black/8 bg-off-white/60 hover:border-orange/30 hover:bg-orange/5'}`}
+                                        >
+                                            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${selected ? 'bg-orange text-white' : 'bg-navy/8 text-navy'}`}><Icon size={17} /></span>
+                                            <span className="min-w-0">
+                                                <span className="block truncate text-[12px] font-bold">{item.label}</span>
+                                                <span className="mt-0.5 block truncate text-[10px] text-muted">{item.description}</span>
+                                            </span>
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
 
-            {/* Tab navigation */}
-            <div className="bg-white border-b border-black/10 px-8 flex gap-0 overflow-x-auto">
-                <button
-                    onClick={() => setActiveTab('fleet')}
-                    className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors ${activeTab === 'fleet' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
-                >
-                    车队管理
-                </button>
-                <button
-                    onClick={switchToRCMTab}
-                    className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors ${activeTab === 'rcm' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
-                >
-                    RCM 库存 & 首页配置
-                </button>
-                <button
-                    onClick={() => { setActiveTab('promo'); loadPromoCodes() }}
-                    className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors ${activeTab === 'promo' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
-                >
-                    优惠码管理
-                </button>
-                <button
-                    onClick={() => { setActiveTab('banners'); loadBanners() }}
-                    className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors ${activeTab === 'banners' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
-                >
-                    广告轮播
-                </button>
-                <button
-                    onClick={() => { setActiveTab('deals'); loadDeals() }}
-                    className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors ${activeTab === 'deals' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
-                >
-                    优惠活动
-                </button>
-                <button
-                    onClick={() => { setActiveTab('gallery'); loadGalleryImages() }}
-                    className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors ${activeTab === 'gallery' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
-                >
-                    Gallery 图库
-                </button>
-                <button
-                    onClick={() => { setActiveTab('blog'); loadBlogPosts() }}
-                    className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors ${activeTab === 'blog' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
-                >
-                    Blog 管理
-                </button>
-                <button
-                    onClick={() => setActiveTab('tickets')}
-                    className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'tickets' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
-                >
-                    门票预订
-                </button>
-                <button
-                    onClick={() => { setActiveTab('faq'); loadChatFaqs() }}
-                    className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'faq' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
-                >
-                    Live Support FAQ
-                </button>
-                <button
-                    onClick={() => setActiveTab('stripe')}
-                    className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'stripe' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
-                >
-                    Stripe 补扣款
-                </button>
-                <button
-                    onClick={() => setActiveTab('rates')}
-                    className={`px-5 py-3.5 text-[13px] font-syne font-bold border-b-2 transition-colors ${activeTab === 'rates' ? 'border-orange text-orange' : 'border-transparent text-muted hover:text-navy'}`}
-                >
-                    价格管理
-                </button>
+            <div className="border-b border-black/10 bg-white px-5 py-2.5 sm:px-8">
+                <div className="flex items-center gap-2 text-[11px] text-muted">
+                    <LayoutGrid size={13} className="text-orange" />
+                    <span>当前位置</span>
+                    <span className="text-black/20">/</span>
+                    <span className="font-semibold text-navy">{showAdminDashboard ? '管理总览' : activeTabLabel[activeTab]}</span>
+                    <button type="button" onClick={() => setAdminMenuOpen(true)} className="ml-auto text-orange hover:text-orange-dark">切换功能</button>
+                </div>
             </div>
 
+            {showAdminDashboard ? (
+                <AdminDashboard onSelect={selectAdminTab} />
+            ) : <>
             {/* ── Fleet tab ── */}
             {activeTab === 'fleet' && <>
             {/* CSV 格式提示 */}
@@ -1186,6 +1260,8 @@ export default function AdminPage() {
                     </div>
                 </div>
             )}
+
+            {activeTab === 'availability' && <AvailabilityBoard token={token} showToast={showToast} />}
 
             {/* ── Promo codes tab ── */}
             {activeTab === 'promo' && (
@@ -2266,6 +2342,8 @@ export default function AdminPage() {
 
             {/* ── Rate Manager tab ── */}
             {activeTab === 'rates' && <RateManager token={token} showToast={showToast} />}
+            {activeTab === 'market' && <MarketIntel token={token} showToast={showToast} />}
+            </>}
 
             {editingFaq && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">

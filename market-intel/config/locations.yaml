@@ -1,0 +1,43 @@
+# ---------------------------------------------------------------------------
+# Markets we collect prices for.
+# `code` is our internal, stable identifier and is what lands in the database.
+# Adding Auckland / Queenstown / Wellington later = add an entry here, then add
+# the matching `locations:` block to each source in sources.yaml.
+# ---------------------------------------------------------------------------
+locations:
+  - code: CHC_APT
+    name: Christchurch Airport
+    iata: CHC
+    city: Christchurch
+    country: NZ
+    timezone: Pacific/Auckland
+    currency: NZD
+    enabled: true
+
+  # --- staged for later, disabled until we have collectors validated on CHC ---
+  - code: AKL_APT
+    name: Auckland Airport
+    iata: AKL
+    city: Auckland
+    country: NZ
+    timezone: Pacific/Auckland
+    currency: NZD
+    enabled: false
+
+  - code: ZQN_APT
+    name: Queenstown Airport
+    iata: ZQN
+    city: Queenstown
+    country: NZ
+    timezone: Pacific/Auckland
+    currency: NZD
+    enabled: false
+
+  - code: WLG_APT
+    name: Wellington Airport
+    iata: WLG
+    city: Wellington
+    country: NZ
+    timezone: Pacific/Auckland
+    currency: NZD
+    enabled: false
