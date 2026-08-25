@@ -41,6 +41,7 @@ export const homeSeoJsonLd = {
       url: 'https://www.yiturentalcars.co.nz/',
       logo: 'https://www.yiturentalcars.co.nz/YITU_CAR_RENTAL_Logo.png',
       image: 'https://www.yiturentalcars.co.nz/vehicles-bg.jpg',
+      sameAs: ['https://www.instagram.com/yitu_car_rental/'],
       telephone: '+64 3 3410109',
       email: 'Yitucars@hotmail.com',
       priceRange: '$$',

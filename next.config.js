@@ -19,6 +19,15 @@ const nextConfig = {
       { protocol: 'https', hostname: 'rentalcarmanagerau.blob.core.windows.net' },
     ],
   },
+  async redirects() {
+    return [
+      // These URLs belonged to the previous vehicle catalogue. Send search
+      // engines and old bookmarks to the closest current catalogue page.
+      { source: '/car/:slug', destination: '/en/fleet', permanent: true },
+      { source: '/product/:slug', destination: '/en/fleet', permanent: true },
+      { source: '/carbrand/:slug', destination: '/en/fleet', permanent: true },
+    ]
+  },
   async headers() {
     return [
       {

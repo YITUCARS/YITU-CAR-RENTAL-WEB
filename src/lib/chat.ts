@@ -21,6 +21,7 @@ export type ChatSession = {
 export type ChatFaq = {
     id?: string
     question: string
+    questionZh?: string
     answer: string
     keywords: string[]
     active: boolean
@@ -157,12 +158,36 @@ export const DEFAULT_FAQS: ChatFaq[] = [
     },
 ]
 
+const FAQ_QUESTION_ZH: Record<string, string> = {
+    'How much does car rental cost?': '租车价格是多少？',
+    'Do I need to pay a bond or deposit?': '需要支付押金吗？',
+    'Where can I pick up or return the car?': '可以在哪里取车或还车？',
+    'What are your opening hours?': '你们的营业时间是什么？',
+    'What insurance options are available?': '有哪些保险选项？',
+    'What driver licence do I need?': '需要什么类型的驾照？',
+    'Can I return the car to a different city?': '可以在不同城市还车吗？',
+    'Can I cancel or change my booking?': '可以取消或修改预订吗？',
+    'Do you provide baby or child seats?': '提供婴儿座椅或儿童座椅吗？',
+    'Is mileage unlimited?': '公里数是不限的吗？',
+    'What should I do when returning the car?': '还车时需要做什么？',
+    'How do I make a booking?': '如何预订车辆？',
+    'Do your vehicles include GPS?': '车辆配备 GPS 吗？',
+    'What is the fuel policy?': '燃油政策是什么？',
+}
+
+export function getChatFaqQuestion(faq: ChatFaq, locale: 'en' | 'zh') {
+    if (locale === 'en') return faq.question
+    return faq.questionZh || FAQ_QUESTION_ZH[faq.question] || faq.question
+}
+
 // ── Bot 消息工厂 ──────────────────────────────────────────────────────────────
 
-export function getInitialBotMessage(): ChatMessage {
+export function getInitialBotMessage(locale: 'en' | 'zh' = 'en'): ChatMessage {
     return {
         sender: 'agent',
-        text: 'Hi! 👋 I\'m the YITU assistant. Ask me about pricing, locations, insurance, or anything about your rental — or request human support if you need more help.',
+        text: locale === 'zh'
+            ? '你好！👋 我是 YITU 租车助手。你可以询问价格、门店、保险或任何租车问题；如果需要进一步帮助，也可以联系人工客服。'
+            : 'Hi! 👋 I\'m the YITU assistant. Ask me about pricing, locations, insurance, or anything about your rental — or request human support if you need more help.',
         timestamp: Date.now(),
     }
 }
@@ -176,7 +201,7 @@ export function matchFaqReply(text: string, faqs: ChatFaq[] = DEFAULT_FAQS): str
 }
 
 export function getNoMatchReply(): string {
-    return 'I\'m not sure about that one. To connect with our team, please tap "Contact Support" below and leave your name and number — we\'ll get back to you shortly.'
+    return 'I\'m not sure about that one. To connect with our team, please tap "Contact Human Support" below and leave your name and number — we\'ll get back to you shortly.'
 }
 
 export function getSupportConfirmedReply(): string {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { rcmCall } from '@/lib/rcm'
 import { escapeTelegramHtml, sendTelegramMessage } from '@/lib/telegram'
 
 type RcmAutomationEvent = 'created' | 'cancelled'
@@ -15,6 +16,13 @@ type NormalizedAutomationBooking = {
   dropoff: string
   dropoffLocation: string
   vehicle: string
+  vehicleRegistration: string
+  vehicleFleetNo: string
+  categoryType: string
+  categorySize: string
+  insurance: string
+  hiredBy: string
+  agencyCode: string
   total: string
   source: string
   status: string
@@ -31,7 +39,19 @@ function isScalar(value: unknown) {
 
 function scalarText(value: unknown) {
   const text = String(value ?? '').trim()
-  return text && text !== 'null' && text !== 'undefined' ? text : ''
+  if (!text || text === 'null' || text === 'undefined') return ''
+
+  // RCM can leave example labels in place when a data field was not inserted
+  // through its data-field picker. Never show those labels as booking values.
+  const placeholder = text.toLowerCase().replace(/[^a-z0-9]+/g, '')
+  const labels = new Set([
+    'reservationnumber', 'customername', 'email', 'phone',
+    'pickupdate', 'pickuptime', 'pickuplocation', 'dropoffdate',
+    'dropofftime', 'dropofflocation', 'vehicle', 'total',
+    'bookingagency', 'status',
+  ])
+  if (labels.has(placeholder) || /^\*\{.+\}\*$/.test(text)) return ''
+  return text
 }
 
 function pickDeep(source: unknown, keys: string[], maxDepth = 5): string {
@@ -144,6 +164,13 @@ function normalizeBooking(payload: unknown): NormalizedAutomationBooking {
       'categoryfriendlydescription',
       'category',
     ]),
+    vehicleRegistration: pickDeep(payload, ['vehicleregistrationno', 'registrationno', 'registration']),
+    vehicleFleetNo: pickDeep(payload, ['vehiclefleetno', 'fleetno', 'fleetnumber']),
+    categoryType: pickDeep(payload, ['categorytype', 'categorytype1', 'vehiclecategorytype']),
+    categorySize: pickDeep(payload, ['categorysize', 'size']),
+    insurance: pickDeep(payload, ['insurance', 'insurancename', 'insuranceoption']),
+    hiredBy: pickDeep(payload, ['hiredby', 'hirer', 'hirername']),
+    agencyCode: pickDeep(payload, ['agencycode', 'agentcode']),
     total: pickDeep(payload, ['total', 'totalcost', 'total_cost', 'grandtotal', 'grand_total', 'amount']),
     source: pickDeep(payload, [
       'bookingagency',
@@ -169,6 +196,27 @@ function normalizeBooking(payload: unknown): NormalizedAutomationBooking {
   }
 }
 
+async function enrichFromRcm(payload: unknown, initial: NormalizedAutomationBooking) {
+  if (!initial.bookingRef) return payload
+
+  const needsDetails = !initial.customerName || !initial.email || !initial.pickup ||
+    !initial.dropoff || !initial.vehicle || !initial.total
+  if (!needsDetails) return payload
+
+  try {
+    const bookingInfo = await rcmCall('bookinginfo', {
+      reservationref: initial.bookingRef,
+      refno: initial.bookingRef,
+    })
+    // Put the returned record first so pickDeep can use it when the webhook
+    // body still contains literal example labels from the RCM template.
+    return { bookingInfo, originalPayload: payload }
+  } catch (error) {
+    console.warn('[rcm automation webhook] bookinginfo enrichment failed:', error instanceof Error ? error.message : error)
+    return payload
+  }
+}
+
 function moneyText(value: string) {
   const number = Number(value)
   if (!Number.isFinite(number)) return value
@@ -177,7 +225,7 @@ function moneyText(value: string) {
 
 function buildTelegramText(event: RcmAutomationEvent, booking: NormalizedAutomationBooking) {
   const ref = booking.bookingRef || booking.reservationNo || 'Unknown'
-  const title = event === 'cancelled' ? '<b>RCM Booking Cancelled</b>' : '<b>New RCM Booking</b>'
+  const title = event === 'cancelled' ? '<b>Agent Booking Cancelled</b>' : '<b>Agent Booking</b>'
   const status = event === 'cancelled' ? 'Cancelled' : (booking.status || 'Created')
 
   return [
@@ -195,8 +243,17 @@ function buildTelegramText(event: RcmAutomationEvent, booking: NormalizedAutomat
       ? `Dropoff: ${escapeTelegramHtml(booking.dropoff || '—')} · ${escapeTelegramHtml(booking.dropoffLocation || '—')}`
       : '',
     booking.vehicle ? `Vehicle: ${escapeTelegramHtml(booking.vehicle)}` : '',
+    booking.categoryType || booking.categorySize
+      ? `Category: ${escapeTelegramHtml([booking.categoryType, booking.categorySize].filter(Boolean).join(' · '))}`
+      : '',
+    booking.vehicleRegistration || booking.vehicleFleetNo
+      ? `Fleet: ${escapeTelegramHtml([booking.vehicleRegistration, booking.vehicleFleetNo].filter(Boolean).join(' · '))}`
+      : '',
+    booking.insurance ? `Insurance: ${escapeTelegramHtml(booking.insurance)}` : '',
+    booking.hiredBy ? `Hired by: ${escapeTelegramHtml(booking.hiredBy)}` : '',
     booking.total ? `Total: ${escapeTelegramHtml(moneyText(booking.total))}` : '',
     booking.source ? `Source: ${escapeTelegramHtml(booking.source)}` : 'Source: RCM Automation',
+    booking.agencyCode ? `Agency code: ${escapeTelegramHtml(booking.agencyCode)}` : '',
     event === 'cancelled' && booking.cancellationReason
       ? `Reason: ${escapeTelegramHtml(booking.cancellationReason)}`
       : '',
@@ -301,7 +358,9 @@ export async function handleRcmAutomationWebhook(request: NextRequest, event: Rc
   }
 
   try {
-    const payload = await parsePayload(request)
+    const rawPayload = await parsePayload(request)
+    const initialBooking = normalizeBooking(rawPayload)
+    const payload = await enrichFromRcm(rawPayload, initialBooking)
     const booking = normalizeBooking(payload)
     const result = await upsertNotification(event, booking, payload)
 

@@ -1,7 +1,9 @@
 'use client'
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import Image from 'next/image'
 import { doc, onSnapshot } from 'firebase/firestore'
+import { usePathname } from 'next/navigation'
 import { MessageCircle, SendHorizontal, X, Headset, BellDot, Phone, User, ArrowRight, CalendarDays, Car, MapPin, Sparkles, ShieldCheck, AlertCircle, Plus, Minus, Check } from 'lucide-react'
 import { Elements } from '@stripe/react-stripe-js'
 import type { StripeElementLocale } from '@stripe/stripe-js'
@@ -10,14 +12,18 @@ import {
     ChatFaq, ChatMessage, ChatSession, DEFAULT_FAQS,
     getInitialBotMessage, matchFaqReply,
     getNoMatchReply, getSupportConfirmedReply, getAgentJoinedReply,
-    buildTelegramMessage,
+    buildTelegramMessage, getChatFaqQuestion,
 } from '@/lib/chat'
 import { calcAfterHourBreakdown, calcDays, formatAfterHourFeeLabel, splitMandatoryFees } from '@/lib/booking-context'
 import StripeCheckout from '@/components/booking/StripeCheckout'
 import { getStripe, STRIPE_MODE } from '@/lib/stripe-client'
+import enMessages from '../../messages/en.json'
+import zhMessages from '../../messages/zh.json'
 
 const STORAGE_KEY = 'yitu-chat-session-id'
 const QUICK_FINDER_DISMISSED_KEY = 'yitu-chat-quick-finder-dismissed'
+const PAGE_HINT_DISMISSED_KEY = 'yitu-chat-page-hint-disabled'
+const CHAT_WIDGET_POSITION_KEY = 'yitu-chat-widget-position'
 const BOOKING_STORAGE_KEY = 'yitu-booking'
 const CHAT_LANGUAGE_KEY = 'yitu-chat-language'
 const stripePromise = getStripe()
@@ -27,6 +33,125 @@ const YOUNG_DRIVER_FEE_ID = 15
 const YOUNG_DRIVER_FEE_PER_DAY = 30
 
 type ChatLocale = 'en' | 'zh'
+
+type BookingPageContext = {
+    hint: string
+    title: string
+    faqs: ChatFaq[]
+}
+
+function getBookingPageContext(pathname: string, locale: ChatLocale): BookingPageContext {
+    const zh = locale === 'zh'
+    const makeFaq = (question: string, answer: string, displayOrder: number): ChatFaq => ({
+        question,
+        answer,
+        keywords: [question],
+        active: true,
+        displayOrder,
+    })
+
+    if (pathname.includes('/booking/payment')) {
+        return {
+            hint: zh ? '对费用或付款比例有疑问？' : 'Questions about the total or payment?',
+            title: zh ? '付款页面帮助' : 'Payment page help',
+            faqs: [
+                makeFaq(
+                    zh ? '总价里包含哪些费用？' : 'What is included in the booking total?',
+                    zh ? '总价会根据你的车辆、租期、保险、附加项以及适用的强制费用计算。付款前会在费用明细中显示各项金额。' : 'The total can include the vehicle, rental days, insurance, optional extras, and any applicable mandatory fees. The breakdown is shown before you pay.',
+                    1,
+                ),
+                makeFaq(
+                    zh ? '可以支付定金还是全款？' : 'Can I pay a deposit or the full amount?',
+                    zh ? '如果订单支持分期付款，你可以在付款页面选择定金或全款。页面会清楚显示本次需要支付的金额，以及剩余金额的说明。' : 'If your booking supports split payment, you can choose the deposit or the full amount on this page. The amount due now and any balance are shown clearly before checkout.',
+                    2,
+                ),
+                makeFaq(
+                    zh ? '为什么付款金额和车辆页面不同？' : 'Why is the payment amount different from the vehicle page?',
+                    zh ? '付款页会加入你在后续步骤选择的保险、附加项、异地还车费和营业时间外服务费，因此最终金额可能与最初的车辆价格不同。' : 'The payment page includes choices made later, such as insurance, extras, one-way fees, and after-hours service fees, so it can differ from the initial vehicle price.',
+                    3,
+                ),
+            ],
+        }
+    }
+
+    if (pathname.includes('/booking/details')) {
+        return {
+            hint: zh ? '填写资料时需要帮助吗？' : 'Need help completing your details?',
+            title: zh ? '驾驶员资料帮助' : 'Driver details help',
+            faqs: [
+                makeFaq(
+                    zh ? '这里需要填写哪些资料？' : 'What details do I need to provide?',
+                    zh ? '请填写主要驾驶员的姓名、邮箱和电话。我们会用这些资料发送预订确认和重要的取还车信息。' : 'Please provide the main driver\'s name, email, and phone number. We use these details to send your booking confirmation and important pickup information.',
+                    1,
+                ),
+                makeFaq(
+                    zh ? 'Flight number 是必须填写的吗？' : 'Is the flight number required?',
+                    zh ? 'Flight number 通常是可选的。如果你乘坐航班到达，填写它可以帮助我们更好地安排取车沟通。' : 'The flight number is usually optional. If you are arriving by air, adding it can help us coordinate your pickup more smoothly.',
+                    2,
+                ),
+                makeFaq(
+                    zh ? '资料填写后还可以修改吗？' : 'Can I change my details later?',
+                    zh ? '提交订单前可以返回修改。订单提交后如需更改，请通过聊天联系团队，我们会协助你处理。' : 'You can go back and edit your details before submitting the booking. After submission, contact our team through chat and we will help.',
+                    3,
+                ),
+            ],
+        }
+    }
+
+    if (pathname.includes('/booking/extras')) {
+        return {
+            hint: zh ? '对保险或附加项有疑问？' : 'Questions about insurance or extras?',
+            title: zh ? '保险和附加项帮助' : 'Insurance and extras help',
+            faqs: [
+                makeFaq(
+                    zh ? '保险选项有什么区别？' : 'What is the difference between the insurance options?',
+                    zh ? '基础保险包含标准保障，其他保险选项可以降低你的责任金额或提供更全面的保障。每个选项的费用和说明都会显示在本页。' : 'Basic cover provides standard protection. Other options can reduce your excess or provide broader protection. The price and description for each option are shown here.',
+                    1,
+                ),
+                makeFaq(
+                    zh ? '附加项是按天收费还是按订单收费？' : 'Are extras charged per day or per rental?',
+                    zh ? '不同附加项的计费方式不同。页面会标明是每天收费还是整笔订单收费，并显示预计总额。' : 'It depends on the extra. This page shows whether each item is charged per day or per rental, along with the estimated total.',
+                    2,
+                ),
+                makeFaq(
+                    zh ? '儿童座椅可以选择哪些类型？' : 'Which child seats can I add?',
+                    zh ? '根据儿童年龄和身高，你可以选择婴儿座椅、儿童座椅或增高座椅。库存有限，建议在这里提前添加。' : 'Depending on the child\'s age and size, you can choose an infant seat, baby seat, or booster seat. Availability is limited, so we recommend adding one here in advance.',
+                    3,
+                ),
+            ],
+        }
+    }
+
+    if (pathname.includes('/booking/vehicles')) {
+        return {
+            hint: zh ? '找车或价格有疑问？' : 'Need help choosing a vehicle?',
+            title: zh ? '车辆选择帮助' : 'Vehicle selection help',
+            faqs: [
+                makeFaq(
+                    zh ? '为什么修改筛选后要点击 Update Results？' : 'Why do I need to click Update Results after changing filters?',
+                    zh ? '左侧筛选条件修改后，点击 Update Results 才会重新查询车辆和价格。未点击前，页面仍会保留上一次搜索结果。' : 'After changing the filters, click Update Results to search again and recalculate availability and pricing. Until then, the previous results remain active.',
+                    1,
+                ),
+                makeFaq(
+                    zh ? '车辆价格为什么会变化？' : 'Why can the vehicle price change?',
+                    zh ? '价格会根据租车日期、租期、取还车地点、驾驶员年龄、优惠码和车辆库存计算。最终价格会在预订流程中确认。' : 'Pricing depends on your dates, rental length, locations, driver age, promo code, and live availability. The final price is confirmed during the booking flow.',
+                    2,
+                ),
+                makeFaq(
+                    zh ? '可以异地还车吗？' : 'Can I return the car in another location?',
+                    zh ? '部分地点支持异地还车。如果适用，页面会显示异地还车费用；不可用的路线不会出现在可预订结果中。' : 'Some locations support one-way rentals. If available, the relocation fee is shown during booking; unavailable routes will not be offered as bookable results.',
+                    3,
+                ),
+            ],
+        }
+    }
+
+    return {
+        hint: zh ? '需要了解租车信息吗？' : 'Need help with your rental?',
+        title: zh ? '租车帮助' : 'Rental help',
+        faqs: [],
+    }
+}
 
 const DIAL_CODES = [
     { key: 'NZ', dial: '+64', label: 'NZ +64' },
@@ -47,6 +172,7 @@ type QuickFinderState = {
     largeBags: number
     smallBags: number
     childSeat: boolean
+    promoCode: string
 }
 
 type FeaturedVehicle = {
@@ -86,118 +212,8 @@ type ChatBookingState = {
 }
 
 const CHAT_COPY = {
-    en: {
-        languageTitle: 'Choose your language',
-        languageBody: 'You can switch anytime.',
-        quickFinder: 'Quick finder',
-        quickFinderTitle: 'Find a car faster',
-        quickFinderBody: 'Tell us the basics and we will show quick booking options.',
-        findingCars: 'Finding cars...',
-        showOptions: 'Show quick options',
-        recommended: 'Recommended vehicles',
-        recommendedHint: 'Tap a vehicle to continue booking.',
-        liveMatches: 'Live matches',
-        quickPicks: 'Quick picks',
-        viewAll: 'View all',
-        bookThisCar: 'Book this car',
-        bookingTitle: 'Complete your booking',
-        bookingHint: 'Choose insurance and optional extras here. Required fees are explained below.',
-        requiredFees: 'Required fees',
-        noRequiredFees: 'No extra required fees for this selection.',
-        insurance: 'Insurance',
-        optionalExtras: 'Optional extras',
-        included: 'Included',
-        add: 'Add',
-        added: 'Added',
-        priceNotice: 'Price estimate',
-        vehicle: 'Vehicle',
-        youngDriverFee: 'Young Driver Fee',
-        youngDriverReason: 'Mandatory for drivers under 26 years old.',
-        afterHourReason: 'Applies outside business hours, 8:30 AM-5:30 PM.',
-        relocationReason: 'Applies because pick-up and return locations are different.',
-        continueDetails: 'Continue to driver details',
-        driverTitle: 'Driver details',
-        driverHint: 'Almost there. Add the main driver information before payment.',
-        firstName: 'First name',
-        lastName: 'Last name',
-        email: 'Email',
-        phone: 'Phone',
-        flight: 'Flight number',
-        notes: 'Notes',
-        continuePayment: 'Continue to payment',
-        paymentTitle: 'Payment',
-        paymentHint: 'Choose how much you would like to pay now, then enter payment details below.',
-        deposit: '10% deposit',
-        fullPayment: 'Full payment',
-        startPayment: 'Enter payment details',
-        creatingBooking: 'Creating secure payment...',
-        paymentError: 'Unable to start payment. Please try again.',
-        required: 'Required',
-        invalidEmail: 'Invalid email',
-        loadingOptions: 'Loading booking options...',
-        retrySearch: 'View all vehicles',
-        seats: 'seats',
-        bags: 'bags',
-        total: 'Total',
-        perDay: '/day',
-        perRental: 'per rental',
-    },
-    zh: {
-        languageTitle: '请选择语言',
-        languageBody: '之后也可以随时切换。',
-        quickFinder: '快速找车',
-        quickFinderTitle: '更快找到合适车辆',
-        quickFinderBody: '填写基础信息，我们会推荐可直接预订的车辆。',
-        findingCars: '正在找车...',
-        showOptions: '显示推荐车辆',
-        recommended: '推荐车辆',
-        recommendedHint: '点击某台车辆继续预订。',
-        liveMatches: '实时匹配',
-        quickPicks: '精选推荐',
-        viewAll: '查看全部',
-        bookThisCar: '预订这台车',
-        bookingTitle: '完成预订选择',
-        bookingHint: '请在这里选择保险和附加项。强制费用会在下方解释。',
-        requiredFees: '强制费用',
-        noRequiredFees: '当前选择没有额外强制费用。',
-        insurance: '保险',
-        optionalExtras: '可选附加项',
-        included: '已包含',
-        add: '添加',
-        added: '已添加',
-        priceNotice: '价格预估',
-        vehicle: '车辆',
-        youngDriverFee: '年轻驾驶员费用',
-        youngDriverReason: '26 岁以下驾驶员必须收取。',
-        afterHourReason: '适用于营业时间 8:30 AM-5:30 PM 以外的取还车。',
-        relocationReason: '因为取车和还车地点不同，所以适用异地还车费用。',
-        continueDetails: '继续填写驾驶员资料',
-        driverTitle: '驾驶员资料',
-        driverHint: '快完成了。请填写主驾驶信息，然后进入付款。',
-        firstName: '名字',
-        lastName: '姓氏',
-        email: '邮箱',
-        phone: '电话',
-        flight: '航班号',
-        notes: '备注',
-        continuePayment: '继续付款',
-        paymentTitle: '付款',
-        paymentHint: '请选择现在支付订金或全款，然后在下方输入支付信息。',
-        deposit: '10% 订金',
-        fullPayment: '全款支付',
-        startPayment: '输入付款信息',
-        creatingBooking: '正在创建安全付款...',
-        paymentError: '无法开始付款，请重试。',
-        required: '必填',
-        invalidEmail: '邮箱格式不正确',
-        loadingOptions: '正在加载预订选项...',
-        retrySearch: '查看全部车辆',
-        seats: '座',
-        bags: '行李',
-        total: '总价',
-        perDay: '/天',
-        perRental: '每次租赁',
-    },
+    en: enMessages.ChatWidget,
+    zh: zhMessages.ChatWidget,
 } as const
 
 function createSessionId() {
@@ -371,19 +387,21 @@ function detectChatLocale(): ChatLocale {
 
 // ── Contact collection form ───────────────────────────────────────────────────
 
-function ContactForm({ onSubmit, onCancel, sending }: {
+function ContactForm({ onSubmit, onCancel, sending, locale }: {
     onSubmit: (name: string, phone: string) => void
     onCancel: () => void
     sending: boolean
+    locale: ChatLocale
 }) {
+    const copy = CHAT_COPY[locale]
     const [name, setName] = useState('')
     const [phone, setPhone] = useState('')
     const [errors, setErrors] = useState<{ name?: string; phone?: string }>({})
 
     function validate() {
         const e: { name?: string; phone?: string } = {}
-        if (!name.trim()) e.name = 'Please enter your name'
-        if (!phone.trim()) e.phone = 'Please enter your phone number'
+        if (!name.trim()) e.name = copy.requiredName
+        if (!phone.trim()) e.phone = copy.requiredPhone
         return e
     }
 
@@ -397,7 +415,7 @@ function ContactForm({ onSubmit, onCancel, sending }: {
     return (
         <form onSubmit={handleSubmit} className="rounded-2xl border border-orange/25 bg-orange/5 p-4 mt-2">
             <p className="text-[12.5px] text-navy font-semibold mb-3">
-                Please leave your details and we'll get back to you shortly:
+                {copy.contactBody}
             </p>
 
             <div className="flex flex-col gap-2.5">
@@ -408,7 +426,7 @@ function ContactForm({ onSubmit, onCancel, sending }: {
                             type="text"
                             value={name}
                             onChange={e => { setName(e.target.value); setErrors(v => ({ ...v, name: '' })) }}
-                            placeholder="Your name"
+                            placeholder={copy.namePlaceholder}
                             className="flex-1 bg-transparent text-[13px] text-navy outline-none placeholder:text-muted/60"
                         />
                     </div>
@@ -422,7 +440,7 @@ function ContactForm({ onSubmit, onCancel, sending }: {
                             type="tel"
                             value={phone}
                             onChange={e => { setPhone(e.target.value); setErrors(v => ({ ...v, phone: '' })) }}
-                            placeholder="Phone number (e.g. +64 21 000 0000)"
+                            placeholder={copy.phonePlaceholder}
                             className="flex-1 bg-transparent text-[13px] text-navy outline-none placeholder:text-muted/60"
                         />
                     </div>
@@ -436,14 +454,14 @@ function ContactForm({ onSubmit, onCancel, sending }: {
                     disabled={sending}
                     className="flex-1 flex items-center justify-center gap-1.5 bg-navy text-white rounded-xl py-2 text-[12px] font-bold transition-colors hover:bg-navy/90 disabled:opacity-60"
                 >
-                    {sending ? 'Sending…' : <><ArrowRight size={13} /> Send to Support</>}
+                    {sending ? copy.sending : <><ArrowRight size={13} /> {copy.sendSupport}</>}
                 </button>
                 <button
                     type="button"
                     onClick={onCancel}
                     className="px-3 py-2 rounded-xl border border-black/10 text-[12px] text-muted hover:border-orange hover:text-orange transition-colors"
                 >
-                    Cancel
+                    {copy.cancel}
                 </button>
             </div>
         </form>
@@ -458,7 +476,7 @@ function LanguageChoiceCard({ locale, onChoose }: {
     return (
         <div className="mb-4 rounded-[24px] border border-orange/25 bg-white p-4 shadow-sm">
             <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-orange/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-orange">
-                <Sparkles size={12} /> Language
+                <Sparkles size={12} /> {copy.languageLabel}
             </div>
             <h4 className="font-syne text-[16px] font-extrabold text-navy">{copy.languageTitle}</h4>
             <p className="mt-1 text-[12px] leading-relaxed text-muted">{copy.languageBody}</p>
@@ -498,7 +516,7 @@ function QuickFinderForm({ value, onChange, onSubmit, onDismiss, sending, locale
     function submit(e: React.FormEvent) {
         e.preventDefault()
         if (!value.pickupDate || !value.dropoffDate || value.dropoffDate <= value.pickupDate) {
-            setDateError('Please choose valid pick-up and return dates.')
+            setDateError(copy.invalidDates)
             return
         }
         setDateError('')
@@ -530,7 +548,7 @@ function QuickFinderForm({ value, onChange, onSubmit, onDismiss, sending, locale
             <div className="grid grid-cols-2 gap-2.5">
                 <label>
                     <span className="mb-1 flex items-center gap-1 text-[11px] font-bold text-muted">
-                        <MapPin size={11} /> Pick-up
+                        <MapPin size={11} /> {copy.pickUp}
                     </span>
                     <select
                         value={value.pickupLocation}
@@ -544,7 +562,7 @@ function QuickFinderForm({ value, onChange, onSubmit, onDismiss, sending, locale
 
                 <label>
                     <span className="mb-1 flex items-center gap-1 text-[11px] font-bold text-muted">
-                        <MapPin size={11} /> Return
+                        <MapPin size={11} /> {copy.returnLocation}
                     </span>
                     <select
                         value={value.dropoffLocation}
@@ -558,7 +576,7 @@ function QuickFinderForm({ value, onChange, onSubmit, onDismiss, sending, locale
 
                 <label>
                     <span className="mb-1 flex items-center gap-1 text-[11px] font-bold text-muted">
-                        <CalendarDays size={11} /> Pick-up date
+                        <CalendarDays size={11} /> {copy.pickUpDate}
                     </span>
                     <input
                         type="date"
@@ -570,7 +588,7 @@ function QuickFinderForm({ value, onChange, onSubmit, onDismiss, sending, locale
 
                 <label>
                     <span className="mb-1 flex items-center gap-1 text-[11px] font-bold text-muted">
-                        <CalendarDays size={11} /> Return date
+                        <CalendarDays size={11} /> {copy.returnDate}
                     </span>
                     <input
                         type="date"
@@ -582,7 +600,7 @@ function QuickFinderForm({ value, onChange, onSubmit, onDismiss, sending, locale
 
                 <label className="col-span-2">
                     <span className="mb-1 flex items-center gap-1 text-[11px] font-bold text-muted">
-                        <User size={11} /> Travellers
+                        <User size={11} /> {copy.travellers}
                     </span>
                     <div className="grid grid-cols-2 gap-2">
                         <select
@@ -591,7 +609,7 @@ function QuickFinderForm({ value, onChange, onSubmit, onDismiss, sending, locale
                             className="w-full rounded-xl border border-black/10 bg-off-white px-3 py-2.5 text-[12.5px] text-navy outline-none focus:border-orange"
                         >
                             {[1, 2, 3, 4, 5, 6, 7, 8].map(count => (
-                                <option key={count} value={count}>{count} adult{count > 1 ? 's' : ''}</option>
+                                <option key={count} value={count}>{count} {copy.adults}{count > 1 ? copy.adultsPlural : ''}</option>
                             ))}
                         </select>
                         <select
@@ -600,7 +618,7 @@ function QuickFinderForm({ value, onChange, onSubmit, onDismiss, sending, locale
                             className="w-full rounded-xl border border-black/10 bg-off-white px-3 py-2.5 text-[12.5px] text-navy outline-none focus:border-orange"
                         >
                             {[0, 1, 2, 3, 4].map(count => (
-                                <option key={count} value={count}>{count} child{count !== 1 ? 'ren' : ''}</option>
+                                <option key={count} value={count}>{count} {copy.children}{count !== 1 ? copy.childrenPlural : ''}</option>
                             ))}
                         </select>
                     </div>
@@ -608,7 +626,7 @@ function QuickFinderForm({ value, onChange, onSubmit, onDismiss, sending, locale
 
                 <label className="col-span-2">
                     <span className="mb-1 flex items-center gap-1 text-[11px] font-bold text-muted">
-                        <Car size={11} /> Luggage
+                        <Car size={11} /> {copy.luggage}
                     </span>
                     <div className="grid grid-cols-2 gap-2">
                         <select
@@ -617,7 +635,7 @@ function QuickFinderForm({ value, onChange, onSubmit, onDismiss, sending, locale
                             className="w-full rounded-xl border border-black/10 bg-off-white px-3 py-2.5 text-[12.5px] text-navy outline-none focus:border-orange"
                         >
                             {[0, 1, 2, 3, 4, 5].map(count => (
-                                <option key={count} value={count}>{count} large bag{count !== 1 ? 's' : ''}</option>
+                                <option key={count} value={count}>{count} {copy.largeBag}{count !== 1 ? copy.largeBagPlural : ''}</option>
                             ))}
                         </select>
                         <select
@@ -626,7 +644,7 @@ function QuickFinderForm({ value, onChange, onSubmit, onDismiss, sending, locale
                             className="w-full rounded-xl border border-black/10 bg-off-white px-3 py-2.5 text-[12.5px] text-navy outline-none focus:border-orange"
                         >
                             {[0, 1, 2, 3, 4, 5].map(count => (
-                                <option key={count} value={count}>{count} small bag{count !== 1 ? 's' : ''}</option>
+                                <option key={count} value={count}>{count} {copy.smallBag}{count !== 1 ? copy.smallBagPlural : ''}</option>
                             ))}
                         </select>
                     </div>
@@ -634,7 +652,7 @@ function QuickFinderForm({ value, onChange, onSubmit, onDismiss, sending, locale
 
                 {value.children > 0 && (
                     <label className="col-span-2 flex items-center justify-between gap-3 rounded-xl border border-orange/15 bg-orange/5 px-3 py-2.5">
-                        <span className="text-[12.5px] font-semibold text-navy">Recommend child seat?</span>
+                        <span className="text-[12.5px] font-semibold text-navy">{copy.childSeat}</span>
                         <button
                             type="button"
                             onClick={() => onChange({ childSeat: !value.childSeat })}
@@ -645,6 +663,20 @@ function QuickFinderForm({ value, onChange, onSubmit, onDismiss, sending, locale
                         </button>
                     </label>
                 )}
+
+                <label className="col-span-2">
+                    <span className="mb-1 block text-[11px] font-bold text-muted">
+                        {locale === 'zh' ? '优惠码（可选）' : 'Promo code (optional)'}
+                    </span>
+                    <input
+                        type="text"
+                        value={value.promoCode}
+                        onChange={e => onChange({ promoCode: e.target.value.toUpperCase() })}
+                        placeholder={locale === 'zh' ? '如果有优惠码，请输入' : 'Enter a promo code if you have one'}
+                        className="w-full rounded-xl border border-black/10 bg-off-white px-3 py-2.5 text-[12.5px] uppercase text-navy outline-none focus:border-orange"
+                        maxLength={32}
+                    />
+                </label>
             </div>
 
             {dateError && <p className="mt-2 text-[11px] text-red-500">{dateError}</p>}
@@ -724,7 +756,7 @@ function VehicleRecommendations({ vehicles, onSearch, onSelect, source, locale }
                                 </div>
                                 <div className="mt-0.5 text-[11px] font-bold text-navy">
                                     {vehicle.avgrate ? `$${Number(vehicle.avgrate).toFixed(0)}${copy.perDay}` : ''}
-                                    {vehicle.totalrateafterdiscount ? ` · $${Number(vehicle.totalrateafterdiscount).toFixed(0)} total` : ''}
+                                    {vehicle.totalrateafterdiscount ? ` · $${Number(vehicle.totalrateafterdiscount).toFixed(0)} ${copy.totalSuffix}` : ''}
                                 </div>
                                 <div className="mt-1 text-[11px] font-bold text-navy underline decoration-orange/40 underline-offset-2">
                                     {copy.bookThisCar}
@@ -736,7 +768,7 @@ function VehicleRecommendations({ vehicles, onSearch, onSelect, source, locale }
                 </div>
             ) : (
                 <p className="rounded-2xl bg-off-white px-3 py-3 text-[12.5px] text-muted">
-                    No quick match found yet. Search all live vehicles with your trip details.
+                    {copy.noQuickMatch}
                 </p>
             )}
         </div>
@@ -1100,9 +1132,10 @@ function ChatPaymentPanel({ locale, booking, paymentType, onPaymentTypeChange, l
 // ── Main Widget ───────────────────────────────────────────────────────────────
 
 export default function ChatWidget() {
+    const pathname = usePathname() || '/'
     const [open, setOpen] = useState(false)
     const [sessionId, setSessionId] = useState('')
-    const [messages, setMessages] = useState<ChatMessage[]>([getInitialBotMessage()])
+    const [messages, setMessages] = useState<ChatMessage[]>([])
     const [status, setStatus] = useState<'bot' | 'human'>('bot')
     const [input, setInput] = useState('')
     const [sending, setSending] = useState(false)
@@ -1126,6 +1159,7 @@ export default function ChatWidget() {
         largeBags: 1,
         smallBags: 1,
         childSeat: false,
+        promoCode: '',
     })
     const [showQuickFinder, setShowQuickFinder] = useState(false)
     const [quickFinderSubmitted, setQuickFinderSubmitted] = useState(false)
@@ -1155,17 +1189,39 @@ export default function ChatWidget() {
     const [chatPaymentClientSecret, setChatPaymentClientSecret] = useState('')
     const [chatPaymentReservation, setChatPaymentReservation] = useState<{ ref: string; no: string }>({ ref: '', no: '' })
     const [storedBookingMeta, setStoredBookingMeta] = useState({ driverAge: 'over26', pickupTime: '10:00', dropoffTime: '10:00' })
+    const [showPageHint, setShowPageHint] = useState(false)
+    const [pageHintsDisabled, setPageHintsDisabled] = useState(false)
+    const [floatingPosition, setFloatingPosition] = useState<{ left: number; top: number } | null>(null)
+    const [isDraggingFloatingButton, setIsDraggingFloatingButton] = useState(false)
 
     const latestTimestampRef = useRef(0)
     const messagesEndRef = useRef<HTMLDivElement | null>(null)
+    const messagesContainerRef = useRef<HTMLDivElement | null>(null)
+    const floatingButtonRef = useRef<HTMLButtonElement | null>(null)
+    const floatingDragRef = useRef<{
+        pointerId: number
+        startX: number
+        startY: number
+        originLeft: number
+        originTop: number
+        dragging: boolean
+        cancelled: boolean
+        timer: number | null
+    } | null>(null)
+    const suppressFloatingClickRef = useRef(false)
     const openRef = useRef(false)
+    const pageContext = useMemo(() => getBookingPageContext(pathname, chatLocale), [pathname, chatLocale])
 
     // ── Firestore sync ────────────────────────────────────────────────────────
 
     function syncFromChat(chat: ChatSession | null | undefined) {
         if (!chat) return
         const fromFirestore = Array.isArray(chat.messages) ? sortMessages(chat.messages) : []
-        const base = fromFirestore.length > 0 ? fromFirestore : [getInitialBotMessage()]
+        const rawBase = fromFirestore.length > 0 ? fromFirestore : []
+        const storedWelcomeTexts = [getInitialBotMessage('en').text, getInitialBotMessage('zh').text]
+        const isStoredWelcomeOnly = rawBase.length === 1 && rawBase[0].sender === 'agent' && storedWelcomeTexts.includes(rawBase[0].text)
+        // Do not show a stale welcome message before the visitor selects a language.
+        const base = isStoredWelcomeOnly ? [] : rawBase
         const newestMessage = base[base.length - 1]
 
         if (newestMessage && newestMessage.timestamp > latestTimestampRef.current && newestMessage.sender === 'agent' && !openRef.current) {
@@ -1193,7 +1249,7 @@ export default function ChatWidget() {
     useEffect(() => {
         const detected = detectChatLocale()
         setChatLocale(detected)
-        setShowLanguageChoice(window.localStorage.getItem(CHAT_LANGUAGE_KEY) == null)
+        setShowLanguageChoice(true)
         try {
             const raw = window.sessionStorage.getItem(BOOKING_STORAGE_KEY)
             if (raw) {
@@ -1236,27 +1292,40 @@ export default function ChatWidget() {
     }, [])
 
     useEffect(() => {
-        const dismissed = window.localStorage.getItem(QUICK_FINDER_DISMISSED_KEY)
-        const path = window.location.pathname
-        if (dismissed === 'yes' || path.startsWith('/admin') || path.startsWith('/booking/payment')) return
+        setShowPageHint(false)
+        if (pathname.startsWith('/admin')) return
+
+        const disabled = window.localStorage.getItem(PAGE_HINT_DISMISSED_KEY) === 'yes'
+        setPageHintsDisabled(disabled)
+        if (disabled) return
 
         const timer = window.setTimeout(() => {
-            setOpen(true)
-            if (window.localStorage.getItem(CHAT_LANGUAGE_KEY) == null) {
-                setShowLanguageChoice(true)
-            } else {
-                setShowQuickFinder(true)
-            }
-        }, 1400)
+            if (!openRef.current) setShowPageHint(true)
+        }, 15000)
 
         return () => window.clearTimeout(timer)
-    }, [])
+    }, [pathname])
 
     useEffect(() => {
         const existing = window.localStorage.getItem(STORAGE_KEY)
         const id = existing || createSessionId()
         if (!existing) window.localStorage.setItem(STORAGE_KEY, id)
         setSessionId(id)
+    }, [])
+
+    useEffect(() => {
+        try {
+            const stored = window.localStorage.getItem(CHAT_WIDGET_POSITION_KEY)
+            if (!stored) return
+            const position = JSON.parse(stored)
+            if (Number.isFinite(position?.left) && Number.isFinite(position?.top)) {
+                const size = window.innerWidth >= 640 ? 64 : 56
+                setFloatingPosition({
+                    left: Math.max(12, Math.min(position.left, window.innerWidth - size - 12)),
+                    top: Math.max(12, Math.min(position.top, window.innerHeight - size - 12)),
+                })
+            }
+        } catch {}
     }, [])
 
     useEffect(() => {
@@ -1287,7 +1356,11 @@ export default function ChatWidget() {
         return () => window.clearInterval(interval)
     }, [open, sessionId])
 
-    useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, open, showContactForm, showQuickFinder, quickFinderSubmitted, chatBooking, showDriverDetails, showPaymentPanel, chatPaymentClientSecret])
+    useEffect(() => {
+        const container = messagesContainerRef.current
+        if (!container) return
+        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
+    }, [messages, open, showContactForm, showQuickFinder, quickFinderSubmitted, chatBooking, showDriverDetails, showPaymentPanel, chatPaymentClientSecret])
 
     useEffect(() => {
         if (!open || !sessionId || unreadCount === 0) return
@@ -1320,6 +1393,11 @@ export default function ChatWidget() {
         setChatLocale(nextLocale)
         setShowLanguageChoice(false)
         window.localStorage.setItem(CHAT_LANGUAGE_KEY, nextLocale)
+        setMessages(current => {
+            const welcomeMessages = [getInitialBotMessage('en').text, getInitialBotMessage('zh').text]
+            const isUntouchedWelcome = current.length === 1 && current[0].sender === 'agent' && welcomeMessages.includes(current[0].text)
+            return current.length === 0 || isUntouchedWelcome ? [getInitialBotMessage(nextLocale)] : current
+        })
         if (!quickFinderSubmitted && !chatBooking) setShowQuickFinder(true)
     }
 
@@ -1333,6 +1411,7 @@ export default function ChatWidget() {
                 `Return: ${quickFinder.dropoffLocation} · ${quickFinder.dropoffDate}`,
                 `Travellers: ${quickFinder.adults} adult${quickFinder.adults > 1 ? 's' : ''}, ${quickFinder.children} child${quickFinder.children !== 1 ? 'ren' : ''}`,
                 `Luggage: ${quickFinder.largeBags} large, ${quickFinder.smallBags} small`,
+                quickFinder.promoCode ? `Promo: ${quickFinder.promoCode}` : 'Promo: none',
                 quickFinder.childSeat ? 'Child seat: recommended' : '',
             ].filter(Boolean).join('\n')
 
@@ -1353,6 +1432,7 @@ export default function ChatWidget() {
                         dropoffDate: quickFinder.dropoffDate,
                         pickupTime: '10:00',
                         dropoffTime: '10:00',
+                        promoCode: quickFinder.promoCode,
                     }),
                 })
                 const data = await response.json()
@@ -1380,10 +1460,10 @@ export default function ChatWidget() {
             setTimeout(() => {
                 addLocalMessage(
                     nextSource === 'live'
-                        ? 'Great, I found live vehicle options that match your passengers and luggage.'
+                        ? CHAT_COPY[chatLocale].liveFound
                         : nextSource === 'featured'
-                            ? 'I could not confirm live matches right now, so I am showing suitable featured vehicles. Click Search now for live availability.'
-                            : 'I could not find a perfect match in the quick list. Click Search now to check all live availability.',
+                            ? CHAT_COPY[chatLocale].featuredFound
+                            : CHAT_COPY[chatLocale].noPerfectMatch,
                     'agent',
                 )
             }, 250)
@@ -1414,6 +1494,7 @@ export default function ChatWidget() {
             quickFinderLargeBags: quickFinder.largeBags,
             quickFinderSmallBags: quickFinder.smallBags,
             childSeatRequested: quickFinder.childSeat,
+            promoCode: quickFinder.promoCode,
         }))
 
         const query = new URLSearchParams({
@@ -1424,14 +1505,20 @@ export default function ChatWidget() {
             dropoffDate: quickFinder.dropoffDate,
             dropoffTime: existing.dropoffTime || '10:00',
             driverAge: existing.driverAge || 'over26',
+            promoCode: quickFinder.promoCode,
         })
 
         window.location.href = `/booking/vehicles?${query.toString()}`
     }
 
-    async function selectRecommendedVehicle(vehicle: FeaturedVehicle) {
+    async function selectRecommendedVehicle(vehicle: FeaturedVehicle, finderOverride?: Partial<QuickFinderState>) {
+        const finder = { ...quickFinder, ...finderOverride }
         if (!isRecommendedVehicleSelectable(vehicle)) {
-            goToQuickSearch()
+            if (finderOverride) {
+                setError(chatLocale === 'zh' ? '这辆车缺少实时预订信息，请重新获取推荐。' : 'This vehicle is missing live booking details. Please refresh the recommendation.')
+            } else {
+                goToQuickSearch()
+            }
             return
         }
 
@@ -1442,8 +1529,10 @@ export default function ChatWidget() {
         const pickupTime = existing.pickupTime || '10:00'
         const dropoffTime = existing.dropoffTime || '10:00'
         const driverAge = existing.driverAge || 'over26'
+        const promoCode = finder.promoCode || existing.promoCode || ''
+        window.sessionStorage.setItem(BOOKING_STORAGE_KEY, JSON.stringify({ ...existing, promoCode }))
         setStoredBookingMeta({ driverAge, pickupTime, dropoffTime })
-        const days = calcDays(quickFinder.pickupDate, pickupTime, quickFinder.dropoffDate, dropoffTime)
+        const days = calcDays(finder.pickupDate, pickupTime, finder.dropoffDate, dropoffTime)
         const pricing = getRecommendedVehiclePricing(vehicle, days)
         const vehicleInsurance = (recommendationSearchResults?.insuranceoptions || [])
             .filter((ins: any) => ins.vehiclecategoryid === vehicle.vehiclecategoryid)
@@ -1475,13 +1564,13 @@ export default function ChatWidget() {
                 body: JSON.stringify({
                     vehicleCategoryTypeId: vehicle.vehiclecategorytypeid,
                     vehicleCategoryId: vehicle.vehiclecategoryid,
-                    pickupLocation: quickFinder.pickupLocation,
-                    dropoffLocation: quickFinder.dropoffLocation,
-                    pickupDate: quickFinder.pickupDate,
-                    dropoffDate: quickFinder.dropoffDate,
+                    pickupLocation: finder.pickupLocation,
+                    dropoffLocation: finder.dropoffLocation,
+                    pickupDate: finder.pickupDate,
+                    dropoffDate: finder.dropoffDate,
                     pickupTime,
                     dropoffTime,
-                    promoCode: existing.promoCode || '',
+                    promoCode,
                 }),
             })
             const result = await response.json()
@@ -1507,6 +1596,46 @@ export default function ChatWidget() {
             }) : current)
         }
     }
+
+    useEffect(() => {
+        function handleAiBooking(event: Event) {
+            const detail = (event as CustomEvent<{ vehicle?: FeaturedVehicle; search?: Record<string, any>; responseLanguage?: string }>).detail
+            if (!detail?.vehicle) return
+            const search = detail.search || {}
+            const responseLanguage = String(detail.responseLanguage || search.responseLanguage || '').toLowerCase()
+            const targetLocale: ChatLocale = /chinese|中文|汉语|漢語/.test(responseLanguage) ? 'zh' : chatLocale
+            const finder: QuickFinderState = {
+                pickupLocation: search.pickupLocation || 'Christchurch',
+                dropoffLocation: search.dropoffLocation || search.pickupLocation || 'Christchurch',
+                pickupDate: search.pickupDate || getDefaultFinderDates().pickupDate,
+                dropoffDate: search.dropoffDate || getDefaultFinderDates().dropoffDate,
+                adults: Number(search.passengers || 2),
+                children: Number(search.children || 0),
+                largeBags: Number(search.largeBags || 0),
+                smallBags: Number(search.smallBags || 0),
+                childSeat: false,
+                promoCode: String(search.promoCode || '').toUpperCase(),
+            }
+            setQuickFinder(finder)
+            setRecommendedVehicles([detail.vehicle])
+            setRecommendationSource('live')
+            setQuickFinderSubmitted(false)
+            setShowQuickFinder(false)
+            setShowLanguageChoice(false)
+            setOpen(true)
+            setChatLocale(targetLocale)
+            window.localStorage.setItem(CHAT_LANGUAGE_KEY, targetLocale)
+            setMessages(current => [...current, {
+                sender: 'agent',
+                text: targetLocale === 'zh' ? '我会在这里继续完成这辆车的预订。' : 'I will continue this booking here without opening another page.',
+                timestamp: Date.now(),
+            }])
+            selectRecommendedVehicle(detail.vehicle, finder)
+        }
+
+        window.addEventListener('yitu-ai-start-booking', handleAiBooking)
+        return () => window.removeEventListener('yitu-ai-start-booking', handleAiBooking)
+    }, [chatLocale])
 
     function continueChatBooking() {
         if (!chatBooking) return
@@ -1678,15 +1807,17 @@ export default function ChatWidget() {
     // ── FAQ mode: handle user message locally ─────────────────────────────────
 
     async function handleFaqMessage(text: string) {
+        if (showLanguageChoice) return
         const trimmed = text.trim()
         if (!trimmed) return
 
         const now = Date.now()
         setInput('')
+        setShowLanguageChoice(false)
         addLocalMessage(trimmed, 'user', now)
         await saveMessageToFirestore(trimmed, 'user', now)
 
-        const faqReply = matchFaqReply(trimmed, faqs)
+        const faqReply = matchFaqReply(trimmed, [...pageContext.faqs, ...faqs])
 
         if (faqReply) {
             // Reset unanswered counter on a successful FAQ match
@@ -1698,11 +1829,8 @@ export default function ChatWidget() {
 
             if (nextCount >= UNANSWERED_THRESHOLD) {
                 // Proactively offer human support after repeated misses
-                setTimeout(() => {
-                    addLocalMessage(
-                        'I\'ve had trouble answering your questions. Would you like to speak directly with our team? Click "Contact Support" below.',
-                        'agent',
-                    )
+                    setTimeout(() => {
+                    addLocalMessage(CHAT_COPY[chatLocale].supportOffer, 'agent')
                 }, 300)
             } else {
                 setTimeout(() => addLocalMessage(getNoMatchReply(), 'agent'), 300)
@@ -1774,6 +1902,7 @@ export default function ChatWidget() {
     }
 
     function handleSend() {
+        if (showLanguageChoice) return
         if (status === 'human') {
             handleHumanMessage(input)
         } else {
@@ -1789,41 +1918,179 @@ export default function ChatWidget() {
         setOpen(v => !v)
     }
 
-    const headerLabel = useMemo(() => (status === 'human' ? 'Live Support' : chatLocale === 'zh' ? '预订助手' : 'Booking Assistant'), [status, chatLocale])
+    function dismissPageHint() {
+        setShowPageHint(false)
+    }
+
+    function disablePageHints() {
+        window.localStorage.setItem(PAGE_HINT_DISMISSED_KEY, 'yes')
+        setPageHintsDisabled(true)
+        setShowPageHint(false)
+    }
+
+    function clampFloatingPosition(left: number, top: number) {
+        const size = window.innerWidth >= 640 ? 64 : 56
+        return {
+            left: Math.max(12, Math.min(left, window.innerWidth - size - 12)),
+            top: Math.max(12, Math.min(top, window.innerHeight - size - 12)),
+        }
+    }
+
+    function handleFloatingPointerDown(event: React.PointerEvent<HTMLButtonElement>) {
+        if (event.button !== 0) return
+        const rect = event.currentTarget.getBoundingClientRect()
+        const drag = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            originLeft: rect.left,
+            originTop: rect.top,
+            dragging: false,
+            cancelled: false,
+            timer: null as number | null,
+        }
+        floatingDragRef.current = drag
+        event.currentTarget.setPointerCapture(event.pointerId)
+        drag.timer = window.setTimeout(() => {
+            if (floatingDragRef.current !== drag || drag.cancelled) return
+            drag.dragging = true
+            setFloatingPosition(clampFloatingPosition(drag.originLeft, drag.originTop))
+            setIsDraggingFloatingButton(true)
+        }, 320)
+    }
+
+    function handleFloatingPointerMove(event: React.PointerEvent<HTMLButtonElement>) {
+        const drag = floatingDragRef.current
+        if (!drag || drag.pointerId !== event.pointerId) return
+        const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY)
+        if (!drag.dragging && distance > 8) {
+            drag.cancelled = true
+            if (drag.timer) window.clearTimeout(drag.timer)
+            return
+        }
+        if (!drag.dragging) return
+        event.preventDefault()
+        setFloatingPosition(clampFloatingPosition(
+            drag.originLeft + event.clientX - drag.startX,
+            drag.originTop + event.clientY - drag.startY,
+        ))
+    }
+
+    function handleFloatingPointerUp(event: React.PointerEvent<HTMLButtonElement>) {
+        const drag = floatingDragRef.current
+        if (!drag || drag.pointerId !== event.pointerId) return
+        if (drag.timer) window.clearTimeout(drag.timer)
+        if (drag.dragging) {
+            setIsDraggingFloatingButton(false)
+            setFloatingPosition(current => {
+                if (current) window.localStorage.setItem(CHAT_WIDGET_POSITION_KEY, JSON.stringify(current))
+                return current
+            })
+            suppressFloatingClickRef.current = true
+            window.setTimeout(() => { suppressFloatingClickRef.current = false }, 0)
+        } else if (drag.cancelled) {
+            suppressFloatingClickRef.current = true
+            window.setTimeout(() => { suppressFloatingClickRef.current = false }, 0)
+        }
+        floatingDragRef.current = null
+    }
+
+    const copy = CHAT_COPY[chatLocale]
+    const headerLabel = useMemo(() => (status === 'human' ? copy.headerSupport : copy.headerAssistant), [status, copy])
     const showSupportButton = status === 'bot' && !showContactForm && !showQuickFinder && !showLanguageChoice && !chatBooking && !showDriverDetails && !showPaymentPanel
+    const showContextQuestions = status === 'bot' && !showContactForm && !showQuickFinder && !showLanguageChoice && !chatBooking && !showDriverDetails && !showPaymentPanel && pageContext.faqs.length > 0
+    const showCommonQuestions = status === 'bot' && !showContactForm && !showQuickFinder && !showLanguageChoice && !chatBooking && !showDriverDetails && !showPaymentPanel && faqs.length > 0
 
     return (
         <>
-            <button
-                onClick={toggleChat}
-                className="fixed bottom-5 right-5 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-orange text-white shadow-[0_16px_40px_rgba(232,67,26,0.35)] transition-transform hover:scale-105"
-                aria-label="Open chat"
+            <div
+                className={`fixed z-50 ${floatingPosition ? '' : 'bottom-4 right-4 sm:bottom-5 sm:right-5'}`}
+                style={floatingPosition ? { left: floatingPosition.left, top: floatingPosition.top } : undefined}
             >
-                {open ? <X size={24} /> : <MessageCircle size={24} />}
-                {!open && unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-6 h-6 px-1 rounded-full bg-navy text-white text-[11px] font-bold flex items-center justify-center">
-                        {unreadCount}
-                    </span>
+                {!open && showPageHint && !pageHintsDisabled && (
+                    <div className="absolute bottom-[calc(100%+10px)] right-0 w-max max-w-[calc(100vw-28px)] animate-in fade-in slide-in-from-bottom-2 rounded-2xl border border-orange/20 bg-white p-3 text-left text-navy shadow-[0_14px_35px_rgba(15,35,71,0.18)] sm:max-w-[310px]">
+                        <div className="flex items-start gap-2">
+                            <button
+                                type="button"
+                                onClick={() => { dismissPageHint(); toggleChat() }}
+                                className="flex min-w-0 flex-1 items-start gap-2 text-left text-[12px] font-semibold leading-relaxed"
+                            >
+                                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange text-[11px] font-extrabold text-white">!</span>
+                                <span className="min-w-0">{pageContext.hint}</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={dismissPageHint}
+                                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[16px] leading-none text-muted transition-colors hover:bg-black/5 hover:text-navy"
+                                aria-label="关闭提醒"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={disablePageHints}
+                            className="mt-2 ml-7 text-[10px] font-medium text-muted underline decoration-black/20 underline-offset-2 transition-colors hover:text-navy"
+                        >
+                            不再提示
+                        </button>
+                    </div>
                 )}
-            </button>
+                <button
+                    ref={floatingButtonRef}
+                    onPointerDown={handleFloatingPointerDown}
+                    onPointerMove={handleFloatingPointerMove}
+                    onPointerUp={handleFloatingPointerUp}
+                    onPointerCancel={handleFloatingPointerUp}
+                    onClick={() => {
+                        if (suppressFloatingClickRef.current) return
+                        setShowPageHint(false)
+                        toggleChat()
+                    }}
+                    className={`flex h-14 w-14 touch-none select-none items-center justify-center rounded-full bg-orange text-white shadow-[0_16px_40px_rgba(232,67,26,0.35)] transition-transform sm:h-16 sm:w-16 ${isDraggingFloatingButton ? 'scale-110 cursor-grabbing' : 'cursor-grab hover:scale-105'}`}
+                    aria-label="Open chat"
+                    title="短按打开，长按拖动位置"
+                >
+                    {open ? <X size={24} /> : (
+                        <span className="relative h-full w-full overflow-hidden rounded-full border-2 border-orange/40 bg-[#fffaf5]">
+                            <Image src="/ai-rental-bot.png" alt="Open YITU AI assistant" fill sizes="64px" className="object-cover p-0.5" />
+                        </span>
+                    )}
+                    {!open && unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-6 h-6 px-1 rounded-full bg-navy text-white text-[11px] font-bold flex items-center justify-center">
+                            {unreadCount}
+                        </span>
+                    )}
+                </button>
+            </div>
 
             {open && (
-                <div className="fixed bottom-24 right-5 z-50 w-[calc(100vw-24px)] max-w-[420px] overflow-hidden rounded-[28px] border border-black/10 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.22)]">
+                <div className="fixed inset-x-2 top-2 bottom-2 z-50 flex h-[calc(100dvh-16px)] max-h-[calc(100dvh-16px)] w-auto flex-col overflow-hidden rounded-[24px] border border-black/10 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.22)] sm:inset-x-auto sm:bottom-24 sm:right-5 sm:top-auto sm:h-[680px] sm:max-h-[calc(100dvh-120px)] sm:w-[calc(100vw-24px)] sm:max-w-[420px] sm:rounded-[28px]">
 
                     {/* Header */}
                     <div className="bg-[linear-gradient(135deg,#0f2347_0%,#183a6d_100%)] px-5 py-4 text-white">
-                        <div className="flex items-center gap-2 text-[12px] uppercase tracking-[0.16em] text-white/70 font-bold">
-                            {status === 'human' ? <Headset size={14} /> : <BellDot size={14} />}
-                            {headerLabel}
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2 text-[12px] uppercase tracking-[0.16em] text-white/70 font-bold">
+                                {status === 'human' ? <Headset size={14} /> : <BellDot size={14} />}
+                                {headerLabel}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={toggleChat}
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white"
+                                aria-label="Close chat"
+                            >
+                                <X size={17} />
+                            </button>
                         </div>
                         <h3 className="font-syne text-[1.1rem] font-extrabold mt-1">YITU Car Rental</h3>
                         <div className="mt-0.5 flex items-center justify-between gap-3">
                             <p className="text-[12px] text-white/75">
                                 {status === 'human'
-                                    ? 'Connected to our support team.'
+                                    ? copy.connected
                                     : chatLocale === 'zh'
                                         ? '找车、选保险和附加项，都可以在这里完成。'
-                                        : 'Find a car, choose cover and extras here.'}
+                                        : copy.assistantHint}
                             </p>
                             <button
                                 type="button"
@@ -1836,7 +2103,7 @@ export default function ChatWidget() {
                     </div>
 
                     {/* Messages */}
-                    <div className="h-[480px] bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_100%)] overflow-y-auto px-4 py-4">
+                    <div ref={messagesContainerRef} className="min-h-0 flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_100%)] px-4 py-4">
                         {showLanguageChoice && (
                             <LanguageChoiceCard locale={chatLocale} onChoose={chooseChatLanguage} />
                         )}
@@ -1871,6 +2138,44 @@ export default function ChatWidget() {
                                 </div>
                             </div>
                         ))}
+
+                        {showContextQuestions && (
+                            <div className="mb-4 rounded-2xl border border-orange/20 bg-orange/[0.06] p-3 shadow-sm">
+                                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-orange">
+                                    {pageContext.title}
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {pageContext.faqs.map((faq, index) => (
+                                        <button
+                                            key={`page-faq-${faq.question}-${index}`}
+                                            onClick={() => handleFaqMessage(faq.question)}
+                                            className="rounded-full border border-orange/25 bg-white px-3 py-1.5 text-left text-[11.5px] font-semibold text-navy transition-colors hover:border-orange/40 hover:bg-orange/10"
+                                        >
+                                            {faq.question}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {showCommonQuestions && (
+                            <div className="mb-4 rounded-2xl border border-orange/15 bg-white/80 p-3 shadow-sm">
+                                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
+                                    {copy.commonQuestions}
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {faqs.slice(0, 8).map((faq, index) => (
+                                        <button
+                                            key={faq.id || `${faq.question}-${index}`}
+                                            onClick={() => handleFaqMessage(faq.question)}
+                                            className="rounded-full border border-orange/20 bg-orange/5 px-3 py-1.5 text-left text-[11.5px] font-semibold text-navy transition-colors hover:border-orange/40 hover:bg-orange/10"
+                                        >
+                                            {getChatFaqQuestion(faq, chatLocale)}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {quickFinderSubmitted && (
                             <VehicleRecommendations
@@ -1937,6 +2242,7 @@ export default function ChatWidget() {
                                 onSubmit={handleContactSubmit}
                                 onCancel={() => setShowContactForm(false)}
                                 sending={sending}
+                                locale={chatLocale}
                             />
                         )}
 
@@ -1944,27 +2250,8 @@ export default function ChatWidget() {
                     </div>
 
                     {/* Input area */}
-                    <div className="border-t border-black/10 bg-white px-4 py-3">
+                    <div className="shrink-0 border-t border-black/10 bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
                         {error && <div className="mb-2 text-[12px] text-red-600">{error}</div>}
-
-                        {status === 'bot' && !showContactForm && !showQuickFinder && !showLanguageChoice && !chatBooking && !showDriverDetails && !showPaymentPanel && faqs.length > 0 && (
-                            <div className="mb-3">
-                                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-muted">
-                                    Common Questions
-                                </div>
-                                <div className="flex max-h-[92px] flex-wrap gap-1.5 overflow-y-auto pr-1">
-                                    {faqs.slice(0, 8).map((faq, index) => (
-                                        <button
-                                            key={faq.id || `${faq.question}-${index}`}
-                                            onClick={() => handleFaqMessage(faq.question)}
-                                            className="rounded-full border border-orange/20 bg-orange/5 px-3 py-1.5 text-left text-[11.5px] font-semibold text-navy transition-colors hover:border-orange/40 hover:bg-orange/10"
-                                        >
-                                            {faq.question}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
 
                         {/* Human support button (bot mode only) */}
                         {showSupportButton && (
@@ -1972,7 +2259,7 @@ export default function ChatWidget() {
                                 onClick={() => setShowContactForm(true)}
                                 className="w-full mb-2.5 flex items-center justify-center gap-1.5 rounded-xl border border-navy/20 bg-navy/5 py-2 text-[12px] font-bold text-navy hover:bg-navy/10 transition-colors"
                             >
-                                <Headset size={13} /> Contact Human Support
+                                <Headset size={13} /> {copy.contactHuman}
                             </button>
                         )}
 
@@ -1981,7 +2268,8 @@ export default function ChatWidget() {
                                 rows={1}
                                 value={input}
                                 onChange={e => setInput(e.target.value)}
-                                placeholder={status === 'human' ? 'Message our team…' : 'Ask a question…'}
+                                placeholder={showLanguageChoice ? copy.chooseLanguageFirst : status === 'human' ? copy.messageTeam : copy.askQuestion}
+                                disabled={showLanguageChoice || sending}
                                 className="min-h-[48px] flex-1 resize-none rounded-2xl border border-black/10 bg-off-white px-4 py-3 text-[13px] text-navy outline-none focus:border-orange"
                                 onKeyDown={e => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -1992,7 +2280,7 @@ export default function ChatWidget() {
                             />
                             <button
                                 onClick={handleSend}
-                                disabled={sending || !input.trim()}
+                                disabled={showLanguageChoice || sending || !input.trim()}
                                 className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange text-white transition-colors hover:bg-orange-dark disabled:opacity-60"
                                 aria-label="Send"
                             >

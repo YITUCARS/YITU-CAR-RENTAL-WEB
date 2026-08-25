@@ -1,0 +1,94 @@
+openapi: 3.0.3
+info:
+  title: YITU Partner API
+  version: 1.0.0
+  description: Vehicle catalogue and availability search API for approved distribution partners.
+servers:
+  - url: https://www.yiturentalcars.co.nz/api/v1/partner
+security:
+  - ApiKeyAuth: []
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+  schemas:
+    SearchRequest:
+      type: object
+      required: [pickupLocation, dropoffLocation, pickupDate, dropoffDate]
+      properties:
+        pickupLocation:
+          type: string
+          example: Christchurch
+        dropoffLocation:
+          type: string
+          example: Queenstown
+        pickupDate:
+          type: string
+          format: date
+          example: '2026-09-20'
+        dropoffDate:
+          type: string
+          format: date
+          example: '2026-09-24'
+        pickupTime:
+          type: string
+          example: '10:00'
+        dropoffTime:
+          type: string
+          example: '10:00'
+        promoCode:
+          type: string
+          example: WEEKLYT
+    ApiError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+paths:
+  /vehicles:
+    get:
+      summary: Get cached vehicle catalogue
+      operationId: getVehicles
+      responses:
+        '200':
+          description: Vehicle catalogue
+        '401':
+          description: Invalid API key
+        '503':
+          description: Partner API is not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /search:
+    post:
+      summary: Search live availability and local prices
+      operationId: searchVehicles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Available vehicles and pricing
+        '400':
+          description: Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Invalid API key
+        '500':
+          description: Search failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'

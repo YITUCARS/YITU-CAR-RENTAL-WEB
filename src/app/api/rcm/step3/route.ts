@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { rcmStep3, toRCMDate, LOCATION_IDS } from '@/lib/rcm'
+import { resolveRcmPromoCode } from '@/lib/promo-code'
 
 export async function POST(req: NextRequest) {
     try {
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
             pickupTime: pickupTime || '10:00',
             dropoffDate: toRCMDate(dropoffDate),
             dropoffTime: dropoffTime || '10:00',
-            campaignCode: promoCode || '',
+            campaignCode: resolveRcmPromoCode(promoCode),
         })
 
         return NextResponse.json({ success: true, data: results })

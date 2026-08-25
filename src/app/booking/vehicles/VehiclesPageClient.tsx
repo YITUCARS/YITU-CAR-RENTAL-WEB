@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { Users, Briefcase, ArrowRight, Search, SlidersHorizontal, Tag } from 'lucide-react'
+import { Users, Briefcase, ArrowRight, Search, SlidersHorizontal, Tag, Zap } from 'lucide-react'
 import { useBooking, calcDays, calcAfterHourBreakdown, LOCATION_IDS } from '@/lib/booking-context'
 import BookingFlowHeader from '@/components/booking/BookingFlowHeader'
 import Navbar from '@/components/layout/Navbar'
@@ -27,6 +27,9 @@ interface RCMVehicle {
     imageurl: string
     available: number
     availablemessage: string
+    nextAvailableDate?: string
+    fuel?: string
+    fueltype?: string
 }
 
 interface RCMCategoryType {
@@ -110,6 +113,10 @@ const VEHICLES_COPY = {
         close: 'Close',
         unavailableLoad: 'Unable to load available vehicles. Please try again.',
         networkError: 'Network error. Please try again.',
+        electric: 'Electric vehicle',
+        nextAvailable: 'Next available hire date',
+        checkNextAvailable: 'Check next available date',
+        useThisDate: 'Search this date',
     },
     zh: {
         refineSearch: '筛选搜索',
@@ -164,6 +171,10 @@ const VEHICLES_COPY = {
         close: '关闭',
         unavailableLoad: '无法加载可预订车辆，请稍后再试。',
         networkError: '网络错误，请稍后再试。',
+        electric: '电动车 EV',
+        nextAvailable: '下一可租日期',
+        checkNextAvailable: '查询下一可用日期',
+        useThisDate: '用这个日期搜索',
     },
 } as const
 
@@ -239,6 +250,17 @@ function getAvailabilityRank(vehicle: RCMVehicle) {
     if (status === 'fully booked') return 1
     if (status === 'unavailable for selected dates') return 2
     return 3
+}
+
+function isElectricVehicle(vehicle: RCMVehicle) {
+    const text = `${vehicle.vehiclecategory} ${vehicle.categoryfriendlydescription} ${vehicle.fuel || ''} ${vehicle.fueltype || ''}`.toLowerCase()
+    return /\bev\b|electric|tesla|model y|model 3|leaf|ioniq|byd/.test(text)
+}
+
+function shiftDate(value: string, days: number) {
+    const date = new Date(`${value}T12:00:00Z`)
+    date.setUTCDate(date.getUTCDate() + days)
+    return date.toISOString().slice(0, 10)
 }
 
 function roundMoney(value: number) {
@@ -561,6 +583,7 @@ export default function VehiclesPage() {
     const [showTimingModal, setShowTimingModal] = useState(false)
     const [appliedSearchForm, setAppliedSearchForm] = useState<SearchFormState>(searchForm)
     const [appliedPromoCode, setAppliedPromoCode] = useState(initialPromoCode.toUpperCase())
+    const [nextAvailabilityLoading, setNextAvailabilityLoading] = useState<Record<string, boolean>>({})
 
     const days = calcDays(appliedSearchForm.pickupDate, appliedSearchForm.pickupTime, appliedSearchForm.dropoffDate, appliedSearchForm.dropoffTime)
     const hasUnappliedSearchChanges =
@@ -737,6 +760,8 @@ export default function VehiclesPage() {
                 return matchesType && matchesPrice
             })
             .sort((a, b) => {
+                const electricDiff = Number(isElectricVehicle(b) && isVehicleSelectable(b)) - Number(isElectricVehicle(a) && isVehicleSelectable(a))
+                if (electricDiff !== 0) return electricDiff
                 const rankDiff = getAvailabilityRank(a) - getAvailabilityRank(b)
                 if (rankDiff !== 0) return rankDiff
 
@@ -777,6 +802,43 @@ export default function VehiclesPage() {
         }))
 
         router.push(`/${locale}/booking/extras`)
+    }
+
+    async function lookupNextAvailableDate(vehicle: RCMVehicle) {
+        const id = String(vehicle.vehiclecategoryid)
+        setNextAvailabilityLoading(current => ({ ...current, [id]: true }))
+        try {
+            const response = await fetch('/api/rcm/next-availability', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    pickupLocation: appliedSearchForm.pickupLocation,
+                    dropoffLocation: appliedSearchForm.dropoffLocation,
+                    pickupDate: appliedSearchForm.pickupDate,
+                    pickupTime: appliedSearchForm.pickupTime,
+                    dropoffDate: appliedSearchForm.dropoffDate,
+                    dropoffTime: appliedSearchForm.dropoffTime,
+                    promoCode: appliedPromoCode,
+                    vehicleIds: [vehicle.vehiclecategoryid],
+                }),
+            })
+            const result = await response.json()
+            if (result.success) {
+                setVehicles(current => current.map(item => item.vehiclecategoryid === vehicle.vehiclecategoryid
+                    ? { ...item, nextAvailableDate: result.dates?.[id] || '' }
+                    : item))
+            }
+        } finally {
+            setNextAvailabilityLoading(current => ({ ...current, [id]: false }))
+        }
+    }
+
+    function useNextAvailableDate(vehicle: RCMVehicle) {
+        if (!vehicle.nextAvailableDate) return
+        const offset = Math.max(0, Math.round((new Date(`${vehicle.nextAvailableDate}T12:00:00Z`).getTime() - new Date(`${appliedSearchForm.pickupDate}T12:00:00Z`).getTime()) / 86400000))
+        const nextForm = { ...appliedSearchForm, pickupDate: vehicle.nextAvailableDate, dropoffDate: shiftDate(appliedSearchForm.dropoffDate, offset) }
+        setSearchForm(nextForm)
+        loadVehicles(nextForm, appliedPromoCode)
     }
 
     return (
@@ -932,10 +994,11 @@ export default function VehiclesPage() {
                                         {filteredVehicles.map(vehicle => {
                                             const pricing = getVehiclePricing(vehicle, days)
                                             const selectable = isVehicleSelectable(vehicle)
+                                            const electric = isElectricVehicle(vehicle)
                                             return (
                                             <div
                                                 key={vehicle.vehiclecategoryid}
-                                                className="bg-white border border-black/10 rounded-card overflow-hidden flex flex-col sm:flex-row hover:border-orange/30 hover:shadow-card transition-all"
+                                                className={`border rounded-card overflow-hidden flex flex-col sm:flex-row hover:shadow-card transition-all ${electric && selectable ? 'border-emerald-300 bg-white shadow-[0_8px_24px_rgba(16,185,129,0.08)]' : 'bg-white border-black/10 hover:border-orange/30'}`}
                                             >
                                                 <div className="sm:w-56 flex-shrink-0 bg-white flex items-center justify-center sm:self-stretch min-h-[160px]">
                                                     {vehicle.imageurl ? (
@@ -961,6 +1024,7 @@ export default function VehiclesPage() {
                                                             <span className="text-[10px] rounded-full bg-sky-50 text-sky-700 px-2.5 py-1 font-bold uppercase tracking-[0.14em]">
                                                                 {getVehicleTypeLabel(vehicle, vehicleTypeMap)}
                                                             </span>
+                                                            {electric && selectable && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white"><Zap size={11} /> {copy.electric}</span>}
                                                         </div>
                                                         <h3 className="font-syne font-bold text-xl text-navy mb-3">
                                                             {vehicle.categoryfriendlydescription || vehicle.vehiclecategory}
@@ -1005,8 +1069,9 @@ export default function VehiclesPage() {
                                                                     </div>
                                                                 </>
                                                             ) : (
-                                                                <div className="text-[13px] text-muted font-medium">
-                                                                    {copy.priceUnavailable}
+                                                                <div className="space-y-2">
+                                                                    <div className="text-[13px] text-muted font-medium">{copy.priceUnavailable}</div>
+                                                                    {vehicle.nextAvailableDate ? <div className="rounded-xl border border-orange/20 bg-orange/5 px-3 py-2"><div className="text-[11px] font-bold text-orange">{copy.nextAvailable}: {vehicle.nextAvailableDate}</div><button type="button" onClick={() => useNextAvailableDate(vehicle)} className="mt-1 text-[11px] font-bold text-navy underline underline-offset-2">{copy.useThisDate}</button></div> : <button type="button" onClick={() => lookupNextAvailableDate(vehicle)} disabled={nextAvailabilityLoading[String(vehicle.vehiclecategoryid)]} className="rounded-xl border border-orange/20 bg-orange/5 px-3 py-2 text-[11px] font-bold text-orange transition-colors hover:bg-orange/10 disabled:opacity-50">{nextAvailabilityLoading[String(vehicle.vehiclecategoryid)] ? `${copy.checkNextAvailable}...` : copy.checkNextAvailable}</button>}
                                                                 </div>
                                                             )}
                                                         </div>

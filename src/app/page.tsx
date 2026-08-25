@@ -10,6 +10,7 @@ import ContactSection from '@/components/sections/ContactSection'
 import CTASplitSection from '@/components/sections/CTASplitSection'
 import ReviewsSection from '@/components/sections/ReviewsSection'
 import SeoLandingSection, {homeSeoJsonLd} from '@/components/sections/SeoLandingSection'
+import TriAiCarFinderSection from '@/components/sections/TriAiCarFinderSection'
 import type {Metadata} from 'next'
 
 // Always fetch fresh data from Supabase on every request
@@ -101,6 +102,9 @@ export default async function HomePage() {
       />
       <HeroSection initialDeals={deals} />
       <BookingSection />
+      <div className="reveal">
+        <TriAiCarFinderSection />
+      </div>
       <StatsStrip />
       <div className="reveal">
         <FleetSection initialVehicles={featuredVehicles} />

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { rcmCall, toRCMDate } from '@/lib/rcm'
+import { getCachedRcmVehicles, saveRcmVehicles } from '@/lib/rcm-vehicle-cache'
 
 function toYMD(date: Date) {
     const y = date.getFullYear()
@@ -16,6 +17,12 @@ export async function GET(req: NextRequest) {
     }
 
     try {
+        const cached = await getCachedRcmVehicles()
+        const forceRefresh = new URL(req.url).searchParams.get('refresh') === '1'
+        if (!forceRefresh && cached.vehicles.length > 0) {
+            return NextResponse.json({ success: true, vehicles: cached.vehicles, source: 'local', syncedAt: cached.syncedAt })
+        }
+
         // Search CHC→CHC 30 days out — near-term dates return incomplete vehicle data (no imageurl/names)
         const pickup = new Date()
         pickup.setDate(pickup.getDate() + 30)
@@ -34,8 +41,13 @@ export async function GET(req: NextRequest) {
         })
 
         const vehicles: any[] = result?.availablecars ?? []
-        return NextResponse.json({ success: true, vehicles })
+        await saveRcmVehicles(vehicles, { cacheImages: true })
+        return NextResponse.json({ success: true, vehicles, source: 'rcm', syncedAt: new Date().toISOString() })
     } catch (err: any) {
+        const cached = await getCachedRcmVehicles()
+        if (cached.vehicles.length > 0) {
+            return NextResponse.json({ success: true, vehicles: cached.vehicles, source: 'local-fallback', syncedAt: cached.syncedAt })
+        }
         return NextResponse.json({ success: false, error: err.message }, { status: 500 })
     }
 }

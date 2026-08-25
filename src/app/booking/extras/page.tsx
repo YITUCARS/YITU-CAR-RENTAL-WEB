@@ -2,18 +2,30 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, Shield, Check, Minus, Plus, AlertCircle, Package, Users, Baby } from 'lucide-react'
+import Image from 'next/image'
+import { ArrowRight, Check, Minus, Plus, AlertCircle, Package } from 'lucide-react'
 import { useBooking, calcAfterHourBreakdown, splitMandatoryFees, formatAfterHourFeeLabel, isAfterHourMandatoryFee } from '@/lib/booking-context'
 import BookingFlowHeader from '@/components/booking/BookingFlowHeader'
 import Navbar from '@/components/layout/Navbar'
 
 const YOUNG_DRIVER_FEE_ID = 15 // RCM Extra Fee ID for Young Driver Fee
 
-function getIcon(name: string) {
+function getExtraImage(name: string) {
     const n = name.toLowerCase()
-    if (n.includes('baby') || n.includes('infant') || n.includes('child') || n.includes('booster')) return Baby
-    if (n.includes('driver')) return Users
-    return Package
+    if (n.includes('snow') && n.includes('chain')) return '/extra-snow-chains.png'
+    if (n.includes('super') && (n.includes('cover') || n.includes('insurance'))) return '/extra-super-cover.png'
+    if (n.includes('additional') && n.includes('driver')) return '/extra-additional-driver.png'
+    if (n.includes('addition') && n.includes('driver')) return '/extra-additional-driver.png'
+    if (n.includes('infant')) return '/extra-infant-seat.png'
+    if (n.includes('booster')) return '/extra-booster-seat.png'
+    if (n.includes('baby') || n.includes('child')) return '/extra-baby-seat.png'
+    return null
+}
+
+function getInsuranceImage(name: string) {
+    const n = name.toLowerCase()
+    if (n.includes('super')) return '/extra-super-cover.png'
+    return '/extra-basic-insurance.png'
 }
 
 export default function ExtrasPage() {
@@ -223,9 +235,9 @@ export default function ExtrasPage() {
                                         <button key={ins.id} onClick={() => setSelectedInsuranceId(ins.id)}
                                                 className={`text-left bg-white border rounded-[22px] p-4 sm:rounded-card sm:p-5 flex items-start gap-3 sm:gap-4 transition-all w-full
                         ${selectedInsuranceId === ins.id ? 'border-orange/50 shadow-card' : 'border-black/10 hover:border-orange/20'}`}>
-                                            <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors
-                        ${selectedInsuranceId === ins.id ? 'bg-orange' : 'bg-orange/10'}`}>
-                                                <Shield size={20} className={selectedInsuranceId === ins.id ? 'text-white' : 'text-orange'} />
+                                            <div className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden transition-colors
+                        ${selectedInsuranceId === ins.id ? 'bg-orange/10' : 'bg-orange/5'}`}>
+                                                <Image src={getInsuranceImage(ins.name)} alt="" fill sizes="44px" className="object-contain p-0.5" />
                                             </div>
                                             <div className="flex-1">
                                                 <div className="flex items-start justify-between gap-3">
@@ -263,7 +275,7 @@ export default function ExtrasPage() {
                                     {optionalFees.map(extra => {
                                         const id = String(extra.id)
                                         const qty = extras[id] || 0
-                                        const Icon = getIcon(extra.name)
+                                        const image = getExtraImage(extra.name)
                                         const isDaily = extra.type === 'Daily'
                                         const totalPrice = isDaily
                                             ? extra.maximumprice > 0
@@ -276,8 +288,12 @@ export default function ExtrasPage() {
                                                  className={`bg-white border rounded-[22px] p-4 sm:rounded-card sm:p-5 flex flex-col gap-4 transition-all sm:flex-row sm:items-center
                           ${qty > 0 ? 'border-orange/40 shadow-card' : 'border-black/10'}`}>
                                                 <div className="flex items-start gap-3 sm:flex-1 sm:gap-4">
-                                                    <div className="w-10 h-10 sm:w-11 sm:h-11 bg-orange/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                                                        <Icon size={20} className="text-orange" />
+                                                    <div className="relative w-10 h-10 sm:w-11 sm:h-11 bg-orange/10 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                                        {image ? (
+                                                            <Image src={image} alt="" fill sizes="44px" className="object-contain p-0.5" />
+                                                        ) : (
+                                                            <Package size={20} className="text-orange" />
+                                                        )}
                                                     </div>
                                                     <div className="min-w-0 flex-1">
                                                         <div className="font-syne font-bold text-[14px] text-navy">{extra.name}</div>

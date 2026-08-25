@@ -42,7 +42,11 @@ export default function Footer({onManageBooking}: FooterProps) {
             </p>
             <div className="flex gap-2.5">
               {[
-                {icon: 'fab fa-instagram', href: '#'},
+                {
+                  icon: 'fab fa-instagram',
+                  href: 'https://www.instagram.com/yitu_car_rental/',
+                  label: 'YITU Car Rental on Instagram',
+                },
                 {icon: 'fab fa-tiktok', href: '#'},
                 {icon: 'custom-xiaohongshu', href: 'https://xhslink.com/m/8Tm4GeTZ88i'},
                 {icon: 'fab fa-facebook-f', href: '#'},
@@ -50,6 +54,10 @@ export default function Footer({onManageBooking}: FooterProps) {
                 <a
                   key={s.icon}
                   href={s.href}
+                  aria-label={'label' in s ? s.label : s.icon}
+                  {...(s.href.startsWith('http')
+                    ? {target: '_blank', rel: 'noopener noreferrer'}
+                    : {})}
                   className="w-9 h-9 rounded-lg bg-black/5 border border-black/10 flex items-center justify-center text-muted transition-all hover:bg-orange hover:border-orange hover:text-white"
                 >
                   {s.icon === 'custom-xiaohongshu' ? (

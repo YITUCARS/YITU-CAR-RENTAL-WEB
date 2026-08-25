@@ -290,6 +290,13 @@ export default function DetailsPage() {
                             {' '}and{' '}
                             <a href="/privacy-policy" target="_blank" className="text-orange hover:underline">Privacy Policy</a>.
                         </p>
+                        <button
+                            type="button"
+                            onClick={submit}
+                            className="lg:hidden w-full mt-5 flex items-center justify-center gap-2 bg-orange hover:bg-orange-dark text-white font-syne font-bold text-[15px] py-4 rounded-xl transition-all shadow-orange-glow"
+                        >
+                            Continue to Payment <span aria-hidden="true">→</span>
+                        </button>
                     </div>
 
                     <div className="hidden lg:block lg:w-72 flex-shrink-0 sticky top-24">

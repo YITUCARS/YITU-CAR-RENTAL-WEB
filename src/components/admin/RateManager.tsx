@@ -15,6 +15,7 @@ const pct = (r: number) => `${(r * 100).toFixed(r * 100 % 1 === 0 ? 0 : 1)}%`
 export default function RateManager({ token, showToast }: { token: string; showToast: (m: string) => void }) {
     const [sub, setSub] = useState<SubTab>('rates')
     const [loading, setLoading] = useState(false)
+    const [syncingRcm, setSyncingRcm] = useState(false)
 
     const [stores, setStores] = useState<RateStore[]>([])
     const [categories, setCategories] = useState<VehicleCategory[]>([])
@@ -44,6 +45,19 @@ export default function RateManager({ token, showToast }: { token: string; showT
         finally { setLoading(false) }
     }
     useEffect(() => { loadAll() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+    async function syncRcmRates() {
+        setSyncingRcm(true)
+        try {
+            const report = await api('/sync-rcm', { method: 'POST', body: JSON.stringify({ pickupLocationId: 1, dropoffLocationId: 1 }) })
+            showToast(`✅ 已从 RCM 导入 ${report.matchedVehicles || 0} 个车型的基准价格`)
+            const [se, ca] = await Promise.all([api('/seasons'), api('/categories')])
+            setSeasons(se); setCategories(ca)
+            const sid = report.season?.id || seasonId
+            if (sid) { setSeasonId(sid); setRates(await api(`/rates?season_id=${sid}`)) }
+        } catch (e: any) { showToast('⚠️ ' + e.message) }
+        finally { setSyncingRcm(false) }
+    }
 
     // ───────────────────────── Categories ─────────────────────────
     const [editCat, setEditCat] = useState<Partial<VehicleCategory> | null>(null)
@@ -221,6 +235,22 @@ export default function RateManager({ token, showToast }: { token: string; showT
                 价格按租期分档（1-3 / 4-6 / 7+ 天）。
             </div>
 
+            <div className="flex flex-col gap-4 rounded-2xl border border-orange/25 bg-orange/5 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <div className="flex items-center gap-2 font-syne text-[14px] font-extrabold text-navy">
+                        <Download size={16} className="text-orange" />
+                        第一步：从 RCM 导入基准价格
+                    </div>
+                    <p className="mt-1 max-w-2xl text-[12px] leading-5 text-muted">
+                        先读取 RCM 当前的车型价格并保存到本地价格表。当前为安全的 shadow 模式，只做记录和对比，不会改变网站展示价格。
+                    </p>
+                </div>
+                <button onClick={syncRcmRates} disabled={syncingRcm} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-orange px-4 py-2.5 text-[12px] font-bold text-white transition-colors hover:bg-orange-dark disabled:opacity-60">
+                    <Download size={14} className={syncingRcm ? 'animate-bounce' : ''} />
+                    {syncingRcm ? '正在导入…' : '立即导入基准价格'}
+                </button>
+            </div>
+
             {/* sub-tabs */}
             <div className="flex gap-1 border-b border-black/10">
                 {SUBS.map(s => (
@@ -231,6 +261,9 @@ export default function RateManager({ token, showToast }: { token: string; showT
                 ))}
                 <button onClick={loadAll} className="ml-auto flex items-center gap-1.5 text-[12px] text-muted hover:text-navy px-3">
                     <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> 刷新
+                </button>
+                <button onClick={syncRcmRates} disabled={syncingRcm} className="flex items-center gap-1.5 rounded-lg bg-orange px-3 py-2 text-[12px] font-bold text-white disabled:opacity-60">
+                    <Download size={13} className={syncingRcm ? 'animate-bounce' : ''} /> {syncingRcm ? '从 RCM 导入中…' : '从 RCM 导入基准价格'}
                 </button>
             </div>
 

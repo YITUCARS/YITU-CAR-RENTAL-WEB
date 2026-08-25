@@ -1,5 +1,6 @@
 import LegalPageLayout from '@/components/ui/LegalPageLayout'
 import {getLocale} from 'next-intl/server'
+import {redirect} from 'next/navigation'
 import {enTermsSections, enTermsToc} from '@/content/legal/terms-conditions.en'
 import {zhTermsSections, zhTermsToc} from '@/content/legal/terms-conditions.zh'
 
@@ -32,5 +33,7 @@ export async function TermsConditionsPageContent({forcedLocale}: {forcedLocale?:
 }
 
 export default async function TermsConditionsPage() {
-  return <TermsConditionsPageContent />
+  // Keep the non-localized legacy URL working without evaluating the longform
+  // source file in a dynamic root request on Vercel.
+  redirect('/en/terms-conditions')
 }

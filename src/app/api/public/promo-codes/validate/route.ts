@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { isMappedPromoCode, normalizePromoCode } from '@/lib/promo-code'
 
 function getSupabase() {
   return createClient(
@@ -11,12 +12,24 @@ function getSupabase() {
 }
 
 export async function GET(req: NextRequest) {
-  const code = req.nextUrl.searchParams.get('code')?.trim().toUpperCase()
+  const code = normalizePromoCode(req.nextUrl.searchParams.get('code'))
   if (!code) {
     return NextResponse.json({ valid: false, error: 'Promo code is required.' }, { status: 400 })
   }
 
   const supabase = getSupabase()
+
+  // Mapped codes are validated here without exposing the private RCM code.
+  if (isMappedPromoCode(code)) {
+    return NextResponse.json({
+      valid: true,
+      promo: {
+        code,
+        discount_type: 'percent',
+        discount_value: 0,
+      },
+    })
+  }
   const { data, error } = await supabase
     .from('promo_codes')
     .select('id, code, discount_type, discount_value, active, expires_at')

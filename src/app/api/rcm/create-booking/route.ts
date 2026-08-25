@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { rcmCall, toRCMDate } from '@/lib/rcm'
+import { resolveRcmPromoCode } from '@/lib/promo-code'
 import { notifyWebsiteBookingCreated } from '@/lib/rcm-telegram'
 
 function normalizePhoneForRcm(phone: string) {
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
       extrakmsid: 0,
       transmission: 1,
       numbertravelling: 1,
-      campaigncode: promoCode || '',
+      campaigncode: resolveRcmPromoCode(promoCode),
       ...(optionalFeesList.length > 0 ? { optionalfees: optionalFeesList } : {}),
       ...((mandatoryFeeIds || []).length > 0 ? {
         mandatoryfees: (mandatoryFeeIds as number[]).map((id: number) => ({ id, qty: 1 }))
