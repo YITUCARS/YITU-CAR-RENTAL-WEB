@@ -10,6 +10,32 @@ function authorised(req: NextRequest) {
   return req.headers.get('x-admin-token') === process.env.ADMIN_PASSWORD
 }
 
+// This is intentionally explicit: an administrator must click the button for
+// one order, and the RCM method name remains configurable per account.
+export async function POST(req: NextRequest) {
+  if (!authorised(req)) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+
+  try {
+    const body = await req.json()
+    const reservationRef = String(body?.reservationRef || body?.reservationref || '').trim()
+    if (!reservationRef) return NextResponse.json({ success: false, error: 'reservationRef is required.' }, { status: 400 })
+
+    const method = String(process.env.RCM_AUTO_ALLOCATE_METHOD || '').trim()
+    if (!method) return NextResponse.json({
+      success: false,
+      code: 'RCM_AUTO_ALLOCATE_METHOD_NOT_CONFIGURED',
+      error: 'RCM Auto-Allocate API method is not configured yet. Confirm the method name with RCM first.',
+    }, { status: 503 })
+
+    const { rcmCall } = await import('@/lib/rcm')
+    const result = await rcmCall(method, { reservationref: reservationRef })
+    return NextResponse.json({ success: true, method, reservationRef, result })
+  } catch (error: any) {
+    console.error('[admin/availability] auto-allocate failed:', error?.message || error)
+    return NextResponse.json({ success: false, error: error?.message || 'RCM Auto-Allocate request failed.' }, { status: 502 })
+  }
+}
+
 function ymd(value: string | null, fallback: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value || '') ? value! : fallback
 }

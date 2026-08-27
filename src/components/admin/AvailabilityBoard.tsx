@@ -38,6 +38,8 @@ export default function AvailabilityBoard({ token, showToast }: { token: string;
   const [loading, setLoading] = useState(false)
   const [selected, setSelected] = useState<Booking | null>(null)
   const [manualStatuses, setManualStatuses] = useState<Record<string, ManualStatus>>({})
+  const [autoAllocateLoading, setAutoAllocateLoading] = useState(false)
+  const [autoAllocateMessage, setAutoAllocateMessage] = useState('')
 
   useEffect(() => {
     try { setManualStatuses(JSON.parse(localStorage.getItem('yitu-availability-statuses') || '{}')) } catch { /* ignore malformed local state */ }
@@ -62,6 +64,27 @@ export default function AvailabilityBoard({ token, showToast }: { token: string;
       setBookings(data.bookings || [])
       setSources(data.sources || { local: 0, agent: 0, agentError: '' })
     } catch (error: any) { showToast(`可用性加载失败：${error.message}`) } finally { setLoading(false) }
+  }
+
+  async function autoAllocateSelected() {
+    if (!selected) return
+    setAutoAllocateLoading(true)
+    setAutoAllocateMessage('正在请求 RCM 分配车辆...')
+    try {
+      const response = await fetch('/api/admin/availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+        body: JSON.stringify({ reservationRef: selected.id }),
+      })
+      const data = await response.json()
+      if (!response.ok || !data.success) throw new Error(data.error || 'RCM 分配失败')
+      setAutoAllocateMessage('RCM 已接受 Auto-Allocate 请求，正在刷新订单状态。')
+      await load()
+    } catch (error: any) {
+      setAutoAllocateMessage(`Auto-Allocate 未完成：${error.message}`)
+    } finally {
+      setAutoAllocateLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [from, to]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -98,7 +121,7 @@ export default function AvailabilityBoard({ token, showToast }: { token: string;
         <div className="divide-y divide-black/8 md:hidden">{filteredVehicles.map(vehicle => <MobileRow key={vehicle.id} vehicle={vehicle} dates={dates} bookings={visibleBookings} manualStatuses={manualStatuses} onSelect={setSelected} onToggle={cycleStatus} />)}{filteredVehicles.length === 0 && <Empty />}</div>
       </div>
       {unassigned.length > 0 && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><div className="flex items-center gap-2 text-sm font-extrabold text-amber-900"><CircleAlert size={16} />未绑定到具体车牌的订单 ({unassigned.length})</div><p className="mt-1 text-[11px] text-amber-800">这些订单只包含车型或类别，系统不会错误地标记某一台具体车辆。</p><div className="mt-3 flex flex-wrap gap-2">{unassigned.slice(0, 8).map(booking => <button type="button" key={booking.id} onClick={() => setSelected(booking)} className="rounded-lg border border-amber-200 bg-white px-3 py-2 text-left text-[11px] text-amber-900">{booking.vehicle} · {booking.pickupDate}</button>)}</div></div>}
-      {selected && <div className="fixed inset-0 z-50 flex items-end justify-center bg-navy/35 p-4 sm:items-center" onClick={() => setSelected(null)}><div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={event => event.stopPropagation()}><div className="flex items-start justify-between gap-4"><div><div className="text-[11px] font-bold uppercase tracking-wide text-orange">订单详情</div><h2 className="mt-1 font-syne text-xl font-extrabold text-navy">{selected.vehicle}</h2></div><button type="button" onClick={() => setSelected(null)} className="text-sm text-muted">关闭</button></div><div className="mt-4 space-y-2 text-sm text-navy"><p><b>客户：</b>{selected.customer}</p><p><b>取还：</b>{selected.pickupDate} {selected.pickupTime} → {selected.dropoffDate} {selected.dropoffTime}</p><p><b>地点：</b>{selected.pickupLocation || '—'} → {selected.dropoffLocation || '—'}</p><p><b>来源：</b>{selected.source} · <b>状态：</b>{selected.status}</p>{selected.plate && <p><b>车牌：</b>{selected.plate}</p>}{selected.total && <p><b>金额：</b>NZD {selected.total}</p>}</div></div></div>}
+      {selected && <div className="fixed inset-0 z-50 flex items-end justify-center bg-navy/35 p-4 sm:items-center" onClick={() => setSelected(null)}><div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={event => event.stopPropagation()}><div className="flex items-start justify-between gap-4"><div><div className="text-[11px] font-bold uppercase tracking-wide text-orange">订单详情</div><h2 className="mt-1 font-syne text-xl font-extrabold text-navy">{selected.vehicle}</h2></div><button type="button" onClick={() => { setSelected(null); setAutoAllocateMessage('') }} className="text-sm text-muted">关闭</button></div><div className="mt-4 space-y-2 text-sm text-navy"><p><b>客户：</b>{selected.customer}</p><p><b>取还：</b>{selected.pickupDate} {selected.pickupTime} → {selected.dropoffDate} {selected.dropoffTime}</p><p><b>地点：</b>{selected.pickupLocation || '—'} → {selected.dropoffLocation || '—'}</p><p><b>来源：</b>{selected.source} · <b>状态：</b>{selected.status}</p>{selected.plate && <p><b>车牌：</b>{selected.plate}</p>}{selected.total && <p><b>金额：</b>NZD {selected.total}</p>}</div><div className="mt-5 border-t border-black/8 pt-4"><button type="button" onClick={autoAllocateSelected} disabled={autoAllocateLoading} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy px-4 py-3 text-sm font-bold text-white transition-opacity disabled:opacity-60"><CheckCircle2 size={16} />{autoAllocateLoading ? '处理中...' : 'Auto-Allocate 分配车辆'}</button><p className="mt-2 text-[11px] leading-relaxed text-muted">仅在你点击后向 RCM 发起一次分配请求，不会自动处理其他订单。</p>{autoAllocateMessage && <p className="mt-2 rounded-xl bg-off-white px-3 py-2 text-[11px] leading-relaxed text-navy">{autoAllocateMessage}</p>}</div></div></div>}
     </div>
   </div>
 }
