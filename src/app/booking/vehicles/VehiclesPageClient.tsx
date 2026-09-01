@@ -28,6 +28,7 @@ interface RCMVehicle {
     available: number
     availablemessage: string
     nextAvailableDate?: string
+    localFallback?: boolean
     fuel?: string
     fueltype?: string
 }
@@ -117,6 +118,7 @@ const VEHICLES_COPY = {
         nextAvailable: 'Next available hire date',
         checkNextAvailable: 'Check next available date',
         useThisDate: 'Search this date',
+        requestBooking: 'Request booking · human confirmation',
     },
     zh: {
         refineSearch: '筛选搜索',
@@ -175,6 +177,7 @@ const VEHICLES_COPY = {
         nextAvailable: '下一可租日期',
         checkNextAvailable: '查询下一可用日期',
         useThisDate: '用这个日期搜索',
+        requestBooking: '申请预订，人工客服确认',
     },
 } as const
 
@@ -216,6 +219,7 @@ function getAvailabilityLabel(locale: string, message: string) {
     if (normalized === 'available') return '可预订'
     if (normalized === 'fully booked') return '已订满'
     if (normalized === 'unavailable for selected dates') return '所选日期不可订'
+    if (normalized === 'request booking - human confirmation required') return '申请预订，人工客服确认'
     return message
 }
 
@@ -1070,8 +1074,8 @@ export default function VehiclesPage() {
                                                                 </>
                                                             ) : (
                                                                 <div className="space-y-2">
-                                                                    <div className="text-[13px] text-muted font-medium">{copy.priceUnavailable}</div>
-                                                                    {vehicle.nextAvailableDate ? <div className="rounded-xl border border-orange/20 bg-orange/5 px-3 py-2"><div className="text-[11px] font-bold text-orange">{copy.nextAvailable}: {vehicle.nextAvailableDate}</div><button type="button" onClick={() => useNextAvailableDate(vehicle)} className="mt-1 text-[11px] font-bold text-navy underline underline-offset-2">{copy.useThisDate}</button></div> : <button type="button" onClick={() => lookupNextAvailableDate(vehicle)} disabled={nextAvailabilityLoading[String(vehicle.vehiclecategoryid)]} className="rounded-xl border border-orange/20 bg-orange/5 px-3 py-2 text-[11px] font-bold text-orange transition-colors hover:bg-orange/10 disabled:opacity-50">{nextAvailabilityLoading[String(vehicle.vehiclecategoryid)] ? `${copy.checkNextAvailable}...` : copy.checkNextAvailable}</button>}
+                                                                    {vehicle.localFallback && pricing.effectivePerDay > 0 ? <><div className="text-[16px] text-muted">$<PriceDisplay value={pricing.effectivePerDay} />{copy.perDay} × {days} {days === 1 ? copy.day : copy.days}</div><div className="text-[11px] font-medium text-muted">NZD $<PriceDisplay value={pricing.discountedTotal} /> {copy.total}</div></> : <div className="text-[13px] text-muted font-medium">{copy.priceUnavailable}</div>}
+                                                                    {vehicle.nextAvailableDate ? <div className="rounded-xl border border-orange/20 bg-orange/5 px-3 py-2"><div className="text-[11px] font-bold text-orange">{copy.nextAvailable}: {vehicle.nextAvailableDate}</div><button type="button" onClick={() => useNextAvailableDate(vehicle)} className="mt-1 text-[11px] font-bold text-navy underline underline-offset-2">{copy.useThisDate}</button></div> : !vehicle.localFallback && <button type="button" onClick={() => lookupNextAvailableDate(vehicle)} disabled={nextAvailabilityLoading[String(vehicle.vehiclecategoryid)]} className="rounded-xl border border-orange/20 bg-orange/5 px-3 py-2 text-[11px] font-bold text-orange transition-colors hover:bg-orange/10 disabled:opacity-50">{nextAvailabilityLoading[String(vehicle.vehiclecategoryid)] ? `${copy.checkNextAvailable}...` : copy.checkNextAvailable}</button>}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -1085,7 +1089,7 @@ export default function VehiclesPage() {
                                                                     : 'bg-gray-300 text-white/90 cursor-not-allowed shadow-none'
                                                             }`}
                                                         >
-                                                            {hasUnappliedSearchChanges ? copy.updateResultsFirst : copy.select} <ArrowRight size={15} />
+                                                            {hasUnappliedSearchChanges ? copy.updateResultsFirst : vehicle.localFallback ? copy.requestBooking : copy.select} <ArrowRight size={15} />
                                                         </button>
                                                     </div>
                                                 </div>

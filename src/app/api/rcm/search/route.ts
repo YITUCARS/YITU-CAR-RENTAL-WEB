@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { rcmSearch, toRCMDate, LOCATION_IDS } from '@/lib/rcm'
 import { resolveRcmPromoCode } from '@/lib/promo-code'
 import { applyLocalPrices, calculateRentalDays } from '@/lib/local-pricing'
-import { getCachedRcmSearch, getStaleRcmSearch, mergeRcmVehiclesWithCache, saveRcmSearch, saveRcmVehicles } from '@/lib/rcm-vehicle-cache'
+import { getCachedRcmSearch, getCachedRcmVehicles, getStaleRcmSearch, mergeRcmVehiclesWithCache, saveRcmSearch, saveRcmVehicles } from '@/lib/rcm-vehicle-cache'
 
 type CacheEntry = { data: any; timestamp: number }
 const searchCache = new Map<string, CacheEntry>()
@@ -68,10 +68,28 @@ export async function POST(req: NextRequest) {
         }
 
         const liveVehicles = results?.availablecars ?? []
+        const hasLiveAvailability = liveVehicles.some((vehicle: any) =>
+            Number(vehicle.vehiclecategoryid) > 0 && (vehicle.available === 1 || String(vehicle.availablemessage || '').trim().toLowerCase() === 'available')
+        )
         await saveRcmVehicles(liveVehicles)
+        let vehiclesForDisplay = liveVehicles
+        if (!hasLiveAvailability) {
+            const cachedVehicles = await getCachedRcmVehicles()
+            const liveCategoryTypes = new Set(liveVehicles.map((vehicle: any) => Number(vehicle.vehiclecategorytypeid)).filter(Boolean))
+            const fallbackVehicles = cachedVehicles.vehicles
+                .filter((vehicle: any) => liveCategoryTypes.size === 0 || liveCategoryTypes.has(Number(vehicle.vehiclecategorytypeid)))
+                .map((vehicle: any) => ({
+                    ...vehicle,
+                    available: 0,
+                    availablemessage: 'Request booking - human confirmation required',
+                    localFallback: true,
+                }))
+            if (fallbackVehicles.length > 0) vehiclesForDisplay = fallbackVehicles
+        }
         const mergedResults = {
             ...results,
-            availablecars: await mergeRcmVehiclesWithCache(liveVehicles),
+            availablecars: await mergeRcmVehiclesWithCache(vehiclesForDisplay),
+            localFallback: !hasLiveAvailability && vehiclesForDisplay !== liveVehicles,
         }
         const priced = await addLocalPricing(mergedResults.availablecars)
         const finalResults = { ...mergedResults, availablecars: priced.vehicles }
