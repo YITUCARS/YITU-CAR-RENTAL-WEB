@@ -38,7 +38,7 @@ const EMPTY: Omit<VehicleRecord, 'id' | 'created_at'> = {
 function AdminDashboard({ onSelect }: { onSelect: (tab: AdminTab) => void }) {
     const items: Array<{ tab: AdminTab; label: string; description: string; detail: string; icon: React.ElementType; tone: string }> = [
         { tab: 'fleet', label: '车队管理', description: '维护车辆、图片和基础价格', detail: '管理手动车辆资料、状态和 CSV 导入。', icon: CarFront, tone: 'bg-orange/10 text-orange' },
-        { tab: 'rcm', label: 'RCM 库存 & 首页配置', description: '同步库存、图片和首页展示', detail: '读取本地缓存，也可以手动刷新 RCM。', icon: Database, tone: 'bg-sky-50 text-sky-700' },
+        { tab: 'rcm', label: '车辆管理', description: '管理图片、常规价格和首页展示', detail: '车辆资料以本地缓存为主，RCM 作为同步来源。', icon: Database, tone: 'bg-sky-50 text-sky-700' },
         { tab: 'availability', label: '车辆可用性', description: '按日期查看车辆占用情况', detail: '用简单时间轴查看预订、可用和未绑定订单。', icon: CalendarDays, tone: 'bg-blue-50 text-blue-700' },
         { tab: 'rates', label: '价格管理', description: '维护季节价格和渠道规则', detail: '管理车型分类、季节和渠道价格。', icon: DollarSign, tone: 'bg-emerald-50 text-emerald-700' },
         { tab: 'market', label: '竞品价格监控', description: '竞品报价和提前期价格曲线', detail: '自动采集的竞品价格，含历史涨跌曲线。', icon: LineChart, tone: 'bg-teal-50 text-teal-700' },
@@ -98,6 +98,8 @@ export default function AdminPage() {
     const [adminMenuOpen, setAdminMenuOpen] = useState(false)
     const [rcmVehicles, setRcmVehicles] = useState<any[]>([])
     const [rcmLoading, setRcmLoading] = useState(false)
+    const [rcmPriceEdits, setRcmPriceEdits] = useState<Record<number, string>>({})
+    const [savingRcmPrice, setSavingRcmPrice] = useState<number | null>(null)
     const [featured, setFeatured] = useState<Map<number, any>>(new Map())
     const [savingFeatured, setSavingFeatured] = useState(false)
 
@@ -152,7 +154,7 @@ export default function AdminPage() {
     const headers = { 'x-admin-token': token, 'Content-Type': 'application/json' }
     const activeTabLabel: Record<AdminTab, string> = {
         fleet: '车队管理',
-        rcm: 'RCM 库存 & 首页配置',
+        rcm: '车辆管理',
         availability: '车辆可用性',
         promo: '优惠码管理',
         banners: '广告轮播',
@@ -239,10 +241,31 @@ export default function AdminPage() {
             const data = await res.json()
             if (data.success) {
                 setRcmVehicles(data.vehicles)
+                setRcmPriceEdits(Object.fromEntries((data.vehicles || []).map((v: any) => [v.vehiclecategoryid, String(v.localPricePerDay || v.avgrate || '')])))
                 if (data.source === 'local-fallback') showToast('⚠️ RCM 暂时不可用，已使用本地缓存')
             }
             else showToast('⚠️ ' + data.error)
         } finally { setRcmLoading(false) }
+    }
+
+    async function saveRcmPrice(vehiclecategoryid: number) {
+        const price = rcmPriceEdits[vehiclecategoryid]
+        setSavingRcmPrice(vehiclecategoryid)
+        try {
+            const res = await fetch('/api/admin/rcm-vehicles', {
+                method: 'PATCH',
+                headers,
+                body: JSON.stringify({ vehiclecategoryid, price_per_day: price }),
+            })
+            const data = await res.json()
+            if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}`)
+            setRcmVehicles(current => current.map(v => v.vehiclecategoryid === vehiclecategoryid
+                ? { ...v, avgrate: Number(price), localPricePerDay: Number(price), pricingSource: 'admin' }
+                : v))
+            showToast('✅ 常规价格已保存到 Supabase')
+        } catch (error: any) {
+            showToast('⚠️ ' + error.message)
+        } finally { setSavingRcmPrice(null) }
     }
 
     async function loadFeatured() {
@@ -1026,7 +1049,7 @@ export default function AdminPage() {
                             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                 {([
                                     { tab: 'fleet', label: '车队管理', description: '维护车辆、图片和基础价格', icon: CarFront },
-                                    { tab: 'rcm', label: 'RCM 库存 & 首页配置', description: '同步库存、图片和首页展示', icon: Database },
+                                    { tab: 'rcm', label: '车辆管理', description: '图片、常规价格和首页展示', icon: Database },
                                     { tab: 'availability', label: '车辆可用性', description: '按日期查看车辆占用情况', icon: CalendarDays },
                                     { tab: 'rates', label: '价格管理', description: '维护季节价格和渠道规则', icon: DollarSign },
                                     { tab: 'market', label: '竞品价格监控', description: '竞品报价和提前期价格曲线', icon: LineChart },
@@ -1152,9 +1175,14 @@ export default function AdminPage() {
             </div>
             </>}
 
-            {/* ── RCM tab ── */}
+            {/* ── Vehicle management tab ── */}
             {activeTab === 'rcm' && (
                 <div className="px-8 py-6 space-y-6">
+
+                    <div className="rounded-2xl border border-sky-200 bg-sky-50 px-5 py-4">
+                        <div className="font-syne text-[15px] font-extrabold text-navy">车辆资料与常规价格</div>
+                        <p className="mt-1 text-[12px] leading-5 text-muted">图片和车辆规格从 RCM 同步后保存在本地缓存。您可以直接修改常规每日价格，保存后会写入 Supabase，并用于短时预订的人工申请报价。</p>
+                    </div>
 
                     {/* Featured preview strip */}
                     {featured.size > 0 && (
@@ -1198,8 +1226,9 @@ export default function AdminPage() {
                                     <tr className="border-b border-black/10 bg-off-white">
                                         <th className="text-left px-4 py-3 font-syne font-bold text-navy text-[12px] uppercase tracking-wide">车辆</th>
                                         <th className="text-left px-4 py-3 font-syne font-bold text-navy text-[12px] uppercase tracking-wide">规格</th>
-                                        <th className="text-left px-4 py-3 font-syne font-bold text-navy text-[12px] uppercase tracking-wide">价格/天</th>
+                                        <th className="text-left px-4 py-3 font-syne font-bold text-navy text-[12px] uppercase tracking-wide">常规价格/天</th>
                                         <th className="text-left px-4 py-3 font-syne font-bold text-navy text-[12px] uppercase tracking-wide">首页位置</th>
+                                        <th className="text-right px-4 py-3 font-syne font-bold text-navy text-[12px] uppercase tracking-wide">操作</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1229,8 +1258,18 @@ export default function AdminPage() {
                                                 <td className="px-4 py-3 text-muted text-[13px]">
                                                     {v.numberofadults} 人 · {v.numberoflargecases} 大 {v.numberofsmallcases} 小
                                                 </td>
-                                                <td className="px-4 py-3 font-syne font-bold text-navy">
-                                                    ${v.avgrate}
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="font-syne text-muted">$</span>
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            step="0.01"
+                                                            value={rcmPriceEdits[v.vehiclecategoryid] ?? ''}
+                                                            onChange={e => setRcmPriceEdits(current => ({ ...current, [v.vehiclecategoryid]: e.target.value }))}
+                                                            className="w-24 rounded-lg border border-black/10 bg-off-white px-2.5 py-2 text-[13px] font-semibold text-navy outline-none focus:border-orange"
+                                                        />
+                                                    </div>
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <select
@@ -1250,6 +1289,16 @@ export default function AdminPage() {
                                                             )
                                                         })}
                                                     </select>
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => saveRcmPrice(v.vehiclecategoryid)}
+                                                        disabled={savingRcmPrice === v.vehiclecategoryid}
+                                                        className="rounded-lg bg-orange px-3 py-2 text-[11px] font-bold text-white transition-colors hover:bg-orange-dark disabled:opacity-60"
+                                                    >
+                                                        {savingRcmPrice === v.vehiclecategoryid ? '保存中…' : '保存价格'}
+                                                    </button>
                                                 </td>
                                             </tr>
                                         )

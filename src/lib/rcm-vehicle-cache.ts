@@ -65,18 +65,38 @@ export async function saveRcmVehicles(vehicles: any[], options: { cacheImages?: 
     if (!supabase || vehicles.length === 0) return false
 
     const syncedAt = new Date().toISOString()
+    const ids = vehicles
+        .map(vehicle => Number(vehicle.vehiclecategoryid))
+        .filter(Boolean)
+    const { data: existingRows } = await supabase
+        .from('rcm_vehicle_cache')
+        .select('vehiclecategoryid, vehicle_json')
+        .in('vehiclecategoryid', ids)
+    const existingById = new Map((existingRows || []).map(row => [Number(row.vehiclecategoryid), row.vehicle_json || {}]))
     const rows = await Promise.all(vehicles
         .filter(vehicle => Number(vehicle.vehiclecategoryid))
-        .map(async vehicle => ({
-            vehiclecategoryid: Number(vehicle.vehiclecategoryid),
-            vehicle_json: normalizeVehicle({
-                ...vehicle,
-                imageurl: options.cacheImages ? await cacheVehicleImage(supabase, vehicle) : vehicle.imageurl,
-            }),
-            active: true,
-            synced_at: syncedAt,
-            updated_at: syncedAt,
-        })))
+        .map(async vehicle => {
+            const existing = existingById.get(Number(vehicle.vehiclecategoryid))
+            const keepAdminPrice = existing?.pricingSource === 'admin' && Number(existing.localPricePerDay) > 0
+            return {
+                vehiclecategoryid: Number(vehicle.vehiclecategoryid),
+                vehicle_json: normalizeVehicle({
+                    ...vehicle,
+                    imageurl: options.cacheImages ? await cacheVehicleImage(supabase, vehicle) : vehicle.imageurl,
+                    ...(keepAdminPrice ? {
+                        avgrate: existing.avgrate,
+                        totalratebeforediscount: existing.totalratebeforediscount,
+                        totalrateafterdiscount: existing.totalrateafterdiscount,
+                        totaldiscountamount: existing.totaldiscountamount,
+                        localPricePerDay: existing.localPricePerDay,
+                        pricingSource: 'admin',
+                    } : {}),
+                }),
+                active: true,
+                synced_at: syncedAt,
+                updated_at: syncedAt,
+            }
+        }))
 
     const { error } = await supabase
         .from('rcm_vehicle_cache')
@@ -97,12 +117,22 @@ export async function mergeRcmVehiclesWithCache(vehicles: any[]) {
     return vehicles.map(vehicle => {
         const local = byId.get(Number(vehicle.vehiclecategoryid))
         if (!local) return vehicle
+        const hasAdminPrice = local.pricingSource === 'admin' && Number(local.localPricePerDay) > 0
+        const localRate = hasAdminPrice ? Number(local.localPricePerDay) : Number(local.avgrate)
         return {
             ...local,
             ...vehicle,
-            avgrate: vehicle.avgrate ?? local.avgrate,
-            totalrate: vehicle.totalrate ?? local.totalrate,
-            totalrateafterdiscount: vehicle.totalrateafterdiscount ?? local.totalrateafterdiscount,
+            // A price saved from Admin is authoritative. In particular, do
+            // not let an older search-cache row restore a stale RCM rate.
+            avgrate: hasAdminPrice ? localRate : Number(vehicle.avgrate) > 0 ? vehicle.avgrate : local.avgrate,
+            totalrate: hasAdminPrice ? localRate : Number(vehicle.totalrate) > 0 ? vehicle.totalrate : local.totalrate,
+            totalrateafterdiscount: hasAdminPrice
+                ? localRate
+                : Number(vehicle.totalrateafterdiscount) > 0 ? vehicle.totalrateafterdiscount : local.totalrateafterdiscount,
+            totalratebeforediscount: hasAdminPrice
+                ? localRate
+                : Number(vehicle.totalratebeforediscount) > 0 ? vehicle.totalratebeforediscount : local.totalratebeforediscount,
+            totaldiscountamount: hasAdminPrice ? 0 : vehicle.totaldiscountamount ?? local.totaldiscountamount,
             imageurl: local.imageurl || vehicle.imageurl,
             categoryfriendlydescription: vehicle.categoryfriendlydescription || local.categoryfriendlydescription,
             vehiclecategory: vehicle.vehiclecategory || local.vehiclecategory,

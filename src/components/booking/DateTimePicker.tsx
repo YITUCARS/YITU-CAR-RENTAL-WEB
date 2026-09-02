@@ -62,36 +62,29 @@ function formatDisplay(ymd: string, locale: string) {
   })
 }
 
-/** Returns the earliest allowed pickup: NZ local time + 6 h, rounded up to
- *  the next 30-minute slot.  If the result pushes past midnight, rolls over
- *  to next day at 00:00.
+/** Returns the first selectable pickup slot based only on the current NZ time.
+ * The picker disables slots at or before this value, so rounding down keeps
+ * the next half-hour slot selectable while hiding already-past slots.
  */
 export function getNZMinPickup(): { minDate: string; minHour: string } {
   const now = new Date()
-  const earliest = new Date(now.getTime() + 6 * 60 * 60 * 1000)
 
-  let minDate = earliest.toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
+  const minDate = now.toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
 
   const nzHourRaw = parseInt(
-    earliest.toLocaleString('en-US', { timeZone: 'Pacific/Auckland', hour: '2-digit', hour12: false }),
+    now.toLocaleString('en-US', { timeZone: 'Pacific/Auckland', hour: '2-digit', hour12: false }),
     10,
   )
   const nzMinuteRaw = parseInt(
-    earliest.toLocaleString('en-US', { timeZone: 'Pacific/Auckland', minute: '2-digit' }),
+    now.toLocaleString('en-US', { timeZone: 'Pacific/Auckland', minute: '2-digit' }),
     10,
   )
 
-  let totalMinutes = nzHourRaw * 60 + nzMinuteRaw
-  totalMinutes = Math.ceil(totalMinutes / 30) * 30
-
-  if (totalMinutes >= 24 * 60) {
-    const nextDay = parseYMD(minDate)
-    nextDay.setDate(nextDay.getDate() + 1)
-    minDate = toYMD(nextDay)
-    totalMinutes = 0
-  }
-
-  totalMinutes = Math.max(0, Math.min(totalMinutes, 23 * 60 + 30))
+  const nzHour = nzHourRaw === 24 ? 0 : nzHourRaw
+  const totalMinutes = Math.max(
+    0,
+    Math.min(Math.floor((nzHour * 60 + nzMinuteRaw) / 30) * 30, 23 * 60 + 30),
+  )
   const minHour = `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`
 
   return { minDate, minHour }

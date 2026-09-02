@@ -32,7 +32,8 @@ export async function POST(req: NextRequest) {
 
 
     if (cached && now - cached.timestamp < CACHE_TTL) {
-        const priced = await addLocalPricing(cached.data?.availablecars || [])
+        const refreshedVehicles = await mergeRcmVehiclesWithCache(cached.data?.availablecars || [])
+        const priced = await addLocalPricing(refreshedVehicles)
         return NextResponse.json({ success: true, data: { ...cached.data, availablecars: priced.vehicles }, pricing: { mode: priced.mode, matched: priced.matched } }, {
             headers: { 'Cache-Control': 'public, max-age=300' },
         })
@@ -41,7 +42,8 @@ export async function POST(req: NextRequest) {
     const persistentCached = await getCachedRcmSearch(cacheKey, 2 * 60 * 1000)
     if (persistentCached) {
         searchCache.set(cacheKey, { data: persistentCached, timestamp: now })
-        const priced = await addLocalPricing(persistentCached?.availablecars || [])
+        const refreshedVehicles = await mergeRcmVehiclesWithCache(persistentCached?.availablecars || [])
+        const priced = await addLocalPricing(refreshedVehicles)
         return NextResponse.json({ success: true, data: { ...persistentCached, availablecars: priced.vehicles }, pricing: { mode: priced.mode, matched: priced.matched }, source: 'local-cache' }, {
             headers: { 'Cache-Control': 'public, max-age=120' },
         })
@@ -71,7 +73,10 @@ export async function POST(req: NextRequest) {
         const hasLiveAvailability = liveVehicles.some((vehicle: any) =>
             Number(vehicle.vehiclecategoryid) > 0 && (vehicle.available === 1 || String(vehicle.availablemessage || '').trim().toLowerCase() === 'available')
         )
-        await saveRcmVehicles(liveVehicles)
+        // Do not let an RCM short-notice response with zero rates erase the
+        // administrator's local base prices. Only refresh the catalogue from
+        // a genuinely live result, or persist rows that contain a real rate.
+        if (hasLiveAvailability) await saveRcmVehicles(liveVehicles)
         let vehiclesForDisplay = liveVehicles
         if (!hasLiveAvailability) {
             const cachedVehicles = await getCachedRcmVehicles()
@@ -92,7 +97,14 @@ export async function POST(req: NextRequest) {
             localFallback: !hasLiveAvailability && vehiclesForDisplay !== liveVehicles,
         }
         const priced = await addLocalPricing(mergedResults.availablecars)
-        const finalResults = { ...mergedResults, availablecars: priced.vehicles }
+        // Apply the local base rate to fallback cards only. Live RCM cards keep
+        // their live price, while manual-confirmation cards need a usable quote
+        // even when RCM rejects the short-notice availability request.
+        const finalVehicles = priced.vehicles.map((vehicle: any) => {
+            if (!vehicle.localFallback || vehicle.avgrate > 0 || !vehicle.localPricingPreview?.avgrate) return vehicle
+            return { ...vehicle, ...vehicle.localPricingPreview, pricingSource: 'local' }
+        })
+        const finalResults = { ...mergedResults, availablecars: finalVehicles }
         await saveRcmSearch(cacheKey, finalResults)
         searchCache.set(cacheKey, { data: finalResults, timestamp: now })
 

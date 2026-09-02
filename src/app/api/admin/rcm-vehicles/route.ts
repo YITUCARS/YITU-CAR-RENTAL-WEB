@@ -51,3 +51,50 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ success: false, error: err.message }, { status: 500 })
     }
 }
+
+export async function PATCH(req: NextRequest) {
+    if (req.headers.get('x-admin-token') !== process.env.ADMIN_PASSWORD) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    try {
+        const body = await req.json()
+        const vehiclecategoryid = Number(body.vehiclecategoryid)
+        const pricePerDay = Number(body.price_per_day)
+        if (!vehiclecategoryid || !Number.isFinite(pricePerDay) || pricePerDay <= 0) {
+            return NextResponse.json({ error: '请输入有效的每日价格' }, { status: 400 })
+        }
+
+        const { getSupabaseAdmin } = await import('@/lib/supabase-admin')
+        const supabase = getSupabaseAdmin()
+        const { data: current, error: readError } = await supabase
+            .from('rcm_vehicle_cache')
+            .select('vehicle_json')
+            .eq('vehiclecategoryid', vehiclecategoryid)
+            .maybeSingle()
+        if (readError) throw readError
+        if (!current) return NextResponse.json({ error: '未找到该车型缓存' }, { status: 404 })
+
+        const updatedAt = new Date().toISOString()
+        const { error } = await supabase
+            .from('rcm_vehicle_cache')
+            .update({
+                vehicle_json: {
+                    ...(current.vehicle_json || {}),
+                    avgrate: pricePerDay,
+                    totalratebeforediscount: pricePerDay,
+                    totalrateafterdiscount: pricePerDay,
+                    totaldiscountamount: 0,
+                    localPricePerDay: pricePerDay,
+                    pricingSource: 'admin',
+                },
+                updated_at: updatedAt,
+            })
+            .eq('vehiclecategoryid', vehiclecategoryid)
+        if (error) throw error
+        return NextResponse.json({ success: true, vehiclecategoryid, price_per_day: pricePerDay })
+    } catch (error: any) {
+        console.error('[admin/rcm-vehicles] price update failed:', error.message)
+        return NextResponse.json({ error: error.message || '保存失败' }, { status: 500 })
+    }
+}

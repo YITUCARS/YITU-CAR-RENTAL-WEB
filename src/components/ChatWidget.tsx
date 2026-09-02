@@ -1191,6 +1191,8 @@ export default function ChatWidget() {
     const [storedBookingMeta, setStoredBookingMeta] = useState({ driverAge: 'over26', pickupTime: '10:00', dropoffTime: '10:00' })
     const [showPageHint, setShowPageHint] = useState(false)
     const [pageHintsDisabled, setPageHintsDisabled] = useState(false)
+    const [showRequestContactCard, setShowRequestContactCard] = useState(false)
+    const [requestContactRef, setRequestContactRef] = useState('')
     const [floatingPosition, setFloatingPosition] = useState<{ left: number; top: number } | null>(null)
     const [isDraggingFloatingButton, setIsDraggingFloatingButton] = useState(false)
 
@@ -1245,6 +1247,20 @@ export default function ChatWidget() {
     }
 
     useEffect(() => { openRef.current = open }, [open])
+
+    useEffect(() => {
+        function handleManualRequestSuccess(event: Event) {
+            const detail = (event as CustomEvent<{ requestRef?: string }>).detail
+            setRequestContactRef(detail?.requestRef || '')
+            setShowRequestContactCard(true)
+            setShowPageHint(false)
+            setShowLanguageChoice(false)
+            setOpen(true)
+        }
+
+        window.addEventListener('yitu:manual-request-success', handleManualRequestSuccess)
+        return () => window.removeEventListener('yitu:manual-request-success', handleManualRequestSuccess)
+    }, [])
 
     useEffect(() => {
         const detected = detectChatLocale()
@@ -1360,7 +1376,7 @@ export default function ChatWidget() {
         const container = messagesContainerRef.current
         if (!container) return
         container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
-    }, [messages, open, showContactForm, showQuickFinder, quickFinderSubmitted, chatBooking, showDriverDetails, showPaymentPanel, chatPaymentClientSecret])
+    }, [messages, open, showContactForm, showQuickFinder, quickFinderSubmitted, chatBooking, showDriverDetails, showPaymentPanel, chatPaymentClientSecret, showRequestContactCard])
 
     useEffect(() => {
         if (!open || !sessionId || unreadCount === 0) return
@@ -2234,6 +2250,65 @@ export default function ChatWidget() {
                                 clientSecret={chatPaymentClientSecret}
                                 reservation={chatPaymentReservation}
                             />
+                        )}
+
+                        {showRequestContactCard && (
+                            <div className="mb-4 rounded-2xl border border-orange/20 bg-white p-4 shadow-sm">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-orange">
+                                            {chatLocale === 'zh' ? '申请已提交' : 'Request submitted'}
+                                        </div>
+                                        <h4 className="mt-1 text-[16px] font-bold text-navy">
+                                            {chatLocale === 'zh' ? '想要快速联系我们？' : 'Want to reach us quickly?'}
+                                        </h4>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowRequestContactCard(false)}
+                                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-lg leading-none text-muted transition-colors hover:bg-black/5 hover:text-navy"
+                                        aria-label={chatLocale === 'zh' ? '关闭联系方式' : 'Close contact details'}
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                                <p className="mt-2 text-[12px] leading-relaxed text-muted">
+                                    {chatLocale === 'zh'
+                                        ? '你也可以通过微信、邮箱或电话联系我们，加快确认你的车辆申请。'
+                                        : 'You can also contact us by WeChat, email, or phone for faster help with your vehicle request.'}
+                                </p>
+                                <div className="mt-3 grid gap-3 sm:grid-cols-[96px_1fr] sm:items-center">
+                                    <div className="rounded-xl border border-black/10 bg-white p-1.5">
+                                        <Image
+                                            src="/f41e600cbd0ea4695121c50896f17aab.JPG"
+                                            alt="YITU WeChat QR code"
+                                            width={300}
+                                            height={300}
+                                            className="h-[84px] w-full rounded-lg object-contain"
+                                        />
+                                    </div>
+                                    <div className="space-y-2 text-[12px] text-navy">
+                                        <div className="rounded-lg bg-[#07c160]/10 px-3 py-2">
+                                            <span className="font-semibold text-[#078b49]">WeChat</span>
+                                            <span className="ml-2 break-all font-bold">YituPrestigeCar</span>
+                                        </div>
+                                        <a href="mailto:booking@yiturentalcars.co.nz" className="block rounded-lg bg-off-white px-3 py-2 font-semibold transition-colors hover:text-orange">
+                                            booking@yiturentalcars.co.nz
+                                        </a>
+                                        <a href="tel:+64273922666" className="block rounded-lg bg-off-white px-3 py-2 font-semibold transition-colors hover:text-orange">
+                                            0800 948 888
+                                        </a>
+                                        <a href="tel:+64273922666" className="block rounded-lg bg-off-white px-3 py-2 font-semibold transition-colors hover:text-orange">
+                                            +64 27 3922 666 / +64 21 873 789
+                                        </a>
+                                    </div>
+                                </div>
+                                {requestContactRef && (
+                                    <div className="mt-3 text-[10px] text-muted">
+                                        {chatLocale === 'zh' ? '申请编号' : 'Request reference'}: <strong className="text-navy">{requestContactRef}</strong>
+                                    </div>
+                                )}
+                            </div>
                         )}
 
                         {/* Contact form (inline in chat) */}

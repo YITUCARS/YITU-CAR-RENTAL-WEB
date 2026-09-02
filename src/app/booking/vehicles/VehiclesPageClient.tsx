@@ -29,6 +29,12 @@ interface RCMVehicle {
     availablemessage: string
     nextAvailableDate?: string
     localFallback?: boolean
+    localPricePerDay?: number
+    localPricingPreview?: {
+        avgrate?: number
+        totalratebeforediscount?: number
+        totalrateafterdiscount?: number
+    }
     fuel?: string
     fueltype?: string
 }
@@ -107,10 +113,10 @@ const VEHICLES_COPY = {
         updateResultsFirst: 'Update Results First',
         select: 'Select',
         bookingTimeNotice: 'Booking Time Notice',
-        christchurchTiming: 'Christchurch Location does not accept bookings less than 6 hours from now.',
-        otherTiming: 'Other Locations do not accept bookings less than 24 hours from now.',
+        christchurchTiming: 'Bookings within 6 hours require staff confirmation. You can still submit a booking request and our team will contact you shortly.',
+        otherTiming: 'Bookings within 24 hours require staff confirmation. You can still submit a booking request and our team will contact you shortly.',
         timingBody: 'Some vehicles may be unavailable for your selected dates. Please adjust your pick-up date and time and search again.',
-        timingCta: "Got it, I'll adjust my dates",
+        timingCta: 'Yes, I understand',
         close: 'Close',
         unavailableLoad: 'Unable to load available vehicles. Please try again.',
         networkError: 'Network error. Please try again.',
@@ -118,7 +124,20 @@ const VEHICLES_COPY = {
         nextAvailable: 'Next available hire date',
         checkNextAvailable: 'Check next available date',
         useThisDate: 'Search this date',
-        requestBooking: 'Request booking · human confirmation',
+        requestBooking: 'Request booking · staff confirmation',
+        requestTitle: 'Request this vehicle',
+        requestBody: 'This vehicle requires staff confirmation for your selected time. Leave your contact details and our team will confirm availability with you.',
+        firstName: 'First name',
+        lastName: 'Last name',
+        email: 'Email',
+        phone: 'Phone number',
+        wechat: 'WeChat ID',
+        optional: 'optional',
+        submitRequest: 'Submit booking request',
+        submittingRequest: 'Submitting…',
+        requestSuccessTitle: 'Request submitted',
+        requestSuccessBody: 'Thanks. Our team has received your request and will contact you shortly.',
+        requestReference: 'Request reference',
     },
     zh: {
         refineSearch: '筛选搜索',
@@ -166,10 +185,10 @@ const VEHICLES_COPY = {
         updateResultsFirst: '请先更新结果',
         select: '选择',
         bookingTimeNotice: '预订时间提示',
-        christchurchTiming: '基督城门店不接受距离当前时间少于 6 小时的预订。',
-        otherTiming: '其他门店不接受距离当前时间少于 24 小时的预订。',
+        christchurchTiming: '距离取车少于 6 小时，需要人工确认。您仍可提交预订申请，我们的客服会尽快与您联系。',
+        otherTiming: '距离取车少于 24 小时，需要人工确认。您仍可提交预订申请，我们的客服会尽快与您联系。',
         timingBody: '你选择的日期可能导致部分车辆不可预订，请调整取车日期和时间后重新搜索。',
-        timingCta: '好的，我来调整日期',
+        timingCta: '好的，我了解了',
         close: '关闭',
         unavailableLoad: '无法加载可预订车辆，请稍后再试。',
         networkError: '网络错误，请稍后再试。',
@@ -177,7 +196,20 @@ const VEHICLES_COPY = {
         nextAvailable: '下一可租日期',
         checkNextAvailable: '查询下一可用日期',
         useThisDate: '用这个日期搜索',
-        requestBooking: '申请预订，人工客服确认',
+        requestBooking: '申请预订，员工确认',
+        requestTitle: '申请预订这台车',
+        requestBody: '您选择的时间需要员工手动确认。请留下联系方式，我们的客服会确认车辆是否可用并联系您。',
+        firstName: '名字',
+        lastName: '姓氏',
+        email: '邮箱',
+        phone: '电话号码',
+        wechat: '微信号',
+        optional: '可选',
+        submitRequest: '提交预订申请',
+        submittingRequest: '提交中…',
+        requestSuccessTitle: '申请已提交',
+        requestSuccessBody: '感谢您，我们已收到申请，客服会尽快与您联系。',
+        requestReference: '申请编号',
     },
 } as const
 
@@ -214,12 +246,14 @@ function getLocationLabel(locale: string, location: string) {
 }
 
 function getAvailabilityLabel(locale: string, message: string) {
-    if (locale !== 'zh') return message
     const normalized = message.trim().toLowerCase()
+    if (normalized === 'request booking - human confirmation required') {
+        return locale === 'zh' ? '申请预订，员工确认' : 'Request booking · staff confirmation'
+    }
+    if (locale !== 'zh') return message
     if (normalized === 'available') return '可预订'
     if (normalized === 'fully booked') return '已订满'
     if (normalized === 'unavailable for selected dates') return '所选日期不可订'
-    if (normalized === 'request booking - human confirmation required') return '申请预订，人工客服确认'
     return message
 }
 
@@ -284,11 +318,19 @@ function PriceDisplay({ value }: { value: number }) {
 
 function getVehiclePricing(vehicle: RCMVehicle, days: number) {
     const safeDays = Math.max(days, 1)
-    const baseRatePerDay = roundMoney(vehicle.avgrate)
+    const cachedRate = Number(vehicle.localPricePerDay || vehicle.localPricingPreview?.avgrate || 0)
+    const baseRatePerDay = roundMoney(vehicle.localFallback && cachedRate > 0
+        ? cachedRate
+        : Number(vehicle.avgrate) > 0 ? vehicle.avgrate : cachedRate)
     const baseTotal = roundMoney(baseRatePerDay * safeDays)
 
     let promoDiscount = 0
-    if (vehicle.totaldiscountamount > 0) {
+    // RCM can return an old total-rate field on short-notice fallback rows.
+    // It is not a promo discount, so local request quotes must use the full
+    // cached daily price multiplied by the rental days.
+    if (vehicle.localFallback) {
+        promoDiscount = 0
+    } else if (vehicle.totaldiscountamount > 0) {
         promoDiscount = roundMoney(vehicle.totaldiscountamount)
     } else if (vehicle.totalrateafterdiscount > 0 && vehicle.totalrateafterdiscount < baseTotal) {
         promoDiscount = roundMoney(baseTotal - vehicle.totalrateafterdiscount)
@@ -588,6 +630,11 @@ export default function VehiclesPage() {
     const [appliedSearchForm, setAppliedSearchForm] = useState<SearchFormState>(searchForm)
     const [appliedPromoCode, setAppliedPromoCode] = useState(initialPromoCode.toUpperCase())
     const [nextAvailabilityLoading, setNextAvailabilityLoading] = useState<Record<string, boolean>>({})
+    const [requestVehicle, setRequestVehicle] = useState<RCMVehicle | null>(null)
+    const [requestForm, setRequestForm] = useState({ firstName: '', lastName: '', email: '', phone: '', wechat: '' })
+    const [requestSubmitting, setRequestSubmitting] = useState(false)
+    const [requestError, setRequestError] = useState('')
+    const [requestSuccessRef, setRequestSuccessRef] = useState('')
 
     const days = calcDays(appliedSearchForm.pickupDate, appliedSearchForm.pickupTime, appliedSearchForm.dropoffDate, appliedSearchForm.dropoffTime)
     const hasUnappliedSearchChanges =
@@ -808,6 +855,52 @@ export default function VehiclesPage() {
         router.push(`/${locale}/booking/extras`)
     }
 
+    function openManualRequest(vehicle: RCMVehicle) {
+        setRequestVehicle(vehicle)
+        setRequestForm({ firstName: '', lastName: '', email: '', phone: '', wechat: '' })
+        setRequestError('')
+        setRequestSuccessRef('')
+    }
+
+    async function submitManualRequest() {
+        if (!requestVehicle) return
+        if (!requestForm.firstName.trim() || !requestForm.lastName.trim() || !requestForm.email.trim() || !requestForm.phone.trim()) {
+            setRequestError(locale === 'zh' ? '请填写所有联系信息。' : 'Please complete all contact fields.')
+            return
+        }
+
+        setRequestSubmitting(true)
+        setRequestError('')
+        const pricing = getVehiclePricing(requestVehicle, days)
+        try {
+            const response = await fetch('/api/booking/manual-request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                                        ...requestForm,
+                    pickupDate: appliedSearchForm.pickupDate,
+                    pickupTime: appliedSearchForm.pickupTime,
+                    dropoffDate: appliedSearchForm.dropoffDate,
+                    dropoffTime: appliedSearchForm.dropoffTime,
+                    pickupLocation: appliedSearchForm.pickupLocation,
+                    dropoffLocation: appliedSearchForm.dropoffLocation,
+                    vehicleName: requestVehicle.categoryfriendlydescription || requestVehicle.vehiclecategory,
+                    total: pricing.discountedTotal,
+                }),
+            })
+            const result = await response.json()
+            if (!response.ok || !result.success) throw new Error(result.error || 'Unable to submit booking request.')
+            setRequestSuccessRef(result.requestRef || '')
+            window.dispatchEvent(new CustomEvent('yitu:manual-request-success', {
+                detail: { requestRef: result.requestRef || '' },
+            }))
+        } catch (error) {
+            setRequestError(error instanceof Error ? error.message : (locale === 'zh' ? '提交失败，请稍后再试。' : 'Unable to submit. Please try again.'))
+        } finally {
+            setRequestSubmitting(false)
+        }
+    }
+
     async function lookupNextAvailableDate(vehicle: RCMVehicle) {
         const id = String(vehicle.vehiclecategoryid)
         setNextAvailabilityLoading(current => ({ ...current, [id]: true }))
@@ -998,6 +1091,7 @@ export default function VehiclesPage() {
                                         {filteredVehicles.map(vehicle => {
                                             const pricing = getVehiclePricing(vehicle, days)
                                             const selectable = isVehicleSelectable(vehicle)
+                                            const requestable = !selectable && pricing.effectivePerDay > 0
                                             const electric = isElectricVehicle(vehicle)
                                             return (
                                             <div
@@ -1074,22 +1168,25 @@ export default function VehiclesPage() {
                                                                 </>
                                                             ) : (
                                                                 <div className="space-y-2">
-                                                                    {vehicle.localFallback && pricing.effectivePerDay > 0 ? <><div className="text-[16px] text-muted">$<PriceDisplay value={pricing.effectivePerDay} />{copy.perDay} × {days} {days === 1 ? copy.day : copy.days}</div><div className="text-[11px] font-medium text-muted">NZD $<PriceDisplay value={pricing.discountedTotal} /> {copy.total}</div></> : <div className="text-[13px] text-muted font-medium">{copy.priceUnavailable}</div>}
+                                                                    {requestable ? <>
+                                                                        <div className="text-[16px] text-muted mb-0.5">$<PriceDisplay value={pricing.effectivePerDay} />{copy.perDay} × {days} {days === 1 ? copy.day : copy.days}</div>
+                                                                        <div className="font-syne font-extrabold text-[1.8rem] text-navy leading-none"><span className="text-[13px] font-bold">NZD</span>&nbsp;$<PriceDisplay value={pricing.discountedTotal} /><span className="text-[13px] font-normal text-muted ml-1">{copy.total}</span></div>
+                                                                    </> : <div className="text-[13px] text-muted font-medium">{copy.priceUnavailable}</div>}
                                                                     {vehicle.nextAvailableDate ? <div className="rounded-xl border border-orange/20 bg-orange/5 px-3 py-2"><div className="text-[11px] font-bold text-orange">{copy.nextAvailable}: {vehicle.nextAvailableDate}</div><button type="button" onClick={() => useNextAvailableDate(vehicle)} className="mt-1 text-[11px] font-bold text-navy underline underline-offset-2">{copy.useThisDate}</button></div> : !vehicle.localFallback && <button type="button" onClick={() => lookupNextAvailableDate(vehicle)} disabled={nextAvailabilityLoading[String(vehicle.vehiclecategoryid)]} className="rounded-xl border border-orange/20 bg-orange/5 px-3 py-2 text-[11px] font-bold text-orange transition-colors hover:bg-orange/10 disabled:opacity-50">{nextAvailabilityLoading[String(vehicle.vehiclecategoryid)] ? `${copy.checkNextAvailable}...` : copy.checkNextAvailable}</button>}
                                                                 </div>
                                                             )}
                                                         </div>
                                                         <button
                                                             type="button"
-                                                            disabled={!selectable || hasUnappliedSearchChanges}
-                                                            onClick={() => selectVehicle(vehicle)}
+                                                            disabled={(!selectable && !requestable) || hasUnappliedSearchChanges}
+                                                            onClick={() => requestable ? openManualRequest(vehicle) : selectVehicle(vehicle)}
                                                             className={`flex items-center gap-2 text-white font-syne font-bold text-[14px] px-6 py-3 rounded-xl transition-all ${
-                                                                selectable && !hasUnappliedSearchChanges
+                                                                (selectable || requestable) && !hasUnappliedSearchChanges
                                                                     ? 'bg-orange hover:bg-orange-dark hover:scale-[1.02] shadow-orange-glow'
                                                                     : 'bg-gray-300 text-white/90 cursor-not-allowed shadow-none'
                                                             }`}
                                                         >
-                                                            {hasUnappliedSearchChanges ? copy.updateResultsFirst : vehicle.localFallback ? copy.requestBooking : copy.select} <ArrowRight size={15} />
+                                                            {hasUnappliedSearchChanges ? copy.updateResultsFirst : requestable ? copy.requestBooking : copy.select} <ArrowRight size={15} />
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1127,6 +1224,78 @@ export default function VehiclesPage() {
                     />
                 </div>
             </div>
+
+            {requestVehicle && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                    <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
+                        <button
+                            type="button"
+                            onClick={() => setRequestVehicle(null)}
+                            className="absolute right-4 top-4 text-muted transition-colors hover:text-navy"
+                            aria-label={copy.close}
+                        >
+                            <span className="text-2xl leading-none">×</span>
+                        </button>
+
+                        {requestSuccessRef ? (
+                            <div className="py-8 text-center">
+                                <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-green-50 text-2xl text-green-600">✓</div>
+                                <h2 className="font-syne text-xl font-bold text-navy">{copy.requestSuccessTitle}</h2>
+                                <p className="mt-3 text-sm leading-relaxed text-muted">{copy.requestSuccessBody}</p>
+                                <p className="mt-5 rounded-xl bg-off-white px-4 py-3 text-xs text-muted">
+                                    {copy.requestReference}: <strong className="text-navy">{requestSuccessRef}</strong>
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => setRequestVehicle(null)}
+                                    className="mt-6 w-full rounded-xl bg-orange py-3 text-sm font-bold text-white transition-colors hover:bg-orange-dark"
+                                >
+                                    {copy.close}
+                                </button>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="mb-6 pr-8">
+                                    <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-orange">{copy.requestBooking}</div>
+                                    <h2 className="mt-1 font-syne text-xl font-bold text-navy">{copy.requestTitle}</h2>
+                                    <p className="mt-3 text-sm leading-relaxed text-muted">{copy.requestBody}</p>
+                                    <p className="mt-3 text-sm font-semibold text-navy">
+                                        {requestVehicle.categoryfriendlydescription || requestVehicle.vehiclecategory}
+                                    </p>
+                                </div>
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    {([
+                                        ['firstName', copy.firstName, false],
+                                        ['lastName', copy.lastName, false],
+                                        ['email', copy.email, false],
+                                        ['phone', copy.phone, false],
+                                        ['wechat', copy.wechat, true],
+                                    ] as const).map(([field, label]) => (
+                                        <label key={field} className="block">
+                                            <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">{label}{field === 'wechat' && <span className="ml-1 normal-case font-medium tracking-normal text-muted/70">({copy.optional})</span>}</span>
+                                            <input
+                                                type={field === 'email' ? 'email' : field === 'phone' ? 'tel' : 'text'}
+                                                value={requestForm[field]}
+                                                onChange={event => setRequestForm(current => ({ ...current, [field]: event.target.value }))}
+                                                className="w-full rounded-xl border border-black/10 bg-off-white px-4 py-3 text-sm text-navy outline-none transition-colors focus:border-orange"
+                                            />
+                                        </label>
+                                    ))}
+                                </div>
+                                {requestError && <p className="mt-4 text-sm text-red-500">{requestError}</p>}
+                                <button
+                                    type="button"
+                                    onClick={submitManualRequest}
+                                    disabled={requestSubmitting}
+                                    className="mt-6 w-full rounded-xl bg-orange py-3 text-sm font-bold text-white transition-colors hover:bg-orange-dark disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {requestSubmitting ? copy.submittingRequest : copy.submitRequest}
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {showTimingModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
