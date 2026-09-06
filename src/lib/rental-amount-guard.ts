@@ -23,38 +23,53 @@ function guardMode(): 'observe' | 'enforce' {
   return process.env.RENTAL_AMOUNT_GUARD === 'enforce' ? 'enforce' : 'observe'
 }
 
-/** Fields the supplier might carry the booking total in, most specific first. */
-const TOTAL_FIELDS = [
-  'totalcharge',
-  'totalamount',
-  'grandtotal',
-  'totalrateafterdiscount',
-  'total',
-  'amountdue',
-  'balance',
-]
+/**
+ * Reads a positive number off a record, or null.
+ *
+ * Amounts come back from the supplier as either numbers or numeric strings.
+ */
+function amountOf(record: unknown, field: string): number | null {
+  if (!record || typeof record !== 'object') return null
+  const raw = (record as Record<string, unknown>)[field]
+  if (raw === null || raw === '' || typeof raw === 'object') return null
+  const amount = typeof raw === 'number' ? raw : Number(raw)
+  return Number.isFinite(amount) && amount > 0 ? amount : null
+}
 
-function readTotalCents(info: unknown): { cents: number; field: string } | null {
+/** The supplier returns each section as an array; the booking is the first entry. */
+function section(info: unknown, key: string): unknown {
   if (!info || typeof info !== 'object') return null
-  const record = info as Record<string, unknown>
-  // Some responses nest the booking under a wrapper key.
-  const candidates: Record<string, unknown>[] = [record]
-  for (const value of Object.values(record)) {
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
-      candidates.push(value as Record<string, unknown>)
-    }
+  const value = (info as Record<string, unknown>)[key]
+  return Array.isArray(value) ? (value[0] ?? null) : (value ?? null)
+}
+
+/**
+ * The booking total, in cents.
+ *
+ * Field names here are taken from a real bookinginfo response, not guessed:
+ * the total lives at bookinginfo[0].totalcost. Cancelled bookings come back
+ * with totalcost zeroed, so the rate plus its fees acts as a fallback for any
+ * state where the supplier has not filled the total in.
+ */
+function readTotalCents(info: unknown): { cents: number; field: string } | null {
+  const booking = section(info, 'bookinginfo')
+  const totalCost = amountOf(booking, 'totalcost')
+  if (totalCost !== null) {
+    return { cents: Math.round(totalCost * 100), field: 'bookinginfo.totalcost' }
   }
 
-  for (const candidate of candidates) {
-    for (const field of TOTAL_FIELDS) {
-      const raw = candidate[field]
-      const amount = typeof raw === 'number' ? raw : Number(raw)
-      if (Number.isFinite(amount) && amount > 0) {
-        return { cents: Math.round(amount * 100), field }
-      }
-    }
+  const subtotal = amountOf(section(info, 'rateinfo'), 'ratesubtotal')
+  if (subtotal === null) return null
+
+  const extras = (info as Record<string, unknown> | null)?.extrafees
+  const fees = Array.isArray(extras)
+    ? extras.reduce((sum: number, fee) => sum + (amountOf(fee, 'totalfeeamount') ?? 0), 0)
+    : 0
+
+  return {
+    cents: Math.round((subtotal + fees) * 100),
+    field: 'rateinfo.ratesubtotal+extrafees',
   }
-  return null
 }
 
 export async function checkRentalPaymentAmount(input: {

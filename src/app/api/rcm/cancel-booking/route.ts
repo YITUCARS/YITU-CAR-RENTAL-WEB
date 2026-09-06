@@ -70,13 +70,22 @@ export async function POST(req: NextRequest) {
           reservationref: cleanRef(reservationRef),
           lastname: surname,
         })
-        const payments = info?.payments || info?.payment || []
-        const paidFromSupplier = Array.isArray(payments)
-          ? payments.reduce(
-              (total: number, item: any) => total + (Number(item?.amount) || 0),
-              0,
-            )
-          : Number(info?.paidamount ?? info?.amountpaid ?? 0)
+        // Field names below come from a real bookinginfo response: the amount
+        // already taken sits at bookinginfo[0].payment, with the individual
+        // transactions listed under paymentinfo.
+        const booking = Array.isArray(info?.bookinginfo)
+          ? info.bookinginfo[0]
+          : info?.bookinginfo
+        let paidFromSupplier = Number(booking?.payment ?? 0)
+
+        if (!(paidFromSupplier > 0) && Array.isArray(info?.paymentinfo)) {
+          paidFromSupplier = info.paymentinfo.reduce(
+            (total: number, item: any) =>
+              total + (Number(item?.amount ?? item?.paymentamount ?? 0) || 0),
+            0,
+          )
+        }
+
         if (Number.isFinite(paidFromSupplier) && paidFromSupplier > 0) {
           paidAmount = paidFromSupplier
         }
