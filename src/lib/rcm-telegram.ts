@@ -1,4 +1,4 @@
-import { rcmCallWithApiKey, toRCMDate } from '@/lib/rcm'
+import { rcmCall, rcmCallWithApiKey, toRCMDate } from '@/lib/rcm'
 import { normalizeBooking, pickString } from '@/lib/staff-api'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { escapeTelegramHtml, sendTelegramMessage } from '@/lib/telegram'
@@ -91,6 +91,53 @@ function normalizeSourceLabel(body: any) {
   return 'YITU Website'
 }
 
+/**
+ * The booking total according to the supplier, or 0 if it cannot be read.
+ *
+ * Clients disagree about what to call the total, and some send no amount at
+ * all, which is how bookings ended up being announced as NZD 0.00. The
+ * supplier holds the authoritative figure at bookinginfo[0].totalcost, so ask
+ * it rather than guessing at the caller's field names.
+ *
+ * Never throws: a notification with a wrong total still beats no notification.
+ */
+export async function readTotalFromSupplier(
+  reservationRef: string,
+  lastName: string,
+): Promise<number> {
+  if (!reservationRef || !lastName) return 0
+  try {
+    const info: any = await rcmCall('bookinginfo', {
+      reservationref: reservationRef,
+      lastname: lastName,
+    })
+    const booking = Array.isArray(info?.bookinginfo)
+      ? info.bookinginfo[0]
+      : info?.bookinginfo
+    const total = Number(booking?.totalcost ?? 0)
+    if (Number.isFinite(total) && total > 0) return total
+
+    // Cancelled bookings come back with totalcost zeroed; the rate plus its
+    // fees still describes what the booking was worth.
+    const rate = Array.isArray(info?.rateinfo) ? info.rateinfo[0] : info?.rateinfo
+    const subtotal = Number(rate?.ratesubtotal ?? 0)
+    const fees = Array.isArray(info?.extrafees)
+      ? info.extrafees.reduce(
+          (sum: number, fee: any) => sum + (Number(fee?.totalfeeamount) || 0),
+          0,
+        )
+      : 0
+    const fallback = subtotal + fees
+    return Number.isFinite(fallback) && fallback > 0 ? fallback : 0
+  } catch (error) {
+    console.warn(
+      '[rcm-telegram] could not read the booking total from the supplier:',
+      error instanceof Error ? error.message : error,
+    )
+    return 0
+  }
+}
+
 export async function notifyWebsiteBookingCreated(params: { body: any; result: any }) {
   const supabase = getSupabaseAdmin()
   const { body, result } = params
@@ -101,6 +148,25 @@ export async function notifyWebsiteBookingCreated(params: { body: any; result: a
 
   const customerName = `${pickFirst(body?.firstName)} ${pickFirst(body?.lastName)}`.trim()
   const sourceLabel = normalizeSourceLabel(body)
+
+  // Prefer whatever the caller sent, but fall back to the supplier rather than
+  // announcing NZD 0.00 when the caller used a field name we do not know.
+  let totalAmount = Number(
+    body?.totalAmount ??
+      body?.grandTotal ??
+      body?.totalPrice ??
+      body?.total ??
+      result?.total ??
+      result?.totalcost ??
+      0,
+  )
+  if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
+    totalAmount = await readTotalFromSupplier(
+      String(reservationRef || ''),
+      String(pickFirst(body?.lastName) || '').trim(),
+    )
+  }
+
   const booking = {
     bookingRef: reservationRef || key,
     reservationNo: reservationNo || null,
@@ -112,7 +178,7 @@ export async function notifyWebsiteBookingCreated(params: { body: any; result: a
     pickupLocation: pickFirst(body?.pickupLocation, body?.pickupLocationName, body?.pickupLocationId),
     dropoffLocation: pickFirst(body?.dropoffLocation, body?.dropoffLocationName, body?.dropoffLocationId),
     vehicleModel: pickFirst(body?.vehicleName, body?.vehicleCategoryName, body?.vehicleCategoryId),
-    total: Number(body?.totalAmount ?? body?.grandTotal ?? body?.totalPrice ?? body?.total ?? result?.total ?? result?.totalcost ?? 0),
+    total: totalAmount,
     status: 'awaiting_payment',
     raw: {
       ...result,
