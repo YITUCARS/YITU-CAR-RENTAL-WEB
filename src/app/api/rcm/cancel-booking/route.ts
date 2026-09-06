@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { rcmCall } from '@/lib/rcm'
+import { evaluateOwnership, logOwnership } from '@/lib/rental-ownership-guard'
 
 function cleanRef(value: any) {
   return String(value || '').trim().replace(/^#/, '')
@@ -35,6 +36,51 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing reservation reference.' }, { status: 400 })
     }
 
+    // Step 0: Read the booking once, before anything is changed.
+    //
+    // This has to come first for two reasons. The caller's right to cancel is
+    // checked against the customer on file, and checking after the fact would
+    // be no check at all. And the amount paid is read here rather than after
+    // cancellation, because a cancelled booking comes back from the supplier
+    // with its money fields zeroed.
+    const surname = String(lastName || customerDetails?.lastName || '').trim()
+    const claimedEmail = String(
+      customerDetails?.email || bookingDetails?.email || '',
+    ).trim()
+
+    let bookingInfo: any = null
+    try {
+      bookingInfo = await rcmCall('bookinginfo', {
+        reservationref: cleanRef(reservationRef),
+        lastname: surname,
+      })
+    } catch (lookupErr: any) {
+      console.warn(
+        '[cancel-booking] could not read the booking from the supplier:',
+        lookupErr?.message,
+      )
+    }
+
+    const ownership = evaluateOwnership(bookingInfo, {
+      lastName: surname,
+      email: claimedEmail,
+    })
+    logOwnership('cancel-booking', cleanRef(reservationRef), ownership, {
+      lastName: surname,
+      email: claimedEmail,
+    })
+    if (ownership.shouldBlock) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            'We could not match those details to this booking. Please check the surname or email used to book.',
+          code: 'OWNERSHIP_UNVERIFIED',
+        },
+        { status: 403 },
+      )
+    }
+
     // Step 1: Cancel the booking in RCM
     try {
       await rcmCall('cancelbooking', {
@@ -55,35 +101,24 @@ export async function POST(req: NextRequest) {
 
     // Step 2: Attempt automatic refund via RCM payment transaction.
     //
-    // The refund amount is read back from the supplier, never taken from the
+    // The refund amount comes from the booking read in step 0, never from the
     // request: `bookingDetails.paidAmount` is client-supplied, so trusting it
-    // would let a caller choose how much to refund themselves.
-    //
-    // The lookup is keyed on the reference alone. The supplier accepts and
-    // ignores lastname — it returns the same booking for a wrong surname, an
-    // empty one, or none at all — so requiring a surname here would deny
-    // refunds to callers that do not send one without gaining any check in
-    // return. A bad reference is what the supplier actually rejects.
+    // would let a caller choose how much to refund themselves. Field names are
+    // taken from a real bookinginfo response — the amount already taken sits
+    // at bookinginfo[0].payment, with the individual transactions listed under
+    // paymentinfo. No figure from the supplier means no refund.
     let refundSuccess = false
     let refundError = ''
     let paidAmount = 0
 
-    const surname = String(lastName || customerDetails?.lastName || '').trim()
-    try {
-      const info: any = await rcmCall('bookinginfo', {
-        reservationref: cleanRef(reservationRef),
-        lastname: surname,
-      })
-      // Field names below come from a real bookinginfo response: the amount
-      // already taken sits at bookinginfo[0].payment, with the individual
-      // transactions listed under paymentinfo.
-      const booking = Array.isArray(info?.bookinginfo)
-        ? info.bookinginfo[0]
-        : info?.bookinginfo
+    {
+      const booking = Array.isArray(bookingInfo?.bookinginfo)
+        ? bookingInfo.bookinginfo[0]
+        : bookingInfo?.bookinginfo
       let paidFromSupplier = Number(booking?.payment ?? 0)
 
-      if (!(paidFromSupplier > 0) && Array.isArray(info?.paymentinfo)) {
-        paidFromSupplier = info.paymentinfo.reduce(
+      if (!(paidFromSupplier > 0) && Array.isArray(bookingInfo?.paymentinfo)) {
+        paidFromSupplier = bookingInfo.paymentinfo.reduce(
           (total: number, item: any) =>
             total + (Number(item?.amount ?? item?.paymentamount ?? 0) || 0),
           0,
@@ -93,12 +128,6 @@ export async function POST(req: NextRequest) {
       if (Number.isFinite(paidFromSupplier) && paidFromSupplier > 0) {
         paidAmount = paidFromSupplier
       }
-    } catch (lookupErr: any) {
-      // No refund without a figure from the supplier to base it on.
-      console.warn(
-        '[cancel-booking] could not read the paid amount from the supplier:',
-        lookupErr?.message,
-      )
     }
 
     if (paidAmount > 0) {
