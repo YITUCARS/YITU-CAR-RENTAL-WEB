@@ -18,13 +18,32 @@ import { normalizePaymentChannel, normalizeStripeMode } from '@/lib/stripe-renta
  * unverified endpoint that marks bookings paid is the hole this whole change
  * set started by removing.
  */
-function signingSecret(livemode: boolean) {
-  const live = process.env.STRIPE_WEBHOOK_SECRET || ''
-  const test = process.env.STRIPE_WEBHOOK_SECRET_TEST || ''
-  // One endpoint per mode is the norm, but a single secret is accepted so the
-  // deployment does not need both to be useful.
-  if (livemode) return live || ''
-  return test || live || ''
+/**
+ * Every signing secret that could legitimately have signed this event.
+ *
+ * Rental payments are split across two Stripe accounts — the website charges
+ * through YITU's, the app through Vantu's — so each has its own endpoint and
+ * its own secret. Which account sent an event is not knowable before the
+ * signature is checked, and the unverified body must not be the thing that
+ * decides, so every secret configured for this mode is tried and one match is
+ * enough. A secret cannot verify an event it did not sign, so trying several
+ * costs nothing in strength.
+ */
+function candidateSecrets(livemode: boolean): string[] {
+  const names = livemode
+    ? ['STRIPE_WEBHOOK_SECRET', 'VANTU_STRIPE_WEBHOOK_SECRET']
+    : [
+        'STRIPE_WEBHOOK_SECRET_TEST',
+        'VANTU_STRIPE_WEBHOOK_SECRET_TEST',
+        'STRIPE_WEBHOOK_SECRET',
+        'VANTU_STRIPE_WEBHOOK_SECRET',
+      ]
+  const seen: string[] = []
+  for (const name of names) {
+    const value = process.env[name]
+    if (value && !seen.includes(value)) seen.push(value)
+  }
+  return seen
 }
 
 async function recordEvent(event: any, handled: boolean, error?: string) {
@@ -60,8 +79,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Malformed body.' }, { status: 400 })
   }
 
-  const secret = signingSecret(Boolean(parsed?.livemode))
-  if (!secret) {
+  const secrets = candidateSecrets(Boolean(parsed?.livemode))
+  if (secrets.length === 0) {
     console.error(
       '[stripe webhook] refused: no signing secret configured for this mode',
       { livemode: Boolean(parsed?.livemode) },
@@ -72,13 +91,15 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const check = verifyStripeSignature({
-    rawBody,
-    header: req.headers.get('stripe-signature'),
-    secret,
+  const header = req.headers.get('stripe-signature')
+  let lastReason = 'signature mismatch'
+  const verified = secrets.some((secret) => {
+    const check = verifyStripeSignature({ rawBody, header, secret })
+    if (!check.ok) lastReason = check.reason
+    return check.ok
   })
-  if (!check.ok) {
-    console.warn('[stripe webhook] rejected:', check.reason)
+  if (!verified) {
+    console.warn('[stripe webhook] rejected:', lastReason)
     return NextResponse.json({ error: 'Invalid signature.' }, { status: 400 })
   }
 
