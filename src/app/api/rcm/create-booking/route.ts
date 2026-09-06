@@ -2,6 +2,13 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { rcmCall, toRCMDate } from '@/lib/rcm'
+import {
+  bookingFingerprint,
+  claimBooking,
+  completeBooking,
+  idempotencyKeyFor,
+  releaseBooking,
+} from '@/lib/rental-booking-idempotency'
 import { resolveRcmPromoCode } from '@/lib/promo-code'
 import { notifyWebsiteBookingCreated } from '@/lib/rcm-telegram'
 
@@ -47,7 +54,38 @@ export async function POST(req: NextRequest) {
       optionalFeesList.push({ id: YOUNG_DRIVER_FEE_ID, qty: 1 })
     }
 
-    const result = await rcmCall('booking', {
+    // A retried request must not become a second reservation at the supplier.
+    const idempotencyKey = idempotencyKeyFor(
+      req.headers.get('idempotency-key'),
+      body,
+    )
+    const claim = await claimBooking(idempotencyKey, bookingFingerprint(body))
+
+    if (claim.status === 'duplicate') {
+      console.log('[create-booking] returning the existing booking for a retry', {
+        reservationRef: claim.reservationRef,
+      })
+      return NextResponse.json({
+        success: true,
+        reservationRef: claim.reservationRef,
+        reservationNo: claim.reservationNo,
+        duplicate: true,
+      })
+    }
+    if (claim.status === 'in_flight') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'This booking is already being created. Please wait a moment.',
+          code: 'BOOKING_IN_PROGRESS',
+        },
+        { status: 409 },
+      )
+    }
+
+    let result: any
+    try {
+      result = await rcmCall('booking', {
       vehiclecategorytypeid: vehicleCategoryTypeId || 0,
       pickuplocationid: pickupLocationId,
       pickupdate: toRCMDate(pickupDate),
@@ -86,7 +124,24 @@ export async function POST(req: NextRequest) {
       },
       flightin: flightNumber || '',
       remark: [customerPhone.numeric ? `Phone: ${customerPhone.numeric}` : '', notes || ''].filter(Boolean).join(' | '),
-    })
+      })
+    } catch (bookingErr) {
+      // Free the key so the customer can genuinely try again.
+      if (claim.status === 'claimed') await releaseBooking(idempotencyKey)
+      throw bookingErr
+    }
+
+    if (claim.status === 'claimed') {
+      if (result?.reservationref) {
+        await completeBooking(
+          idempotencyKey,
+          String(result.reservationref),
+          result?.reservationno,
+        )
+      } else {
+        await releaseBooking(idempotencyKey)
+      }
+    }
 
     // Identifiers only. The full request and RCM response both echo the
     // customer's name, email, phone and flight number, which must not be
