@@ -14,6 +14,17 @@ import { rcmCall } from '@/lib/rcm'
 export type AmountGuardResult = {
   mode: 'observe' | 'enforce' | 'skipped'
   ok: boolean
+  /**
+   * Which way the amount was wrong, if it was.
+   *
+   * Only 'under' is worth blocking a payment over. Paying more than the
+   * booking total costs the business nothing and happens legitimately when a
+   * customer adds extras at checkout before the supplier's total catches up,
+   * so an overpayment is recorded and let through.
+   */
+  verdict: 'under' | 'over' | null
+  /** True when this payment should be refused outright. */
+  shouldBlock: boolean
   submittedCents: number
   expectedCents: number | null
   reason?: string
@@ -84,6 +95,8 @@ export async function checkRentalPaymentAmount(input: {
     return {
       mode: 'skipped',
       ok: true,
+      verdict: null,
+      shouldBlock: false,
       submittedCents,
       expectedCents: null,
       reason: 'no reference or surname to look the booking up with',
@@ -101,6 +114,8 @@ export async function checkRentalPaymentAmount(input: {
     return {
       mode: 'skipped',
       ok: true,
+      verdict: null,
+      shouldBlock: false,
       submittedCents,
       expectedCents: null,
       reason: `supplier lookup failed: ${
@@ -114,6 +129,8 @@ export async function checkRentalPaymentAmount(input: {
     return {
       mode: 'skipped',
       ok: true,
+      verdict: null,
+      shouldBlock: false,
       submittedCents,
       expectedCents: null,
       reason: 'no recognisable total on the supplier booking',
@@ -127,35 +144,44 @@ export async function checkRentalPaymentAmount(input: {
   const tooSmall = submittedCents < Math.round(total.cents * MIN_SHARE)
   const tooLarge = submittedCents > total.cents + 100
 
-  const ok = !tooSmall && !tooLarge
-  if (!ok) {
-    console.warn('[rental amount guard]', {
-      mode,
-      reservationRef,
-      submittedCents,
-      expectedCents: total.cents,
-      matchedField: total.field,
-      verdict: tooSmall ? 'below minimum share' : 'exceeds booking total',
-    })
+  const verdict: 'under' | 'over' | null = tooSmall
+    ? 'under'
+    : tooLarge
+      ? 'over'
+      : null
+  const ok = verdict === null
+  // Only an underpayment is refused. See AmountGuardResult.verdict.
+  const shouldBlock = mode === 'enforce' && verdict === 'under'
+
+  const detail = {
+    mode,
+    reservationRef,
+    submittedCents,
+    expectedCents: total.cents,
+    matchedField: total.field,
+  }
+  if (verdict === null) {
+    console.log('[rental amount guard] ok', detail)
   } else {
-    console.log('[rental amount guard] ok', {
-      mode,
-      reservationRef,
-      submittedCents,
-      expectedCents: total.cents,
-      matchedField: total.field,
+    console.warn('[rental amount guard]', {
+      ...detail,
+      verdict,
+      action: shouldBlock ? 'rejected' : 'allowed through',
     })
   }
 
   return {
     mode,
     ok,
+    verdict,
+    shouldBlock,
     submittedCents,
     expectedCents: total.cents,
-    reason: ok
-      ? undefined
-      : tooSmall
+    reason:
+      verdict === 'under'
         ? 'payment is far below the booking total'
-        : 'payment exceeds the booking total',
+        : verdict === 'over'
+          ? 'payment exceeds the booking total'
+          : undefined,
   }
 }

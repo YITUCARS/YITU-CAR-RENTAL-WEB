@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       ).trim(),
       submittedCents: amount,
     })
-    if (!guard.ok && guard.mode === 'enforce') {
+    if (guard.shouldBlock) {
       return NextResponse.json(
         {
           success: false,
