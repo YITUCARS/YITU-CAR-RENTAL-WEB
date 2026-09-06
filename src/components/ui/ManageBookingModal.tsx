@@ -217,6 +217,8 @@ export default function ManageBookingModal({ open, onClose }: ManageBookingModal
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           reservationRef: b.reservationref ?? refNumber,
+          // Proves ownership and lets the server read the real paid amount.
+          lastName: lastName.trim(),
           cancelReasonId: Number(selectedReason) || 0,
           notes: cancelNote,
           bookingDetails: {

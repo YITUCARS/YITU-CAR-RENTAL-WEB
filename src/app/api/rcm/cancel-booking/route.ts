@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
       // booking & customer details passed from frontend for notifications
       bookingDetails,
       customerDetails,
+      lastName,
     } = await req.json()
 
     if (!reservationRef) {
@@ -52,10 +53,45 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Step 2: Attempt automatic refund via RCM payment transaction
+    // Step 2: Attempt automatic refund via RCM payment transaction.
+    //
+    // The refund amount is read back from the supplier, never taken from the
+    // request: `bookingDetails.paidAmount` is client-supplied, so trusting it
+    // would let a caller choose how much to refund themselves. Without a
+    // surname the booking cannot be looked up, so no refund is attempted.
     let refundSuccess = false
     let refundError = ''
-    const paidAmount = Number(bookingDetails?.paidAmount ?? 0)
+    let paidAmount = 0
+
+    const surname = String(lastName || customerDetails?.lastName || '').trim()
+    if (surname) {
+      try {
+        const info: any = await rcmCall('bookinginfo', {
+          reservationref: cleanRef(reservationRef),
+          lastname: surname,
+        })
+        const payments = info?.payments || info?.payment || []
+        const paidFromSupplier = Array.isArray(payments)
+          ? payments.reduce(
+              (total: number, item: any) => total + (Number(item?.amount) || 0),
+              0,
+            )
+          : Number(info?.paidamount ?? info?.amountpaid ?? 0)
+        if (Number.isFinite(paidFromSupplier) && paidFromSupplier > 0) {
+          paidAmount = paidFromSupplier
+        }
+      } catch (lookupErr: any) {
+        console.warn(
+          '[cancel-booking] could not read the paid amount from the supplier:',
+          lookupErr?.message,
+        )
+      }
+    } else {
+      console.warn(
+        '[cancel-booking] no surname supplied — skipping the automatic refund',
+        { reservationRef: cleanRef(reservationRef) },
+      )
+    }
 
     if (paidAmount > 0) {
       try {

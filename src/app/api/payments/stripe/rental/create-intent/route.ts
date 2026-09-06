@@ -9,6 +9,7 @@ import {
   normalizeStripeMode,
   upsertSavedPaymentMethod,
 } from '@/lib/stripe-rental'
+import { checkRentalPaymentAmount } from '@/lib/rental-amount-guard'
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,6 +31,26 @@ export async function POST(req: NextRequest) {
         '',
     ).trim()
     const customerPhone = String(body.customerPhone || body.phone || '').trim()
+
+    // The amount arrives from the client, so check it against the supplier's
+    // booking total before creating anything chargeable.
+    const guard = await checkRentalPaymentAmount({
+      reservationRef,
+      lastName: String(
+        body.lastName || customerName.split(/\s+/).slice(-1)[0] || '',
+      ).trim(),
+      submittedCents: amount,
+    })
+    if (!guard.ok && guard.mode === 'enforce') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'The payment amount does not match this booking.',
+          code: 'AMOUNT_MISMATCH',
+        },
+        { status: 400 },
+      )
+    }
 
     const customer = await createStripeCustomer({
       stripeMode,

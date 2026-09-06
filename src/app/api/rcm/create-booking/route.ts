@@ -32,7 +32,6 @@ export async function POST(req: NextRequest) {
       mandatoryFeeIds,
     } = body
 
-    console.log('[create-booking FULL BODY]\n', JSON.stringify(body, null, 2))
 
     const ageid = driverAge === 'under26' ? 4 : 9
     const customerPhone = normalizePhoneForRcm(phone || '')
@@ -89,8 +88,16 @@ export async function POST(req: NextRequest) {
       remark: [customerPhone.numeric ? `Phone: ${customerPhone.numeric}` : '', notes || ''].filter(Boolean).join(' | '),
     })
 
-    console.log('[create-booking] RCM result keys:', Object.keys(result || {}))
-    console.log('[create-booking] RCM result:', JSON.stringify(result, null, 2))
+    // Identifiers only. The full request and RCM response both echo the
+    // customer's name, email, phone and flight number, which must not be
+    // written to logs.
+    console.log('[create-booking] created', {
+      reservationRef: result?.reservationref,
+      reservationNo: result?.reservationno,
+      vehicleCategoryId,
+      pickupDate,
+      dropoffDate,
+    })
 
     try {
       await notifyWebsiteBookingCreated({
