@@ -57,48 +57,47 @@ export async function POST(req: NextRequest) {
     //
     // The refund amount is read back from the supplier, never taken from the
     // request: `bookingDetails.paidAmount` is client-supplied, so trusting it
-    // would let a caller choose how much to refund themselves. Without a
-    // surname the booking cannot be looked up, so no refund is attempted.
+    // would let a caller choose how much to refund themselves.
+    //
+    // The lookup is keyed on the reference alone. The supplier accepts and
+    // ignores lastname — it returns the same booking for a wrong surname, an
+    // empty one, or none at all — so requiring a surname here would deny
+    // refunds to callers that do not send one without gaining any check in
+    // return. A bad reference is what the supplier actually rejects.
     let refundSuccess = false
     let refundError = ''
     let paidAmount = 0
 
     const surname = String(lastName || customerDetails?.lastName || '').trim()
-    if (surname) {
-      try {
-        const info: any = await rcmCall('bookinginfo', {
-          reservationref: cleanRef(reservationRef),
-          lastname: surname,
-        })
-        // Field names below come from a real bookinginfo response: the amount
-        // already taken sits at bookinginfo[0].payment, with the individual
-        // transactions listed under paymentinfo.
-        const booking = Array.isArray(info?.bookinginfo)
-          ? info.bookinginfo[0]
-          : info?.bookinginfo
-        let paidFromSupplier = Number(booking?.payment ?? 0)
+    try {
+      const info: any = await rcmCall('bookinginfo', {
+        reservationref: cleanRef(reservationRef),
+        lastname: surname,
+      })
+      // Field names below come from a real bookinginfo response: the amount
+      // already taken sits at bookinginfo[0].payment, with the individual
+      // transactions listed under paymentinfo.
+      const booking = Array.isArray(info?.bookinginfo)
+        ? info.bookinginfo[0]
+        : info?.bookinginfo
+      let paidFromSupplier = Number(booking?.payment ?? 0)
 
-        if (!(paidFromSupplier > 0) && Array.isArray(info?.paymentinfo)) {
-          paidFromSupplier = info.paymentinfo.reduce(
-            (total: number, item: any) =>
-              total + (Number(item?.amount ?? item?.paymentamount ?? 0) || 0),
-            0,
-          )
-        }
-
-        if (Number.isFinite(paidFromSupplier) && paidFromSupplier > 0) {
-          paidAmount = paidFromSupplier
-        }
-      } catch (lookupErr: any) {
-        console.warn(
-          '[cancel-booking] could not read the paid amount from the supplier:',
-          lookupErr?.message,
+      if (!(paidFromSupplier > 0) && Array.isArray(info?.paymentinfo)) {
+        paidFromSupplier = info.paymentinfo.reduce(
+          (total: number, item: any) =>
+            total + (Number(item?.amount ?? item?.paymentamount ?? 0) || 0),
+          0,
         )
       }
-    } else {
+
+      if (Number.isFinite(paidFromSupplier) && paidFromSupplier > 0) {
+        paidAmount = paidFromSupplier
+      }
+    } catch (lookupErr: any) {
+      // No refund without a figure from the supplier to base it on.
       console.warn(
-        '[cancel-booking] no surname supplied — skipping the automatic refund',
-        { reservationRef: cleanRef(reservationRef) },
+        '[cancel-booking] could not read the paid amount from the supplier:',
+        lookupErr?.message,
       )
     }
 
