@@ -24,6 +24,7 @@ const config: Config = {
         syne: ['var(--font-syne)', 'sans-serif'],
         dm: ['var(--font-dm-sans)', 'sans-serif'],
         montserrat: ['var(--font-montserrat)', 'Montserrat', 'sans-serif'],
+        display: ['var(--font-playfair)', 'Playfair Display', 'Georgia', 'serif'],
       },
       borderRadius: {
         card: '16px',

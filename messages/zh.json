@@ -68,6 +68,31 @@
     "bags": "{large} 大箱 + {small} 小箱",
     "viewAll": "查看全部车辆"
   },
+  "Wedding": {
+    "kicker": "婚礼与庆典用车",
+    "title": "为人生重要时刻，优雅出发。",
+    "subtitle": "为婚礼、婚纱摄影、庆典和特别场合，提供新西兰范围内的高端车型与宽敞多人座车辆选择。",
+    "featureOne": "高端车型",
+    "featureTwo": "值得纪念的时刻",
+    "cta": "了解婚礼用车",
+    "featureThree": "专业司机服务",
+    "featureFour": "全新西兰服务"
+  },
+  "WeddingPage": {
+    "kicker": "婚礼与庆典租车",
+    "title": "让你的出场，成为值得记住的瞬间。",
+    "subtitle": "从仪式到拍照，再到沿途每一个重要地点，YITU 让你以舒适、安心和更优雅的方式抵达。",
+    "cta": "浏览我们的车辆",
+    "back": "返回首页",
+    "serviceTitle": "为特别的一天，安排一段从容旅程",
+    "serviceBody": "无论是新人用车、婚礼团队接送、亲友往返，还是婚纱摄影，我们都可以根据你的计划协助选择合适的车型和安排。",
+    "pointOne": "高端且宽敞的车型选择",
+    "pointTwo": "适合新人和宾客的舒适接送",
+    "pointThree": "支持仪式与婚纱摄影用车",
+    "pointFour": "从计划到还车的本地团队支持",
+    "contactTitle": "正在计划一场特别的庆典？",
+    "contactBody": "把日期、地点和偏好的车型告诉我们，我们会协助你确认最合适的婚礼用车方案。"
+  },
   "DealsSection": {
     "kicker": "限时优惠",
     "titlePrefix": "热门",

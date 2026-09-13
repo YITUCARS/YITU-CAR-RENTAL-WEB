@@ -11,6 +11,8 @@ import {cn} from '@/lib/utils'
 
 interface NavbarProps {
   onManageBooking: () => void
+  /** Float the header over a full-bleed hero: transparent while the hero is in view, inverted to a light bar once past it. */
+  overlay?: boolean
 }
 
 const ABOUT_LINKS = [
@@ -20,13 +22,17 @@ const ABOUT_LINKS = [
   {href: '/wear-and-tear', labelKey: 'Navigation.wearAndTear'},
 ]
 
+// Contact strip (32px) + nav height, i.e. where the header stops covering the hero.
+const NAV_BOTTOM = 102
+
 const LINKS_BEFORE_ABOUT = NAV_LINKS.slice(0, 2)
 const LINKS_AFTER_ABOUT = NAV_LINKS.slice(2)
 
-export default function Navbar({onManageBooking}: NavbarProps) {
+export default function Navbar({onManageBooking, overlay = false}: NavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [mobileAboutOpen, setMobileAboutOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [pastHero, setPastHero] = useState(false)
   const pathname = usePathname()
   const rawPathname = useRawPathname()
   const router = useRouter()
@@ -38,6 +44,36 @@ export default function Navbar({onManageBooking}: NavbarProps) {
     window.addEventListener('scroll', handler)
     return () => window.removeEventListener('scroll', handler)
   }, [])
+
+  useEffect(() => {
+    if (!overlay) return
+    const handler = () => {
+      const anchor = document.querySelector('[data-nav-overlay-anchor]')
+      const heroBottom = anchor ? anchor.getBoundingClientRect().bottom : window.innerHeight
+      setPastHero(heroBottom <= NAV_BOTTOM)
+    }
+    handler()
+    window.addEventListener('scroll', handler, {passive: true})
+    window.addEventListener('resize', handler)
+    return () => {
+      window.removeEventListener('scroll', handler)
+      window.removeEventListener('resize', handler)
+    }
+  }, [overlay])
+
+  // Transparent over the hero image, light bar with dark text below it.
+  const onHero = overlay && !pastHero
+  const lightBar = overlay && pastHero
+
+  // Keeps white type readable where the hero image goes bright, without tinting the picture.
+  const heroShadow = onHero ? '[text-shadow:0_1px_12px_rgba(0,0,0,0.55)]' : ''
+
+  const navLinkClass = cn(
+    'text-[13.5px] font-medium px-[15px] py-2 rounded-lg transition-all',
+    lightBar ? 'text-navy/75 hover:text-navy hover:bg-navy/[0.06]' : 'text-white/78 hover:text-white hover:bg-white/10',
+    onHero && 'text-white/90',
+    heroShadow
+  )
 
   const isHomePage = pathname === '/'
 
@@ -70,10 +106,20 @@ export default function Navbar({onManageBooking}: NavbarProps) {
 
   return (
     <>
-      <div className="fixed top-0 left-0 right-0 z-[60] bg-navy h-8 flex items-center justify-center gap-2 sm:gap-8 px-4 sm:px-10">
+      {onHero && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-x-0 top-0 z-40 h-[190px] bg-[linear-gradient(180deg,rgba(0,0,0,0.66)_0%,rgba(0,0,0,0.34)_50%,rgba(0,0,0,0)_100%)]"
+        />
+      )}
+
+      <div className={cn(
+        'fixed top-0 left-0 right-0 z-[60] h-8 flex items-center justify-center gap-2 sm:gap-8 px-4 sm:px-10 transition-colors duration-300',
+        onHero ? 'bg-transparent' : 'bg-navy'
+      )}>
         <a
           href="tel:+6421234567"
-          className="flex items-center gap-1.5 text-white/70 hover:text-white text-[12px] font-medium transition-colors"
+          className={cn('flex items-center gap-1.5 text-white/70 hover:text-white text-[12px] font-medium transition-colors', onHero && 'text-white/90', heroShadow)}
         >
           📞 +64 800 948 888
         </a>
@@ -82,7 +128,7 @@ export default function Navbar({onManageBooking}: NavbarProps) {
 
         <a
           href="mailto:info@yitucarrental.co.nz"
-          className="hidden sm:flex items-center gap-1.5 text-white/70 hover:text-white text-[12px] font-medium transition-colors"
+          className={cn('hidden sm:flex items-center gap-1.5 text-white/70 hover:text-white text-[12px] font-medium transition-colors', onHero && 'text-white/90', heroShadow)}
         >
           ✉️ booking@yiturentalcars.co.nz
         </a>
@@ -91,7 +137,7 @@ export default function Navbar({onManageBooking}: NavbarProps) {
 
         <a
           href="mailto:info@yitucarrental.co.nz"
-          className="hidden sm:flex items-center gap-1.5 text-white/70 hover:text-white text-[12px] font-medium transition-colors"
+          className={cn('hidden sm:flex items-center gap-1.5 text-white/70 hover:text-white text-[12px] font-medium transition-colors', onHero && 'text-white/90', heroShadow)}
         >
           ⏰ {t('Navbar.hours')}
         </a>
@@ -100,8 +146,12 @@ export default function Navbar({onManageBooking}: NavbarProps) {
       <nav
         className={cn(
           'fixed top-8 left-0 right-0 z-50 flex items-center justify-between px-10 py-3.5 transition-all duration-300',
-          'bg-navy/94 backdrop-blur-lg border-b border-white/[0.09]',
-          scrolled && 'shadow-lg'
+          onHero
+            ? 'bg-transparent border-b border-transparent'
+            : lightBar
+              ? 'bg-white/95 backdrop-blur-lg border-b border-black/[0.07]'
+              : 'bg-navy/94 backdrop-blur-lg border-b border-white/[0.09]',
+          scrolled && !onHero && 'shadow-lg'
         )}
       >
         <Link href="/" className="flex items-center">
@@ -110,7 +160,7 @@ export default function Navbar({onManageBooking}: NavbarProps) {
             alt="YITU Car Rental"
             width={200}
             height={40}
-            className="h-10 w-auto brightness-110"
+            className={cn('h-10 w-auto transition-[filter] duration-300', onHero ? 'brightness-0 invert' : !lightBar && 'brightness-110')}
             priority
           />
         </Link>
@@ -120,14 +170,14 @@ export default function Navbar({onManageBooking}: NavbarProps) {
             <Link
               key={link.href}
               href={resolveNavHref(link.href)}
-              className="text-white/78 text-[13.5px] font-medium px-[15px] py-2 rounded-lg transition-all hover:text-white hover:bg-white/10"
+              className={navLinkClass}
             >
               {t(link.labelKey)}
             </Link>
           ))}
 
           <div className="relative group">
-            <button className="flex items-center gap-1 text-white/78 text-[13.5px] font-medium px-[15px] py-2 rounded-lg transition-all hover:text-white hover:bg-white/10 cursor-pointer">
+            <button className={cn('flex items-center gap-1 cursor-pointer', navLinkClass)}>
               {t('Navigation.aboutUs')}
               <ChevronDown
                 size={13}
@@ -154,7 +204,7 @@ export default function Navbar({onManageBooking}: NavbarProps) {
             <Link
               key={link.href}
               href={resolveNavHref(link.href)}
-              className="text-white/78 text-[13.5px] font-medium px-[15px] py-2 rounded-lg transition-all hover:text-white hover:bg-white/10"
+              className={navLinkClass}
             >
               {t(link.labelKey)}
             </Link>
@@ -164,13 +214,25 @@ export default function Navbar({onManageBooking}: NavbarProps) {
         <div className="hidden lg:flex items-center gap-3">
           <button
             onClick={() => switchLocale(locale === 'en' ? 'zh' : 'en')}
-            className="rounded-full border border-white/15 px-[18px] py-2.5 text-[12.5px] font-bold text-white/82 transition-all hover:border-white/30 hover:bg-white/10 hover:text-white"
+            className={cn(
+              'rounded-full border px-[18px] py-2.5 text-[12.5px] font-bold transition-all',
+              lightBar
+                ? 'border-navy/15 text-navy/75 hover:border-navy/30 hover:bg-navy/[0.06] hover:text-navy'
+                : 'border-white/15 text-white/82 hover:border-white/30 hover:bg-white/10 hover:text-white',
+              onHero && 'border-white/30 text-white/95 bg-white/10 backdrop-blur-sm',
+              heroShadow
+            )}
           >
             {localeToggleLabel}
           </button>
           <button
             onClick={onManageBooking}
-            className="flex items-center gap-1.5 bg-white/90 backdrop-blur-sm border border-white/60 text-navy px-[18px] py-2.5 rounded-full font-syne font-bold text-[12.5px] transition-all hover:bg-white hover:border-white"
+            className={cn(
+              'flex items-center gap-1.5 backdrop-blur-sm border text-navy px-[18px] py-2.5 rounded-full font-syne font-bold text-[12.5px] transition-all',
+              lightBar
+                ? 'bg-white border-black/10 shadow-sm hover:border-navy/40'
+                : 'bg-white/90 border-white/60 hover:bg-white hover:border-white'
+            )}
           >
             <CalendarCheck size={13} />
             {t('Navbar.myBooking')}
@@ -189,9 +251,9 @@ export default function Navbar({onManageBooking}: NavbarProps) {
           onClick={() => setMobileOpen(true)}
           aria-label={t('Navbar.openMenu')}
         >
-          <span className="block w-6 h-0.5 bg-white rounded" />
-          <span className="block w-6 h-0.5 bg-white rounded" />
-          <span className="block w-6 h-0.5 bg-white rounded" />
+          <span className={cn('block w-6 h-0.5 rounded transition-colors', lightBar ? 'bg-navy' : 'bg-white')} />
+          <span className={cn('block w-6 h-0.5 rounded transition-colors', lightBar ? 'bg-navy' : 'bg-white')} />
+          <span className={cn('block w-6 h-0.5 rounded transition-colors', lightBar ? 'bg-navy' : 'bg-white')} />
         </button>
       </nav>
 

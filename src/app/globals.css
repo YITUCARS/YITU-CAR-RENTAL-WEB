@@ -96,3 +96,44 @@ body {
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #f5f7fb; }
 ::-webkit-scrollbar-thumb { background: #1a2b6b; border-radius: 3px; }
+/* Wedding hero prompt: white type with a slow shimmer that fades in and out. */
+@keyframes weddingShimmer {
+  0% { background-position: 140% 0; }
+  100% { background-position: -40% 0; }
+}
+@keyframes weddingBreathe {
+  0%, 100% { opacity: 0.72; }
+  50% { opacity: 1; }
+}
+.wedding-hero-cta {
+  background-image: linear-gradient(100deg, rgba(255,255,255,0.62) 18%, #ffffff 46%, rgba(255,255,255,0.62) 74%);
+  background-size: 260% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: weddingShimmer 5.5s linear infinite, weddingBreathe 5.5s ease-in-out infinite;
+}
+.wedding-hero-arrow {
+  animation: weddingBreathe 5.5s ease-in-out infinite, float 4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wedding-hero-cta { animation: none; color: #ffffff; }
+  .wedding-hero-arrow { animation: none; }
+}
+
+/* Wedding page runs dark, so the shared white footer is re-skinned in place. */
+.footer-dark footer { background: #080d18; border-top-color: rgba(255, 255, 255, 0.08); }
+.footer-dark .text-navy { color: #ffffff; }
+.footer-dark .text-muted { color: rgba(255, 255, 255, 0.5); }
+.footer-dark [class*="border-black"] { border-color: rgba(255, 255, 255, 0.09); }
+.footer-dark [class*="bg-off-white"] { background-color: rgba(255, 255, 255, 0.04); }
+.footer-dark img[alt*="YITU"] { filter: brightness(0) invert(1); }
+.footer-dark a:hover { color: #e8431a; }
+
+/* Fine noise over the wedding card fade: 8-bit gradients band across a long ramp,
+   a touch of dither breaks the steps up. */
+.wedding-fade-dither {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+}

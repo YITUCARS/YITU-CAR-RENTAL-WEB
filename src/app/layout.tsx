@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { NextIntlClientProvider } from 'next-intl'
 import './globals.css'
 import '@fortawesome/fontawesome-free/css/all.min.css'
-import { Syne, DM_Sans, Montserrat } from 'next/font/google'
+import { Syne, DM_Sans, Montserrat, Playfair_Display } from 'next/font/google'
 import ChatWidget from '@/components/ChatWidget'
 import CookieConsentBanner from '@/components/ui/CookieConsentBanner'
 import messages from '../../messages/en.json'
@@ -21,6 +21,15 @@ const dmSans = DM_Sans({
   weight: ['400', '500', '600'],
   display: 'swap',
   preload: true,
+})
+
+// Only the wedding page uses this face, so it is not preloaded site-wide.
+const playfair = Playfair_Display({
+  subsets: ['latin'],
+  variable: '--font-playfair',
+  weight: ['500', '600', '700'],
+  display: 'swap',
+  preload: false,
 })
 
 const montserrat = Montserrat({
@@ -93,7 +102,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <meta name="google-site-verification" content="6jSbpSDcCqS3noZzwqtphT5k5Gae8v6Unzy9pl6b0b0" />
       </head>
-      <body className={`${syne.variable} ${dmSans.variable} ${montserrat.variable}`}>
+      <body className={`${syne.variable} ${dmSans.variable} ${montserrat.variable} ${playfair.variable}`}>
         <NextIntlClientProvider locale="en" messages={messages}>
           {children}
           <ChatWidget />

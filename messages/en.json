@@ -68,6 +68,31 @@
     "bags": "{large} Large + {small} Small",
     "viewAll": "View All Vehicles"
   },
+  "Wedding": {
+    "kicker": "Wedding & Celebrations",
+    "title": "Arrive in style for your once-in-a-lifetime moments.",
+    "subtitle": "Discover elegant cars and premium people movers for weddings, photography, celebrations and special occasions across New Zealand.",
+    "featureOne": "Premium vehicles",
+    "featureTwo": "Memorable moments",
+    "cta": "Explore wedding hire",
+    "featureThree": "Professional chauffeurs",
+    "featureFour": "NZ wide service"
+  },
+  "WeddingPage": {
+    "kicker": "Wedding & Celebration Car Hire",
+    "title": "Make an entrance worth remembering.",
+    "subtitle": "From the ceremony to the photographs and every beautiful stop between, YITU helps you travel with comfort, confidence and a little more elegance.",
+    "cta": "Browse our vehicles",
+    "back": "Back to home",
+    "serviceTitle": "A considered journey for your special day",
+    "serviceBody": "Choose a refined vehicle for the couple, the wedding party, family transfers or a stylish photo session. Tell our team what you need and we will help shape the right arrangement.",
+    "pointOne": "Premium and spacious vehicle choices",
+    "pointTwo": "Comfortable transfers for couples and guests",
+    "pointThree": "Flexible hire for ceremonies and photography",
+    "pointFour": "Friendly local support from planning to return",
+    "contactTitle": "Planning something special?",
+    "contactBody": "Contact our team with your date, locations and preferred style of vehicle. We will help confirm the best option for your celebration."
+  },
   "DealsSection": {
     "kicker": "Limited Time",
     "titlePrefix": "Hot",
