@@ -24,11 +24,11 @@ export const WEDDING_FLEET: WeddingFleetCar[] = [
         image: '/wedding/porsche-cayenne.webp',
     },
     {
-        id: 'bmw-5-series',
-        name: 'BMW 5 Series',
-        body: 'Executive sedan',
-        note: 'Quiet and understated for the groom, parents or guests of honour.',
-        image: '/wedding/bmw-5-series.webp',
+        id: 'tesla-model-y',
+        name: 'Tesla Model Y',
+        body: 'Electric SUV',
+        note: 'Silent, smooth and modern, with a glass roof over the back seat.',
+        image: '/wedding/tesla-model-y.webp',
     },
     {
         id: 'audi-rs6',
