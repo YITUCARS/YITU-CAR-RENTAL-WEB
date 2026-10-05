@@ -3,8 +3,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import './globals.css'
 import '@fortawesome/fontawesome-free/css/all.min.css'
 import { Syne, DM_Sans, Montserrat, Playfair_Display } from 'next/font/google'
-import ChatWidget from '@/components/ChatWidget'
-import CookieConsentBanner from '@/components/ui/CookieConsentBanner'
+import SiteOverlays from '@/components/SiteOverlays'
 import messages from '../../messages/en.json'
 
 const syne = Syne({
@@ -105,8 +104,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${syne.variable} ${dmSans.variable} ${montserrat.variable} ${playfair.variable}`}>
         <NextIntlClientProvider locale="en" messages={messages}>
           {children}
-          <ChatWidget />
-          <CookieConsentBanner />
+          <SiteOverlays />
         </NextIntlClientProvider>
       </body>
       </html>
