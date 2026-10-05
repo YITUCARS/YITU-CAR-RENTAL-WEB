@@ -37,6 +37,7 @@ const STATIC_PAGES = [
   { path: '/new-zealand-car-rental', changefreq: 'weekly', priority: 0.95 },
   { path: '/christchurch-car-rental', changefreq: 'weekly', priority: 0.9 },
   { path: '/queenstown-car-rental',   changefreq: 'weekly', priority: 0.9 },
+  { path: '/nz-road-rules',   changefreq: 'monthly', priority: 0.7 },
   { path: '/terms-conditions',changefreq: 'yearly',  priority: 0.3 },
   { path: '/privacy-policy',  changefreq: 'yearly',  priority: 0.3 },
   { path: '/wear-and-tear',   changefreq: 'yearly',  priority: 0.3 },

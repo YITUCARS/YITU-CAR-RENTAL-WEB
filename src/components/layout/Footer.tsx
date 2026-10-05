@@ -11,6 +11,7 @@ const SEO_LINKS = [
   {href: '/new-zealand-car-rental', label: 'New Zealand car rental'},
   {href: '/christchurch-car-rental', label: 'Christchurch car rental'},
   {href: '/queenstown-car-rental', label: 'Queenstown car rental'},
+  {href: '/nz-road-rules', label: 'NZ road rules for visitors'},
 ]
 
 interface FooterProps {
