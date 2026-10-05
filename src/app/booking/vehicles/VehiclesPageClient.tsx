@@ -11,6 +11,7 @@ import {
   toYMD, parseYMD, nextTimeSlot, getNZMinPickup, getNZDatePlusDays,
   DateTimePicker, LocationSelect, TimeSelect,
 } from '@/components/booking/DateTimePicker'
+import { hoursUntilNz, msToNzLocal, nzLocalToMs } from '@/lib/nz-time'
 
 interface RCMVehicle {
     vehiclecategoryid: number
@@ -29,6 +30,7 @@ interface RCMVehicle {
     availablemessage: string
     nextAvailableDate?: string
     localFallback?: boolean
+    manualReviewRequired?: boolean
     localPricePerDay?: number
     localPricingPreview?: {
         avgrate?: number
@@ -113,8 +115,8 @@ const VEHICLES_COPY = {
         updateResultsFirst: 'Update Results First',
         select: 'Select',
         bookingTimeNotice: 'Booking Time Notice',
-        christchurchTiming: 'Bookings within 6 hours require staff confirmation. You can still submit a booking request and our team will contact you shortly.',
-        otherTiming: 'Bookings within 24 hours require staff confirmation. You can still submit a booking request and our team will contact you shortly.',
+        shortNoticeTiming: 'Pick-up within 6 hours in Christchurch or Queenstown requires staff confirmation. You can still submit a booking request and our team will contact you shortly.',
+        beforeOpeningTiming: 'Pick-up before our branch opens (usually 8:30 AM NZ time) cannot be booked online. The cars and prices below are our availability from 9:00 AM; submit a booking request and our team will confirm it with you shortly.',
         timingBody: 'Some vehicles may be unavailable for your selected dates. Please adjust your pick-up date and time and search again.',
         timingCta: 'Yes, I understand',
         close: 'Close',
@@ -185,8 +187,8 @@ const VEHICLES_COPY = {
         updateResultsFirst: '请先更新结果',
         select: '选择',
         bookingTimeNotice: '预订时间提示',
-        christchurchTiming: '距离取车少于 6 小时，需要人工确认。您仍可提交预订申请，我们的客服会尽快与您联系。',
-        otherTiming: '距离取车少于 24 小时，需要人工确认。您仍可提交预订申请，我们的客服会尽快与您联系。',
+        shortNoticeTiming: '基督城或皇后镇距离取车少于 6 小时，都需要人工确认。您仍可提交预订申请，我们的客服会尽快与您联系。',
+        beforeOpeningTiming: '取车时间早于门店营业时间（通常为新西兰时间早上 8:30），无法在线直接预订。以下车辆和价格按门店开门后早上 9:00 的库存显示，您可提交预订申请，客服会尽快与您人工确认。',
         timingBody: '你选择的日期可能导致部分车辆不可预订，请调整取车日期和时间后重新搜索。',
         timingCta: '好的，我了解了',
         close: '关闭',
@@ -279,7 +281,7 @@ function normalizeAvailabilityStatus(vehicle: RCMVehicle) {
 }
 
 function isVehicleSelectable(vehicle: RCMVehicle) {
-    return normalizeAvailabilityStatus(vehicle) === 'available' || vehicle.available === 1
+    return !vehicle.manualReviewRequired && (normalizeAvailabilityStatus(vehicle) === 'available' || vehicle.available === 1)
 }
 
 function getAvailabilityRank(vehicle: RCMVehicle) {
@@ -299,6 +301,17 @@ function shiftDate(value: string, days: number) {
     const date = new Date(`${value}T12:00:00Z`)
     date.setUTCDate(date.getUTCDate() + days)
     return date.toISOString().slice(0, 10)
+}
+
+function shiftSearchFormForShortNotice(form: SearchFormState) {
+    // Search times are NZ local, so shift them in NZ time rather than the browser's zone.
+    const pickupMs = nzLocalToMs(form.pickupDate, form.pickupTime)
+    const dropoffMs = nzLocalToMs(form.dropoffDate, form.dropoffTime)
+    const targetPickupMs = Date.now() + 7 * 60 * 60 * 1000
+    const pickup = msToNzLocal(targetPickupMs)
+    const dropoff = msToNzLocal(dropoffMs + targetPickupMs - pickupMs)
+    const toSlot = (time: string) => `${time.slice(0, 3)}${Number(time.slice(3)) >= 30 ? '30' : '00'}`
+    return { ...form, pickupDate: pickup.date, pickupTime: toSlot(pickup.time), dropoffDate: dropoff.date, dropoffTime: toSlot(dropoff.time) }
 }
 
 function roundMoney(value: number) {
@@ -627,6 +640,7 @@ export default function VehiclesPage() {
     const [showStickySearch, setShowStickySearch] = useState(false)
     const [promoCode, setPromoCode] = useState(initialPromoCode.toUpperCase())
     const [showTimingModal, setShowTimingModal] = useState(false)
+    const [timingBeforeOpening, setTimingBeforeOpening] = useState(false)
     const [appliedSearchForm, setAppliedSearchForm] = useState<SearchFormState>(searchForm)
     const [appliedPromoCode, setAppliedPromoCode] = useState(initialPromoCode.toUpperCase())
     const [nextAvailabilityLoading, setNextAvailabilityLoading] = useState<Record<string, boolean>>({})
@@ -663,6 +677,9 @@ export default function VehiclesPage() {
 
         const activePromoCode = (promoOverride ?? promoCode).trim().toUpperCase()
         const nextDays = calcDays(form.pickupDate, form.pickupTime, form.dropoffDate, form.dropoffTime)
+        const hoursUntilPickup = hoursUntilNz(form.pickupDate, form.pickupTime)
+        const shortNotice = hoursUntilPickup >= 0 && hoursUntilPickup < 6
+        const rcmSearchForm = shortNotice ? shiftSearchFormForShortNotice(form) : form
         const isNewSearch =
             form.pickupDate !== booking.pickupDate ||
             form.dropoffDate !== booking.dropoffDate ||
@@ -708,25 +725,29 @@ export default function VehiclesPage() {
                 body: JSON.stringify({
                     pickupLocation: form.pickupLocation,
                     dropoffLocation: form.dropoffLocation,
-                    pickupDate: form.pickupDate,
-                    dropoffDate: form.dropoffDate,
-                    pickupTime: form.pickupTime,
-                    dropoffTime: form.dropoffTime,
+                    pickupDate: rcmSearchForm.pickupDate,
+                    dropoffDate: rcmSearchForm.dropoffDate,
+                    pickupTime: rcmSearchForm.pickupTime,
+                    dropoffTime: rcmSearchForm.dropoffTime,
                     promoCode: activePromoCode,
+                    shortNotice,
                 }),
             })
 
             const result = await response.json()
             if (result.success && result.data?.availablecars) {
-                const cars: RCMVehicle[] = result.data.availablecars
+                // The server also falls back to request-only cards when RCM will
+                // not quote a pick-up before the branch next opens.
+                const manualRequest = shortNotice || Boolean(result.data.localFallback)
+                const cars: RCMVehicle[] = result.data.availablecars.map((vehicle: RCMVehicle) => manualRequest
+                    ? { ...vehicle, manualReviewRequired: true, localFallback: true, availablemessage: 'Request booking - human confirmation required' }
+                    : vehicle)
                 setVehicles(cars)
                 setSearchResults(result.data)
                 setAppliedSearchForm(form)
                 setAppliedPromoCode(activePromoCode)
-                const pickupMs = new Date(`${form.pickupDate}T${form.pickupTime}:00`).getTime()
-                const hoursUntilPickup = (pickupMs - Date.now()) / 36e5
-                const minHours = form.pickupLocation === 'Christchurch' ? 6 : 24
-                if (hoursUntilPickup < minHours) setShowTimingModal(true)
+                setTimingBeforeOpening(!shortNotice)
+                if (manualRequest) setShowTimingModal(true)
                 const query = new URLSearchParams({
                     pickupLocation: form.pickupLocation,
                     dropoffLocation: form.dropoffLocation,
@@ -813,6 +834,8 @@ export default function VehiclesPage() {
             .sort((a, b) => {
                 const electricDiff = Number(isElectricVehicle(b) && isVehicleSelectable(b)) - Number(isElectricVehicle(a) && isVehicleSelectable(a))
                 if (electricDiff !== 0) return electricDiff
+                const pricedDiff = Number(getVehiclePricing(b, days).effectivePerDay > 0) - Number(getVehiclePricing(a, days).effectivePerDay > 0)
+                if (pricedDiff !== 0) return pricedDiff
                 const rankDiff = getAvailabilityRank(a) - getAvailabilityRank(b)
                 if (rankDiff !== 0) return rankDiff
 
@@ -1091,7 +1114,7 @@ export default function VehiclesPage() {
                                         {filteredVehicles.map(vehicle => {
                                             const pricing = getVehiclePricing(vehicle, days)
                                             const selectable = isVehicleSelectable(vehicle)
-                                            const requestable = !selectable && pricing.effectivePerDay > 0
+                                            const requestable = !selectable && (pricing.effectivePerDay > 0 || vehicle.manualReviewRequired)
                                             const electric = isElectricVehicle(vehicle)
                                             return (
                                             <div
@@ -1168,10 +1191,10 @@ export default function VehiclesPage() {
                                                                 </>
                                                             ) : (
                                                                 <div className="space-y-2">
-                                                                    {requestable ? <>
+                                                                    {requestable && pricing.effectivePerDay > 0 ? <>
                                                                         <div className="text-[16px] text-muted mb-0.5">$<PriceDisplay value={pricing.effectivePerDay} />{copy.perDay} × {days} {days === 1 ? copy.day : copy.days}</div>
                                                                         <div className="font-syne font-extrabold text-[1.8rem] text-navy leading-none"><span className="text-[13px] font-bold">NZD</span>&nbsp;$<PriceDisplay value={pricing.discountedTotal} /><span className="text-[13px] font-normal text-muted ml-1">{copy.total}</span></div>
-                                                                    </> : <div className="text-[13px] text-muted font-medium">{copy.priceUnavailable}</div>}
+                                                                    </> : requestable ? <div className="text-[13px] font-medium text-orange">{locale === 'zh' ? '价格需员工确认' : 'Price to be confirmed by our team'}</div> : <div className="text-[13px] text-muted font-medium">{copy.priceUnavailable}</div>}
                                                                     {vehicle.nextAvailableDate ? <div className="rounded-xl border border-orange/20 bg-orange/5 px-3 py-2"><div className="text-[11px] font-bold text-orange">{copy.nextAvailable}: {vehicle.nextAvailableDate}</div><button type="button" onClick={() => useNextAvailableDate(vehicle)} className="mt-1 text-[11px] font-bold text-navy underline underline-offset-2">{copy.useThisDate}</button></div> : !vehicle.localFallback && <button type="button" onClick={() => lookupNextAvailableDate(vehicle)} disabled={nextAvailabilityLoading[String(vehicle.vehiclecategoryid)]} className="rounded-xl border border-orange/20 bg-orange/5 px-3 py-2 text-[11px] font-bold text-orange transition-colors hover:bg-orange/10 disabled:opacity-50">{nextAvailabilityLoading[String(vehicle.vehiclecategoryid)] ? `${copy.checkNextAvailable}...` : copy.checkNextAvailable}</button>}
                                                                 </div>
                                                             )}
@@ -1316,11 +1339,7 @@ export default function VehiclesPage() {
                         <div className="space-y-3 text-[14px] text-gray-700 leading-relaxed mb-6">
                             <div className="flex gap-2.5">
                                 <span className="text-orange font-bold mt-0.5">•</span>
-                                <p>{copy.christchurchTiming}</p>
-                            </div>
-                            <div className="flex gap-2.5">
-                                <span className="text-orange font-bold mt-0.5">•</span>
-                                <p>{copy.otherTiming}</p>
+                                <p>{timingBeforeOpening ? copy.beforeOpeningTiming : copy.shortNoticeTiming}</p>
                             </div>
                         </div>
                         <p className="text-[13px] text-muted mb-6">{copy.timingBody}</p>

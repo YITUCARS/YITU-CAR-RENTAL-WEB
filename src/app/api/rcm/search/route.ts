@@ -4,11 +4,48 @@ import { NextRequest, NextResponse } from 'next/server'
 import { rcmSearch, toRCMDate, LOCATION_IDS } from '@/lib/rcm'
 import { resolveRcmPromoCode } from '@/lib/promo-code'
 import { applyLocalPrices, calculateRentalDays } from '@/lib/local-pricing'
+import { hoursUntilNz, msToNzLocal, nzLocalToMs } from '@/lib/nz-time'
 import { getCachedRcmSearch, getCachedRcmVehicles, getStaleRcmSearch, mergeRcmVehiclesWithCache, saveRcmSearch, saveRcmVehicles } from '@/lib/rcm-vehicle-cache'
 
 type CacheEntry = { data: any; timestamp: number }
 const searchCache = new Map<string, CacheEntry>()
 const CACHE_TTL = 300 * 1000 // 5 minutes
+
+function hasRcmPrice(vehicle: any) {
+    return [vehicle.avgrate, vehicle.discounteddailyrate, vehicle.totalrateafterdiscount, vehicle.totalratebeforediscount]
+        .some(value => Number(value) > 0)
+}
+
+// RCM refuses to quote a pick-up before the branch next opens (e.g. a search
+// at 19:30 for 02:00–08:00 tomorrow): every row comes back with no rate and no
+// availability message. Genuinely booked-out rows carry a message instead.
+function isRcmQuoteRefused(vehicles: any[]) {
+    return vehicles.length > 0 && vehicles.every(vehicle =>
+        !hasRcmPrice(vehicle) && !String(vehicle.availablemessage || '').trim()
+    )
+}
+
+const MANUAL_REQUEST_MESSAGE = 'Request booking - human confirmation required'
+
+function isRcmAvailable(vehicle: any) {
+    return vehicle.available === 1 || String(vehicle.availablemessage || '').trim().toLowerCase() === 'available'
+}
+
+// The next 09:00 NZ time, when RCM is quoting normally again.
+function nextNzNineAm() {
+    const todayNineAm = nzLocalToMs(msToNzLocal(Date.now()).date, '09:00')
+    if (todayNineAm > Date.now()) return todayNineAm
+    return nzLocalToMs(msToNzLocal(todayNineAm + 24 * 36e5).date, '09:00')
+}
+
+function filterVehiclesForPickup(vehicles: any[], pickupLocation: string) {
+    // Christchurch remains the catalogue view: it includes booked-out rows so
+    // customers can ask for the next available date. RCM has no vehicle-level
+    // branch id, but a Queenstown quote has a real rate only when RCM can price
+    // that category for the selected Queenstown search.
+    if (pickupLocation !== 'Queenstown') return vehicles
+    return vehicles.filter(hasRcmPrice)
+}
 
 export async function POST(req: NextRequest) {
     let body: any
@@ -18,11 +55,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Invalid request body' }, { status: 400 })
     }
 
-    const { pickupLocation, dropoffLocation, pickupDate, dropoffDate, pickupTime, dropoffTime, promoCode } = body
+    const { pickupLocation, dropoffLocation, pickupDate, dropoffDate, pickupTime, dropoffTime, promoCode, shortNotice = false } = body
     const rcmPromoCode = resolveRcmPromoCode(promoCode)
     const cacheKey = JSON.stringify({ pickupLocation, dropoffLocation, pickupDate, dropoffDate, pickupTime, dropoffTime, promoCode })
     const now = Date.now()
     const cached = searchCache.get(cacheKey)
+    // Queenstown must be filtered from the current RCM quote. Reusing a
+    // merged local-price search cache could turn a zero RCM rate into a priced
+    // vehicle before the location filter runs.
+    const canUseSearchCache = pickupLocation !== 'Queenstown'
 
     async function addLocalPricing(data: any) {
         const rentalDays = calculateRentalDays(pickupDate, pickupTime || '10:00', dropoffDate, dropoffTime || '10:00')
@@ -31,34 +72,55 @@ export async function POST(req: NextRequest) {
     }
 
 
-    if (cached && now - cached.timestamp < CACHE_TTL) {
-        const refreshedVehicles = await mergeRcmVehiclesWithCache(cached.data?.availablecars || [])
+    if (canUseSearchCache && cached && now - cached.timestamp < CACHE_TTL) {
+        const merged = await mergeRcmVehiclesWithCache(cached.data?.availablecars || [])
+        const refreshedVehicles = filterVehiclesForPickup(merged, pickupLocation)
         const priced = await addLocalPricing(refreshedVehicles)
         return NextResponse.json({ success: true, data: { ...cached.data, availablecars: priced.vehicles }, pricing: { mode: priced.mode, matched: priced.matched } }, {
             headers: { 'Cache-Control': 'public, max-age=300' },
         })
     }
 
-    const persistentCached = await getCachedRcmSearch(cacheKey, 2 * 60 * 1000)
+    const persistentCached = canUseSearchCache ? await getCachedRcmSearch(cacheKey, 2 * 60 * 1000) : null
     if (persistentCached) {
         searchCache.set(cacheKey, { data: persistentCached, timestamp: now })
-        const refreshedVehicles = await mergeRcmVehiclesWithCache(persistentCached?.availablecars || [])
+        const merged = await mergeRcmVehiclesWithCache(persistentCached?.availablecars || [])
+        const refreshedVehicles = filterVehiclesForPickup(merged, pickupLocation)
         const priced = await addLocalPricing(refreshedVehicles)
         return NextResponse.json({ success: true, data: { ...persistentCached, availablecars: priced.vehicles }, pricing: { mode: priced.mode, matched: priced.matched }, source: 'local-cache' }, {
             headers: { 'Cache-Control': 'public, max-age=120' },
         })
     }
 
+    const searchRcm = (fromDate: string, fromTime: string, toDate: string, toTime: string) => rcmSearch({
+        pickupLocationId: LOCATION_IDS[pickupLocation] || 1,
+        dropoffLocationId: LOCATION_IDS[dropoffLocation] || 1,
+        pickupDate: toRCMDate(fromDate),
+        pickupTime: fromTime,
+        dropoffDate: toRCMDate(toDate),
+        dropoffTime: toTime,
+        campaignCode: rcmPromoCode,
+    })
+
     try {
-        const results = await rcmSearch({
-            pickupLocationId: LOCATION_IDS[pickupLocation] || 1,
-            dropoffLocationId: LOCATION_IDS[dropoffLocation] || 1,
-            pickupDate: toRCMDate(pickupDate),
-            pickupTime: pickupTime || '10:00',
-            dropoffDate: toRCMDate(dropoffDate),
-            dropoffTime: dropoffTime || '10:00',
-            campaignCode: rcmPromoCode,
-        })
+        let results = await searchRcm(pickupDate, pickupTime || '10:00', dropoffDate, dropoffTime || '10:00')
+
+        // RCM will not quote a pick-up before the branch next opens. Show the
+        // 09:00 inventory for the same rental length instead; RCM cannot take
+        // the booking itself, so these cards are staff-confirmed requests.
+        const leadHours = hoursUntilNz(pickupDate, pickupTime)
+        const beforeBranchOpens = leadHours >= 0 && leadHours < 24 && isRcmQuoteRefused(results?.availablecars ?? [])
+        // The times RCM was actually quoted for; step3 (insurance, extras) must use them too.
+        let quoteWindow: { pickupDate: string; pickupTime: string; dropoffDate: string; dropoffTime: string } | null = null
+        if (beforeBranchOpens) {
+            const pickupMs = nzLocalToMs(pickupDate, pickupTime)
+            const nineAmMs = nextNzNineAm()
+            const from = msToNzLocal(nineAmMs)
+            const to = msToNzLocal(nzLocalToMs(dropoffDate, dropoffTime) + nineAmMs - pickupMs)
+            results = await searchRcm(from.date, from.time, to.date, to.time)
+            quoteWindow = { pickupDate: from.date, pickupTime: from.time, dropoffDate: to.date, dropoffTime: to.time }
+        }
+        const manualRequest = shortNotice || beforeBranchOpens
 
         if (promoCode) {
             const sample = results?.availablecars?.[0]
@@ -70,23 +132,39 @@ export async function POST(req: NextRequest) {
         }
 
         const liveVehicles = results?.availablecars ?? []
-        const hasLiveAvailability = liveVehicles.some((vehicle: any) =>
-            Number(vehicle.vehiclecategoryid) > 0 && (vehicle.available === 1 || String(vehicle.availablemessage || '').trim().toLowerCase() === 'available')
-        )
+        const vehiclesForLocation = filterVehiclesForPickup(liveVehicles, pickupLocation)
+        const hasLiveAvailability = vehiclesForLocation.some(isRcmAvailable)
         // Do not let an RCM short-notice response with zero rates erase the
         // administrator's local base prices. Only refresh the catalogue from
         // a genuinely live result, or persist rows that contain a real rate.
         if (hasLiveAvailability) await saveRcmVehicles(liveVehicles)
-        let vehiclesForDisplay = liveVehicles
-        if (!hasLiveAvailability) {
+        // RCM also returns fully-booked categories in `availablecars`. They
+        // belong to the catalogue, but are not inventory available for this
+        // location/date and must not be shown as search results.
+        let vehiclesForDisplay = vehiclesForLocation
+        if (manualRequest && hasLiveAvailability) {
+            // Only cars RCM has free can be offered as a staff-confirmed request.
+            vehiclesForDisplay = vehiclesForLocation
+                .filter(isRcmAvailable)
+                .map((vehicle: any) => ({ ...vehicle, availablemessage: MANUAL_REQUEST_MESSAGE }))
+        } else if (manualRequest) {
             const cachedVehicles = await getCachedRcmVehicles()
-            const liveCategoryTypes = new Set(liveVehicles.map((vehicle: any) => Number(vehicle.vehiclecategorytypeid)).filter(Boolean))
+            // Short-notice RCM responses can contain the catalogue with zero
+            // rates. Use those category ids to recover the local cached quote;
+            // do not use the price-filtered list because it is empty by design.
+            const liveCategoryIds = new Set(liveVehicles.map((vehicle: any) => Number(vehicle.vehiclecategoryid)).filter(Boolean))
             const fallbackVehicles = cachedVehicles.vehicles
-                .filter((vehicle: any) => liveCategoryTypes.size === 0 || liveCategoryTypes.has(Number(vehicle.vehiclecategorytypeid)))
+                .filter((vehicle: any) => {
+                    const matchesRcmCategory = liveCategoryIds.size === 0 || liveCategoryIds.has(Number(vehicle.vehiclecategoryid))
+                    if (!matchesRcmCategory) return false
+                    if (pickupLocation !== 'Queenstown') return true
+                    const locations = vehicle.pickupLocations || vehicle.pickup_locations || []
+                    return Array.isArray(locations) && locations.includes('Queenstown')
+                })
                 .map((vehicle: any) => ({
                     ...vehicle,
                     available: 0,
-                    availablemessage: 'Request booking - human confirmation required',
+                    availablemessage: MANUAL_REQUEST_MESSAGE,
                     localFallback: true,
                 }))
             if (fallbackVehicles.length > 0) vehiclesForDisplay = fallbackVehicles
@@ -94,16 +172,20 @@ export async function POST(req: NextRequest) {
         const mergedResults = {
             ...results,
             availablecars: await mergeRcmVehiclesWithCache(vehiclesForDisplay),
-            localFallback: !hasLiveAvailability && vehiclesForDisplay !== liveVehicles,
+            localFallback: manualRequest && vehiclesForDisplay !== vehiclesForLocation,
+            quoteWindow,
         }
         const priced = await addLocalPricing(mergedResults.availablecars)
         // Apply the local base rate to fallback cards only. Live RCM cards keep
         // their live price, while manual-confirmation cards need a usable quote
         // even when RCM rejects the short-notice availability request.
-        const finalVehicles = priced.vehicles.map((vehicle: any) => {
-            if (!vehicle.localFallback || vehicle.avgrate > 0 || !vehicle.localPricingPreview?.avgrate) return vehicle
-            return { ...vehicle, ...vehicle.localPricingPreview, pricingSource: 'local' }
-        })
+        const finalVehicles = priced.vehicles
+            .map((vehicle: any) => {
+                if (!vehicle.localFallback || vehicle.avgrate > 0 || !vehicle.localPricingPreview?.avgrate) return vehicle
+                return { ...vehicle, ...vehicle.localPricingPreview, pricingSource: 'local' }
+            })
+            // A request card with no local quote would show as $0.
+            .filter((vehicle: any) => !vehicle.localFallback || Number(vehicle.avgrate) > 0)
         const finalResults = { ...mergedResults, availablecars: finalVehicles }
         await saveRcmSearch(cacheKey, finalResults)
         searchCache.set(cacheKey, { data: finalResults, timestamp: now })

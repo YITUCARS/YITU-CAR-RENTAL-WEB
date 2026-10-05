@@ -91,6 +91,7 @@ export async function saveRcmVehicles(vehicles: any[], options: { cacheImages?: 
                         localPricePerDay: existing.localPricePerDay,
                         pricingSource: 'admin',
                     } : {}),
+                    ...(Array.isArray(existing?.pickupLocations) ? { pickupLocations: existing.pickupLocations } : {}),
                 }),
                 active: true,
                 synced_at: syncedAt,

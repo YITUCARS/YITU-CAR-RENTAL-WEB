@@ -13,6 +13,10 @@ export async function POST(request: NextRequest) {
         const email = String(body.email || '').trim()
         const phone = String(body.phone || '').trim()
         const wechat = String(body.wechat || '').trim()
+        const flightNumber = String(body.flightNumber || '').trim()
+        const notes = String(body.notes || '').trim()
+        const priceLines: string[] = Array.isArray(body.priceLines) ? body.priceLines.map(String).slice(0, 20) : []
+        const source = body.source === 'wechat_miniprogram' ? 'WeChat mini program' : 'Website cached vehicle request'
 
         if (!firstName || !lastName || !phone || !EMAIL_PATTERN.test(email)) {
             return NextResponse.json({ success: false, error: 'Please provide your name, a valid email, and phone number.' }, { status: 400 })
@@ -30,10 +34,14 @@ export async function POST(request: NextRequest) {
                 `Pickup: ${escapeTelegramHtml(`${body.pickupDate || '—'} ${body.pickupTime || ''}`.trim())} · ${escapeTelegramHtml(body.pickupLocation || '—')}`,
                 `Dropoff: ${escapeTelegramHtml(`${body.dropoffDate || '—'} ${body.dropoffTime || ''}`.trim())} · ${escapeTelegramHtml(body.dropoffLocation || '—')}`,
                 `Vehicle: ${escapeTelegramHtml(body.vehicleName || '—')}`,
+                body.driverAge ? `Driver age: ${escapeTelegramHtml(body.driverAge)}` : '',
+                flightNumber ? `Flight: ${escapeTelegramHtml(flightNumber)}` : '',
+                notes ? `Notes: ${escapeTelegramHtml(notes)}` : '',
+                ...priceLines.map(line => `  · ${escapeTelegramHtml(line)}`),
                 `Estimated total: NZD ${escapeTelegramHtml(Number(body.total || 0).toFixed(2))}`,
                 'Status: Awaiting staff confirmation',
-                'Source: Website cached vehicle request',
-            ].join('\n'),
+                `Source: ${source}`,
+            ].filter(Boolean).join('\n'),
         })
 
         return NextResponse.json({ success: true, requestRef })
