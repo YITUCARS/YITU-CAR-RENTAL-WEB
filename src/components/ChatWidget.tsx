@@ -26,7 +26,6 @@ const PAGE_HINT_DISMISSED_KEY = 'yitu-chat-page-hint-disabled'
 const CHAT_WIDGET_POSITION_KEY = 'yitu-chat-widget-position'
 const BOOKING_STORAGE_KEY = 'yitu-booking'
 const CHAT_LANGUAGE_KEY = 'yitu-chat-language'
-const stripePromise = getStripe()
 // After this many unanswered questions, proactively suggest human support
 const UNANSWERED_THRESHOLD = 2
 const YOUNG_DRIVER_FEE_ID = 15
@@ -1115,7 +1114,7 @@ function ChatPaymentPanel({ locale, booking, paymentType, onPaymentTypeChange, l
 
             {clientSecret && elementsOptions && (
                 <div className="mt-4">
-                    <Elements stripe={stripePromise} options={elementsOptions}>
+                    <Elements stripe={getStripe()} options={elementsOptions}>
                         <StripeCheckout
                             payAmount={payAmount}
                             stripeMode={STRIPE_MODE}

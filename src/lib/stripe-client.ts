@@ -1,4 +1,9 @@
-import { loadStripe, type Stripe } from '@stripe/stripe-js'
+// The /pure entry only adds Stripe.js to the page when loadStripe() is first
+// called. The default entry injects it on import, which puts Stripe's
+// m.stripe.network frame on every page; the WeChat mini program's web-view
+// refuses to open pages that frame a domain it has not whitelisted.
+import { loadStripe } from '@stripe/stripe-js/pure'
+import type { Stripe } from '@stripe/stripe-js'
 
 // Which Stripe environment the browser talks to. Mirror this on the server with
 // STRIPE_LIVE_SECRET_KEY / STRIPE_TEST_SECRET_KEY.
