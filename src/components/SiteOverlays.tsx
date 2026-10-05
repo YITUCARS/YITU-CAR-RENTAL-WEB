@@ -1,8 +1,12 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { usePathname } from 'next/navigation'
-import ChatWidget from '@/components/ChatWidget'
 import CookieConsentBanner from '@/components/ui/CookieConsentBanner'
+
+// Loaded on demand so the /h5 pages never pull in the chat's Firebase and
+// Stripe code, whose frames the mini program's web-view refuses to show.
+const ChatWidget = dynamic(() => import('@/components/ChatWidget'), { ssr: false })
 
 // Site-wide floating chat and cookie notice. The /h5 pages are opened inside
 // WeChat (often in the mini program's web-view), where these would cover the
