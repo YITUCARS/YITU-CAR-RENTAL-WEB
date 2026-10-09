@@ -1,0 +1,14 @@
+.git
+.github
+.next
+.next-stale-*
+.vercel
+node_modules
+market-intel/node_modules
+market-intel/artifacts
+.env
+.env.*
+!.env.example
+*.log
+*.pem
+.DS_Store
