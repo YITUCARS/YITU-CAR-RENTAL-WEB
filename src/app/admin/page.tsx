@@ -1,17 +1,18 @@
 'use client'
 
 import React, { useEffect, useState, useRef } from 'react'
-import { Plus, Pencil, Trash2, Upload, X, Check, LogOut, FileText, RefreshCw, Star, Save, Tag, Copy, Image, ChevronUp, ChevronDown, ExternalLink, Ticket, MessageCircle, CreditCard, Menu, LayoutGrid, CarFront, Database, Megaphone, BookOpen, DollarSign, ArrowRight, LineChart, CalendarDays } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload, X, Check, LogOut, FileText, RefreshCw, Star, Save, Tag, Copy, Image, ChevronUp, ChevronDown, ExternalLink, Ticket, MessageCircle, CreditCard, Menu, LayoutGrid, CarFront, Database, Megaphone, BookOpen, DollarSign, ArrowRight, LineChart, CalendarDays, Sparkles, UserRound } from 'lucide-react'
 import type { VehicleRecord } from '@/lib/db/repository'
 import Papa from 'papaparse'
 import RateManager from '@/components/admin/RateManager'
 import MarketIntel from '@/components/admin/MarketIntel'
 import AvailabilityBoard from '@/components/admin/AvailabilityBoard'
+import PartnerAccounts from '@/components/admin/PartnerAccounts'
 
 const CATEGORIES = ['sedan', 'suv', 'mpv', 'van']
 const FUELS = ['Petrol', 'Diesel', 'Hybrid', 'Electric']
 const DRIVES = ['FWD', 'AWD', 'RWD']
-type AdminTab = 'fleet' | 'rcm' | 'availability' | 'promo' | 'banners' | 'deals' | 'gallery' | 'blog' | 'tickets' | 'faq' | 'stripe' | 'rates' | 'market'
+type AdminTab = 'fleet' | 'rcm' | 'availability' | 'promo' | 'banners' | 'deals' | 'gallery' | 'blog' | 'tickets' | 'faq' | 'stripe' | 'rates' | 'market' | 'ai' | 'partners'
 
 interface GalleryImage {
     name: string
@@ -50,6 +51,7 @@ function AdminDashboard({ onSelect }: { onSelect: (tab: AdminTab) => void }) {
         { tab: 'tickets', label: '门票预订', description: '打开分销商门票管理入口', detail: '进入 Vantu 门票预订后台。', icon: Ticket, tone: 'bg-cyan-50 text-cyan-700' },
         { tab: 'faq', label: 'Live Support FAQ', description: '维护聊天机器人常见问题', detail: '设置用户在不同页面看到的帮助内容。', icon: MessageCircle, tone: 'bg-lime-50 text-lime-700' },
         { tab: 'stripe', label: 'Stripe 补扣款', description: '处理已保存卡的后续扣款', detail: '按订单处理授权范围内的后续扣款。', icon: CreditCard, tone: 'bg-slate-100 text-slate-700' },
+        { tab: 'partners', label: '合作伙伴账号', description: '创建和管理 Partner Portal 登录', detail: '为旅行社、OTA 和企业合作伙伴分配账号。', icon: UserRound, tone: 'bg-orange/10 text-orange' },
     ]
 
     return (
@@ -145,6 +147,10 @@ export default function AdminPage() {
     const [stripeChargeForm, setStripeChargeForm] = useState({ reservationRef: '', amount: '', description: '' })
     const [stripeChargeLoading, setStripeChargeLoading] = useState(false)
     const [stripeChargeResult, setStripeChargeResult] = useState<{ success: boolean; message: string } | null>(null)
+    const [adminAiMessages, setAdminAiMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([])
+    const [adminAiInput, setAdminAiInput] = useState('')
+    const [adminAiLoading, setAdminAiLoading] = useState(false)
+    const [adminAiStats, setAdminAiStats] = useState<{ rcmCatalogueVehicles: number; localGarageVehicles: number; pricedRcmVehicles: number; missingRcmPrices: number; electricVehicles: number } | null>(null)
 
     const showToast = (msg: string) => {
         setToast(msg)
@@ -166,13 +172,25 @@ export default function AdminPage() {
         stripe: 'Stripe 补扣款',
         rates: '价格管理',
         market: '竞品价格监控',
+        ai: 'AI 管理助手',
+        partners: '合作伙伴账号',
     }
+
+    useEffect(() => {
+        if (authed && token) window.sessionStorage.setItem('yitu-admin-token', token)
+        if (!authed) window.sessionStorage.removeItem('yitu-admin-token')
+    }, [authed, token])
 
     async function login() {
         const res = await fetch('/api/admin/vehicles', {
             headers: { 'x-admin-token': pw }
         })
-        if (res.ok) { setToken(pw); setAuthed(true); setShowAdminDashboard(true) }
+        if (res.ok) {
+            setToken(pw)
+            window.sessionStorage.setItem('yitu-admin-token', pw)
+            setAuthed(true)
+            setShowAdminDashboard(true)
+        }
         else showToast('密码错误')
     }
 
@@ -268,6 +286,24 @@ export default function AdminPage() {
         } finally { setSavingRcmPrice(null) }
     }
 
+    async function saveRcmLocations(vehiclecategoryid: number, pickupLocations: string[]) {
+        try {
+            const res = await fetch('/api/admin/rcm-vehicles', {
+                method: 'PATCH',
+                headers,
+                body: JSON.stringify({ vehiclecategoryid, pickup_locations: pickupLocations }),
+            })
+            const data = await res.json()
+            if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}`)
+            setRcmVehicles(current => current.map(v => v.vehiclecategoryid === vehiclecategoryid
+                ? { ...v, pickupLocations }
+                : v))
+            showToast('✅ 车辆地点已保存')
+        } catch (error: any) {
+            showToast('⚠️ ' + error.message)
+        }
+    }
+
     async function loadFeatured() {
         try {
             const res = await fetch('/api/admin/featured', { headers: { 'x-admin-token': token } })
@@ -360,6 +396,30 @@ export default function AdminPage() {
         if (tab === 'gallery') loadGalleryImages()
         if (tab === 'blog') loadBlogPosts()
         if (tab === 'faq') loadChatFaqs()
+    }
+
+    async function sendAdminAiMessage(messageOverride?: string) {
+        const message = (messageOverride ?? adminAiInput).trim()
+        if (!message || adminAiLoading) return
+        const nextHistory = [...adminAiMessages, { role: 'user' as const, content: message }]
+        setAdminAiMessages(nextHistory)
+        setAdminAiInput('')
+        setAdminAiLoading(true)
+        try {
+            const res = await fetch('/api/admin/ai-assistant', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ message, history: adminAiMessages }),
+            })
+            const data = await res.json()
+            if (!res.ok || !data.success) throw new Error(data.error || 'AI 暂时无法回答')
+            setAdminAiMessages(current => [...current, { role: 'assistant', content: data.answer }])
+            if (data.stats) setAdminAiStats(data.stats)
+        } catch (error: any) {
+            setAdminAiMessages(current => [...current, { role: 'assistant', content: `⚠️ ${error.message || 'AI 暂时无法回答'}` }])
+        } finally {
+            setAdminAiLoading(false)
+        }
     }
 
     async function loadChatFaqs() {
@@ -1018,7 +1078,7 @@ export default function AdminPage() {
                             </button>
                         </>
                     )}
-                    <button onClick={() => setAuthed(false)} className="text-white/50 hover:text-white">
+                    <button onClick={() => { window.sessionStorage.removeItem('yitu-admin-token'); setAuthed(false) }} className="text-white/50 hover:text-white">
                         <LogOut size={18} />
                     </button>
                 </div>
@@ -1061,6 +1121,7 @@ export default function AdminPage() {
                                     { tab: 'tickets', label: '门票预订', description: '打开分销商门票管理入口', icon: Ticket },
                                     { tab: 'faq', label: 'Live Support FAQ', description: '维护聊天机器人常见问题', icon: MessageCircle },
                                     { tab: 'stripe', label: 'Stripe 补扣款', description: '处理已保存卡的后续扣款', icon: CreditCard },
+                                    { tab: 'partners', label: '合作伙伴账号', description: '创建和管理 Partner Portal 登录', icon: UserRound },
                                 ] as Array<{ tab: AdminTab; label: string; description: string; icon: React.ElementType }>).map(item => {
                                     const Icon = item.icon
                                     const selected = activeTab === item.tab
@@ -1098,6 +1159,49 @@ export default function AdminPage() {
             {showAdminDashboard ? (
                 <AdminDashboard onSelect={selectAdminTab} />
             ) : <>
+            {activeTab === 'ai' && (
+                <div className="px-5 py-6 sm:px-8">
+                    <div className="mx-auto grid max-w-[1180px] gap-5 lg:grid-cols-[1fr_300px]">
+                        <section className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-[0_8px_24px_rgba(15,35,71,0.04)]">
+                            <div className="border-b border-black/10 bg-[linear-gradient(135deg,#0f2347_0%,#183a6d_100%)] px-5 py-5 text-white sm:px-6">
+                                <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-white/65"><Sparkles size={14} /> Internal AI assistant</div>
+                                <h2 className="mt-1 font-syne text-xl font-extrabold">车辆库对话助手</h2>
+                                <p className="mt-1 text-[12px] leading-relaxed text-white/70">用自然语言查询本地车辆、价格、座位、行李和电动车信息。当前为只读模式，不会自动修改订单或价格。</p>
+                            </div>
+                            <div className="min-h-[360px] space-y-3 bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_100%)] p-5 sm:p-6">
+                                {adminAiMessages.length === 0 && (
+                                    <div className="rounded-2xl border border-orange/20 bg-orange/[0.06] p-4 text-[13px] leading-relaxed text-navy">
+                                        <div className="font-bold">你可以这样问：</div>
+                                        <div className="mt-2 flex flex-wrap gap-2">
+                                            {['总结当前本地车库', '哪些车型没有价格？', '列出所有电动车', '哪台车适合 5 人和 3 个大箱？'].map(prompt => (
+                                                <button key={prompt} type="button" onClick={() => sendAdminAiMessage(prompt)} className="rounded-full border border-orange/25 bg-white px-3 py-1.5 text-left text-[11.5px] font-semibold text-navy transition-colors hover:bg-orange/10">{prompt}</button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {adminAiMessages.map((message, index) => (
+                                    <div key={`${message.role}-${index}`} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`max-w-[88%] whitespace-pre-line rounded-2xl px-4 py-3 text-[13px] leading-relaxed ${message.role === 'user' ? 'rounded-br-md bg-orange text-white' : 'rounded-bl-md border border-black/10 bg-white text-navy shadow-sm'}`}>{message.content}</div>
+                                    </div>
+                                ))}
+                                {adminAiLoading && <div className="text-[12px] text-muted">AI 正在整理车辆库…</div>}
+                            </div>
+                            <div className="flex gap-2 border-t border-black/10 bg-white p-4 sm:p-5">
+                                <textarea value={adminAiInput} onChange={event => setAdminAiInput(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendAdminAiMessage() } }} rows={2} placeholder="例如：帮我找出有价格但没有图片的车型" className="min-h-[48px] flex-1 resize-none rounded-xl border border-black/10 bg-off-white px-4 py-3 text-[13px] text-navy outline-none focus:border-orange" />
+                                <button type="button" onClick={() => sendAdminAiMessage()} disabled={adminAiLoading || !adminAiInput.trim()} className="self-end rounded-xl bg-orange px-4 py-3 text-[12px] font-bold text-white transition-colors hover:bg-orange-dark disabled:cursor-not-allowed disabled:opacity-50">发送</button>
+                            </div>
+                        </section>
+                        <aside className="space-y-4">
+                            <div className="rounded-2xl border border-black/10 bg-white p-5 shadow-[0_8px_24px_rgba(15,35,71,0.04)]">
+                                <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-orange">本地车库概览</div>
+                                {adminAiStats ? <div className="mt-4 grid grid-cols-2 gap-3">{[['RCM 车型', adminAiStats.rcmCatalogueVehicles], ['本地车库', adminAiStats.localGarageVehicles], ['已有价格', adminAiStats.pricedRcmVehicles], ['缺少价格', adminAiStats.missingRcmPrices], ['电动车', adminAiStats.electricVehicles]].map(([label, value]) => <div key={String(label)} className="rounded-xl bg-off-white p-3"><div className="font-syne text-xl font-extrabold text-navy">{value}</div><div className="mt-0.5 text-[10px] font-semibold text-muted">{label}</div></div>)}</div> : <p className="mt-3 text-[12px] leading-relaxed text-muted">发送一条消息后，AI 会同步读取并整理当前车辆库统计。</p>}
+                            </div>
+                            <div className="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-[12px] leading-relaxed text-sky-900"><strong>安全边界</strong><br />第一版只读车辆资料。价格、库存、订单等变更仍需在对应管理模块中人工确认。</div>
+                        </aside>
+                    </div>
+                </div>
+            )}
+            {activeTab === 'partners' && <PartnerAccounts token={token} showToast={showToast} />}
             {/* ── Fleet tab ── */}
             {activeTab === 'fleet' && <>
             {/* CSV 格式提示 */}
@@ -1227,6 +1331,7 @@ export default function AdminPage() {
                                         <th className="text-left px-4 py-3 font-syne font-bold text-navy text-[12px] uppercase tracking-wide">车辆</th>
                                         <th className="text-left px-4 py-3 font-syne font-bold text-navy text-[12px] uppercase tracking-wide">规格</th>
                                         <th className="text-left px-4 py-3 font-syne font-bold text-navy text-[12px] uppercase tracking-wide">常规价格/天</th>
+                                        <th className="text-left px-4 py-3 font-syne font-bold text-navy text-[12px] uppercase tracking-wide">可取车地点</th>
                                         <th className="text-left px-4 py-3 font-syne font-bold text-navy text-[12px] uppercase tracking-wide">首页位置</th>
                                         <th className="text-right px-4 py-3 font-syne font-bold text-navy text-[12px] uppercase tracking-wide">操作</th>
                                     </tr>
@@ -1254,6 +1359,19 @@ export default function AdminPage() {
                                                             </span>
                                                         )}
                                                     </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <select
+                                                        multiple
+                                                        value={Array.isArray(v.pickupLocations) ? v.pickupLocations : []}
+                                                        onChange={e => saveRcmLocations(v.vehiclecategoryid, Array.from(e.target.selectedOptions).map(option => option.value))}
+                                                        className="min-w-[150px] rounded-lg border border-black/10 bg-white px-2 py-2 text-[12px] text-navy outline-none focus:border-orange"
+                                                        title="按住 Command/Ctrl 可选择多个地点"
+                                                    >
+                                                        <option value="Christchurch">Christchurch</option>
+                                                        <option value="Queenstown">Queenstown</option>
+                                                    </select>
+                                                    <div className="mt-1 text-[10px] text-muted">可多选，修改后自动保存</div>
                                                 </td>
                                                 <td className="px-4 py-3 text-muted text-[13px]">
                                                     {v.numberofadults} 人 · {v.numberoflargecases} 大 {v.numberofsmallcases} 小

@@ -9,7 +9,7 @@ function buildSignedTicketsUrl() {
   const secret = process.env.YITU_DISTRIBUTOR_SIGNING_SECRET?.trim()
   if (!secret) throw new Error('Missing YITU_DISTRIBUTOR_SIGNING_SECRET.')
 
-  const base = process.env.VANTU_DISTRIBUTOR_TICKETS_URL || 'https://vantugroup.com/en/tickets'
+  const base = process.env.VANTU_DISTRIBUTOR_TICKETS_URL || 'https://vantugroup.com/zh/tickets'
   const code = 'YITU'
   const exp = String(Math.floor(Date.now() / 1000) + 15 * 60)
   const sig = createHmac('sha256', secret).update(`${code}.${exp}`).digest('hex')

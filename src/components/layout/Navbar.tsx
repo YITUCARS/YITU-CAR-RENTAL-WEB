@@ -237,6 +237,9 @@ export default function Navbar({onManageBooking, overlay = false}: NavbarProps) 
             <CalendarCheck size={13} />
             {t('Navbar.myBooking')}
           </button>
+          <Link href="/partner/login" className={cn('rounded-full border px-[16px] py-2.5 text-[12.5px] font-bold transition-all', lightBar ? 'border-navy/15 text-navy/75 hover:bg-navy/[0.06]' : 'border-white/15 text-white/82 hover:bg-white/10', onHero && 'border-white/30 text-white/95 bg-white/10 backdrop-blur-sm')}>
+            Partner Portal
+          </Link>
           <button
             onClick={goToBooking}
             className="flex items-center gap-1.5 bg-orange hover:bg-orange-dark text-white font-syne font-bold text-[13px] px-[22px] py-2.5 rounded-full transition-all hover:scale-[1.04] shadow-orange-glow"
@@ -336,13 +339,16 @@ export default function Navbar({onManageBooking, overlay = false}: NavbarProps) 
               >
                 {localeToggleLabel}
               </button>
-              <button
-                onClick={() => { onManageBooking(); setMobileOpen(false) }}
+                <button
+                  onClick={() => { onManageBooking(); setMobileOpen(false) }}
                 className="w-full flex items-center justify-center gap-2 bg-off-white border border-black/10 text-navy font-syne font-bold text-sm py-3 rounded-full hover:border-navy transition-colors"
               >
                 <CalendarCheck size={14} />
                 {t('Navbar.myBooking')}
-              </button>
+                </button>
+                <Link href="/partner/login" onClick={() => setMobileOpen(false)} className="mt-2 block rounded-xl border border-orange/20 px-4 py-3 text-center text-sm font-bold text-orange">
+                  Partner Portal · 合作伙伴入口
+                </Link>
               <button
                 onClick={goToBooking}
                 className="w-full flex items-center justify-center gap-2 bg-orange hover:bg-orange-dark text-white font-syne font-bold text-sm py-3 rounded-full transition-colors"

@@ -54,7 +54,7 @@ export default function WeddingPageShell(props: Props) {
             />
 
             <main className="bg-[#080d18]">
-                <section data-nav-overlay-anchor className="relative min-h-[560px] overflow-hidden bg-[#101c35] md:min-h-[100svh]">
+                <section data-nav-overlay-anchor className="relative aspect-[4614/2597] overflow-hidden bg-[#101c35] md:aspect-auto md:min-h-[100svh]">
                     <div className="absolute inset-0 bg-[url('/wedding-hero.webp')] bg-cover bg-center bg-no-repeat" aria-hidden="true" />
                     <WeddingHeroHotspots onSelect={() => scrollTo('wedding-fleet')} />
 

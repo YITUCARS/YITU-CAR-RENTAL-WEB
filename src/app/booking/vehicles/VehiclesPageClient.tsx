@@ -37,6 +37,8 @@ interface RCMVehicle {
         totalratebeforediscount?: number
         totalrateafterdiscount?: number
     }
+    partnerOriginalPrice?: number
+    partnerDiscountPercent?: number
     fuel?: string
     fueltype?: string
 }
@@ -332,7 +334,9 @@ function PriceDisplay({ value }: { value: number }) {
 function getVehiclePricing(vehicle: RCMVehicle, days: number) {
     const safeDays = Math.max(days, 1)
     const cachedRate = Number(vehicle.localPricePerDay || vehicle.localPricingPreview?.avgrate || 0)
-    const baseRatePerDay = roundMoney(vehicle.localFallback && cachedRate > 0
+    const baseRatePerDay = roundMoney(vehicle.partnerOriginalPrice && vehicle.partnerOriginalPrice > 0
+        ? vehicle.partnerOriginalPrice
+        : vehicle.localFallback && cachedRate > 0
         ? cachedRate
         : Number(vehicle.avgrate) > 0 ? vehicle.avgrate : cachedRate)
     const baseTotal = roundMoney(baseRatePerDay * safeDays)
@@ -343,6 +347,8 @@ function getVehiclePricing(vehicle: RCMVehicle, days: number) {
     // cached daily price multiplied by the rental days.
     if (vehicle.localFallback) {
         promoDiscount = 0
+    } else if (vehicle.partnerDiscountPercent && vehicle.partnerDiscountPercent > 0) {
+        promoDiscount = roundMoney(baseTotal * vehicle.partnerDiscountPercent / 100)
     } else if (vehicle.totaldiscountamount > 0) {
         promoDiscount = roundMoney(vehicle.totaldiscountamount)
     } else if (vehicle.totalrateafterdiscount > 0 && vehicle.totalrateafterdiscount < baseTotal) {
@@ -1179,6 +1185,9 @@ export default function VehiclesPage() {
                                                                             <span className="text-orange ml-1">{copy.youngDriverFee}</span>
                                                                         )}
                                                                     </div>
+                                                                    {vehicle.partnerDiscountPercent && vehicle.partnerDiscountPercent > 0 && (
+                                                                        <div className="text-[11px] text-green-700 font-medium mb-1">{locale === 'zh' ? `合作伙伴优惠 ${vehicle.partnerDiscountPercent}% · 原价 NZD $${pricing.baseTotal.toFixed(2)}` : `Partner discount ${vehicle.partnerDiscountPercent}% · Original NZD $${pricing.baseTotal.toFixed(2)}`}</div>
+                                                                    )}
                                                                     {pricing.promoDiscount > 0 && (
                                                                         <div className="text-[11px] text-green-700 font-medium mb-1">
                                                                             {copy.promoApplied(appliedPromoCode)} $<PriceDisplay value={pricing.promoDiscount} /> {copy.total}

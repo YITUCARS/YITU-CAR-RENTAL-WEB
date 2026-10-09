@@ -60,9 +60,12 @@ export async function PATCH(req: NextRequest) {
     try {
         const body = await req.json()
         const vehiclecategoryid = Number(body.vehiclecategoryid)
+        const pickupLocations = Array.isArray(body.pickup_locations)
+            ? body.pickup_locations.filter((location: unknown): location is string => location === 'Christchurch' || location === 'Queenstown')
+            : null
         const pricePerDay = Number(body.price_per_day)
-        if (!vehiclecategoryid || !Number.isFinite(pricePerDay) || pricePerDay <= 0) {
-            return NextResponse.json({ error: '请输入有效的每日价格' }, { status: 400 })
+        if (!vehiclecategoryid || (pricePerDay !== 0 && (!Number.isFinite(pricePerDay) || pricePerDay <= 0)) && !pickupLocations) {
+            return NextResponse.json({ error: '请输入有效的车辆地点或每日价格' }, { status: 400 })
         }
 
         const { getSupabaseAdmin } = await import('@/lib/supabase-admin')
@@ -76,18 +79,22 @@ export async function PATCH(req: NextRequest) {
         if (!current) return NextResponse.json({ error: '未找到该车型缓存' }, { status: 404 })
 
         const updatedAt = new Date().toISOString()
+        const nextVehicleJson = { ...(current.vehicle_json || {}) }
+        if (pickupLocations) nextVehicleJson.pickupLocations = pickupLocations
+        if (Number.isFinite(pricePerDay) && pricePerDay > 0) {
+            Object.assign(nextVehicleJson, {
+                avgrate: pricePerDay,
+                totalratebeforediscount: pricePerDay,
+                totalrateafterdiscount: pricePerDay,
+                totaldiscountamount: 0,
+                localPricePerDay: pricePerDay,
+                pricingSource: 'admin',
+            })
+        }
         const { error } = await supabase
             .from('rcm_vehicle_cache')
             .update({
-                vehicle_json: {
-                    ...(current.vehicle_json || {}),
-                    avgrate: pricePerDay,
-                    totalratebeforediscount: pricePerDay,
-                    totalrateafterdiscount: pricePerDay,
-                    totaldiscountamount: 0,
-                    localPricePerDay: pricePerDay,
-                    pricingSource: 'admin',
-                },
+                vehicle_json: nextVehicleJson,
                 updated_at: updatedAt,
             })
             .eq('vehiclecategoryid', vehiclecategoryid)

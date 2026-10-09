@@ -6,6 +6,7 @@ import { resolveRcmPromoCode } from '@/lib/promo-code'
 import { applyLocalPrices, calculateRentalDays } from '@/lib/local-pricing'
 import { hoursUntilNz, msToNzLocal, nzLocalToMs } from '@/lib/nz-time'
 import { getCachedRcmSearch, getCachedRcmVehicles, getStaleRcmSearch, mergeRcmVehiclesWithCache, saveRcmSearch, saveRcmVehicles } from '@/lib/rcm-vehicle-cache'
+import { readPartnerSession } from '@/lib/partner-auth'
 
 type CacheEntry = { data: any; timestamp: number }
 const searchCache = new Map<string, CacheEntry>()
@@ -56,6 +57,8 @@ export async function POST(req: NextRequest) {
     }
 
     const { pickupLocation, dropoffLocation, pickupDate, dropoffDate, pickupTime, dropoffTime, promoCode, shortNotice = false } = body
+    const partnerSession = readPartnerSession(req)
+    const partnerDiscount = Math.min(100, Math.max(0, Number(partnerSession?.discountPercent || 0)))
     const rcmPromoCode = resolveRcmPromoCode(promoCode)
     const cacheKey = JSON.stringify({ pickupLocation, dropoffLocation, pickupDate, dropoffDate, pickupTime, dropoffTime, promoCode })
     const now = Date.now()
@@ -63,7 +66,20 @@ export async function POST(req: NextRequest) {
     // Queenstown must be filtered from the current RCM quote. Reusing a
     // merged local-price search cache could turn a zero RCM rate into a priced
     // vehicle before the location filter runs.
-    const canUseSearchCache = pickupLocation !== 'Queenstown'
+    const canUseSearchCache = pickupLocation !== 'Queenstown' && partnerDiscount === 0
+
+    function applyPartnerDiscount(vehicles: any[]) {
+        if (!partnerDiscount) return vehicles
+        return vehicles.map(vehicle => {
+            const original = Number(vehicle.localPricingPreview?.avgrate || vehicle.localPricePerDay || vehicle.avgrate || 0)
+            if (!Number.isFinite(original) || original <= 0) return vehicle
+            const discounted = Math.round(original * (1 - partnerDiscount / 100) * 100) / 100
+            const originalTotal = Number(vehicle.localPricingPreview?.totalratebeforediscount || vehicle.totalratebeforediscount || original)
+            const discountedTotal = Math.round(originalTotal * (1 - partnerDiscount / 100) * 100) / 100
+            const pricing = vehicle.localPricingPreview ? { ...vehicle.localPricingPreview, avgrate: discounted, totalrateafterdiscount: discountedTotal, partnerOriginalPrice: original, partnerDiscountPercent: partnerDiscount } : null
+            return { ...vehicle, avgrate: discounted, totalratebeforediscount: originalTotal, totalrateafterdiscount: discountedTotal, totaldiscountamount: Math.round((originalTotal - discountedTotal) * 100) / 100, partnerOriginalPrice: original, partnerDiscountPercent: partnerDiscount, ...(pricing ? { localPricingPreview: pricing } : {}) }
+        })
+    }
 
     async function addLocalPricing(data: any) {
         const rentalDays = calculateRentalDays(pickupDate, pickupTime || '10:00', dropoffDate, dropoffTime || '10:00')
@@ -76,7 +92,7 @@ export async function POST(req: NextRequest) {
         const merged = await mergeRcmVehiclesWithCache(cached.data?.availablecars || [])
         const refreshedVehicles = filterVehiclesForPickup(merged, pickupLocation)
         const priced = await addLocalPricing(refreshedVehicles)
-        return NextResponse.json({ success: true, data: { ...cached.data, availablecars: priced.vehicles }, pricing: { mode: priced.mode, matched: priced.matched } }, {
+        return NextResponse.json({ success: true, partnerDiscount, data: { ...cached.data, availablecars: applyPartnerDiscount(priced.vehicles) }, pricing: { mode: priced.mode, matched: priced.matched } }, {
             headers: { 'Cache-Control': 'public, max-age=300' },
         })
     }
@@ -87,7 +103,7 @@ export async function POST(req: NextRequest) {
         const merged = await mergeRcmVehiclesWithCache(persistentCached?.availablecars || [])
         const refreshedVehicles = filterVehiclesForPickup(merged, pickupLocation)
         const priced = await addLocalPricing(refreshedVehicles)
-        return NextResponse.json({ success: true, data: { ...persistentCached, availablecars: priced.vehicles }, pricing: { mode: priced.mode, matched: priced.matched }, source: 'local-cache' }, {
+        return NextResponse.json({ success: true, partnerDiscount, data: { ...persistentCached, availablecars: applyPartnerDiscount(priced.vehicles) }, pricing: { mode: priced.mode, matched: priced.matched }, source: 'local-cache' }, {
             headers: { 'Cache-Control': 'public, max-age=120' },
         })
     }
@@ -186,11 +202,11 @@ export async function POST(req: NextRequest) {
             })
             // A request card with no local quote would show as $0.
             .filter((vehicle: any) => !vehicle.localFallback || Number(vehicle.avgrate) > 0)
-        const finalResults = { ...mergedResults, availablecars: finalVehicles }
+        const finalResults = { ...mergedResults, availablecars: applyPartnerDiscount(finalVehicles) }
         await saveRcmSearch(cacheKey, finalResults)
         searchCache.set(cacheKey, { data: finalResults, timestamp: now })
 
-        return NextResponse.json({ success: true, data: finalResults, pricing: { mode: priced.mode, matched: priced.matched } }, {
+        return NextResponse.json({ success: true, partnerDiscount, data: finalResults, pricing: { mode: priced.mode, matched: priced.matched } }, {
             headers: { 'Cache-Control': 'public, max-age=300' },
         })
     } catch (err: any) {

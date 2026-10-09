@@ -384,6 +384,106 @@ function detectChatLocale(): ChatLocale {
     return 'en'
 }
 
+function AdminAssistantPanel() {
+    const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([])
+    const [input, setInput] = useState('')
+    const [loading, setLoading] = useState(false)
+    const [pendingPriceUpdates, setPendingPriceUpdates] = useState<Array<{ id: string; source: 'rcm' | 'garage'; price: number; name: string }>>([])
+
+    async function confirmPrices() {
+        if (!pendingPriceUpdates.length || loading) return
+        setLoading(true)
+        try {
+            const token = window.sessionStorage.getItem('yitu-admin-token') || ''
+            const response = await fetch('/api/admin/ai-assistant', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+                body: JSON.stringify({ action: 'confirm_price_update', updates: pendingPriceUpdates }),
+            })
+            const result = await response.json()
+            if (!response.ok || !result.success) throw new Error(result.error || '价格修改失败')
+            setMessages(current => [...current, { role: 'assistant', content: result.answer }])
+            setPendingPriceUpdates([])
+        } catch (error: any) {
+            setMessages(current => [...current, { role: 'assistant', content: `⚠️ ${error.message || '价格修改失败'}` }])
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    async function send(messageOverride?: string) {
+        const message = (messageOverride ?? input).trim()
+        if (!message || loading) return
+        const history = [...messages, { role: 'user' as const, content: message }]
+        setMessages(history)
+        setInput('')
+        setLoading(true)
+        try {
+            const token = window.sessionStorage.getItem('yitu-admin-token') || ''
+            const response = await fetch('/api/admin/ai-assistant', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+                body: JSON.stringify({ message, history: messages }),
+            })
+            const result = await response.json()
+            if (!response.ok || !result.success) throw new Error(result.error || 'AI 暂时无法回答')
+            if (result.action === 'price_preview' && Array.isArray(result.updates)) setPendingPriceUpdates(result.updates)
+            setMessages(current => [...current, { role: 'assistant', content: result.answer }])
+        } catch (error: any) {
+            setMessages(current => [...current, { role: 'assistant', content: `⚠️ ${error.message || 'AI 暂时无法回答'}` }])
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <>
+            <div className="min-h-0 flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_100%)] px-4 py-4">
+                {messages.length === 0 && (
+                    <div className="rounded-2xl border border-orange/20 bg-orange/[0.06] p-4 text-[13px] leading-relaxed text-navy">
+                        <div className="font-bold">内部车辆库助手</div>
+                        <p className="mt-1 text-[12px] text-muted">我可以帮你查询本地车库、价格、座位、行李、电动车和缺少图片的车型。</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            {['总结当前车库', '哪些车缺少价格？', '列出所有电动车'].map(prompt => (
+                                <button key={prompt} type="button" onClick={() => send(prompt)} className="rounded-full border border-orange/25 bg-white px-3 py-1.5 text-left text-[11.5px] font-semibold text-navy hover:bg-orange/10">{prompt}</button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {messages.map((message, index) => (
+                    <div key={`${message.role}-${index}`} className={`mb-3 flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[86%] whitespace-pre-line rounded-2xl px-4 py-3 text-[13px] leading-relaxed ${message.role === 'user' ? 'rounded-br-md bg-orange text-white' : 'rounded-bl-md border border-black/10 bg-white text-navy shadow-sm'}`}>{message.content}</div>
+                    </div>
+                ))}
+                {loading && <div className="text-[12px] text-muted">AI 正在整理车辆库…</div>}
+                {pendingPriceUpdates.length > 0 && (
+                    <div className="mt-4 rounded-2xl border border-orange/30 bg-orange/[0.06] p-4">
+                        <div className="font-bold text-[13px] text-navy">待确认的批量价格修改</div>
+                        <div className="mt-2 space-y-2">
+                            {pendingPriceUpdates.map(update => (
+                                <div key={`${update.source}-${update.id}`} className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2 text-[12px] text-navy">
+                                    <span className="min-w-0 truncate">{update.name}</span>
+                                    <strong className="shrink-0">NZD ${update.price.toFixed(2)}/day</strong>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="mt-3 flex gap-2">
+                            <button type="button" onClick={confirmPrices} disabled={loading} className="flex-1 rounded-xl bg-orange px-3 py-2 text-[12px] font-bold text-white hover:bg-orange-dark disabled:opacity-60">确认并修改</button>
+                            <button type="button" onClick={() => setPendingPriceUpdates([])} disabled={loading} className="rounded-xl border border-black/10 px-3 py-2 text-[12px] text-muted hover:border-orange hover:text-orange disabled:opacity-60">取消</button>
+                        </div>
+                    </div>
+                )}
+            </div>
+            <div className="shrink-0 border-t border-black/10 bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+                <div className="flex items-end gap-2">
+                    <textarea rows={1} value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); send() } }} placeholder="例如：哪台车适合 5 人和 3 个大箱？" className="min-h-[48px] flex-1 resize-none rounded-2xl border border-black/10 bg-off-white px-4 py-3 text-[13px] text-navy outline-none focus:border-orange" />
+                    <button type="button" onClick={() => send()} disabled={loading || !input.trim()} className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange text-white hover:bg-orange-dark disabled:opacity-60" aria-label="Send"><SendHorizontal size={18} /></button>
+                </div>
+            </div>
+        </>
+    )
+}
+
 // ── Contact collection form ───────────────────────────────────────────────────
 
 function ContactForm({ onSubmit, onCancel, sending, locale }: {
@@ -1132,6 +1232,7 @@ function ChatPaymentPanel({ locale, booking, paymentType, onPaymentTypeChange, l
 
 export default function ChatWidget() {
     const pathname = usePathname() || '/'
+    const isAdminPage = pathname.startsWith('/admin')
     const [open, setOpen] = useState(false)
     const [sessionId, setSessionId] = useState('')
     const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -2086,8 +2187,8 @@ export default function ChatWidget() {
                     <div className="bg-[linear-gradient(135deg,#0f2347_0%,#183a6d_100%)] px-5 py-4 text-white">
                         <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2 text-[12px] uppercase tracking-[0.16em] text-white/70 font-bold">
-                                {status === 'human' ? <Headset size={14} /> : <BellDot size={14} />}
-                                {headerLabel}
+                                {isAdminPage ? <Sparkles size={14} /> : status === 'human' ? <Headset size={14} /> : <BellDot size={14} />}
+                                {isAdminPage ? 'Internal AI assistant' : headerLabel}
                             </div>
                             <button
                                 type="button"
@@ -2098,25 +2199,28 @@ export default function ChatWidget() {
                                 <X size={17} />
                             </button>
                         </div>
-                        <h3 className="font-syne text-[1.1rem] font-extrabold mt-1">YITU Car Rental</h3>
+                        <h3 className="font-syne text-[1.1rem] font-extrabold mt-1">{isAdminPage ? 'AI 管理助手' : 'YITU Car Rental'}</h3>
                         <div className="mt-0.5 flex items-center justify-between gap-3">
                             <p className="text-[12px] text-white/75">
-                                {status === 'human'
+                                {isAdminPage
+                                    ? '查询本地车库、价格和车辆资料。'
+                                    : status === 'human'
                                     ? copy.connected
                                     : chatLocale === 'zh'
                                         ? '找车、选保险和附加项，都可以在这里完成。'
                                         : copy.assistantHint}
                             </p>
-                            <button
+                            {!isAdminPage && <button
                                 type="button"
                                 onClick={() => setShowLanguageChoice(true)}
                                 className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold text-white/85 transition-colors hover:bg-white/20"
                             >
                                 {chatLocale === 'zh' ? '中文' : 'EN'}
-                            </button>
+                            </button>}
                         </div>
                     </div>
 
+                    {isAdminPage ? <AdminAssistantPanel /> : <>
                     {/* Messages */}
                     <div ref={messagesContainerRef} className="min-h-0 flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_100%)] px-4 py-4">
                         {showLanguageChoice && (
@@ -2362,6 +2466,7 @@ export default function ChatWidget() {
                             </button>
                         </div>
                     </div>
+                    </>}
                 </div>
             )}
         </>
