@@ -1,10 +1,10 @@
 # YITU Rental on vantu-server-001
 
 The website runs as the isolated `yitu-rental` Compose project in `/opt/yitu-rental`.
-It exposes no host port and shares only the external `yitu-edge` network with the
-central Nginx container. Production secrets live under
+It binds only to `127.0.0.1:3100`, where the shared host Nginx proxies requests.
+Production secrets live under
 `/yitu-rental/production/app/` in AWS Systems Manager Parameter Store.
 
-The staging origin is `https://aws.yiturentalcars.co.nz`. Keep the Vercel production
-domain unchanged until staging health, booking, payment callbacks, admin, staff, and
-WeChat flows have been verified.
+Production is served from `https://www.yiturentalcars.co.nz`, with the root domain
+redirecting to `www`. The staging origin remains available at
+`https://aws.yiturentalcars.co.nz`.
