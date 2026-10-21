@@ -250,7 +250,8 @@ update public.rate_vehicle_categories set rcm_export_name = 'Telsa Model 3 2021-
 update public.rate_vehicle_categories set rcm_export_name = 'Toyota FJ Cruiser  2012-2015' where ota_group_id = '37603';
 update public.rate_vehicle_categories set rcm_export_name = 'Toyota Hilux Or Similar' where ota_group_id = '40722';
 update public.rate_vehicle_categories set rcm_export_name = 'Toyota RAV4 Hybrid or Similar' where ota_group_id = '1298';
-update public.rate_vehicle_categories set rcm_export_name = 'Toyota Vellfire 7 Seats' where ota_group_id = '37658';
+update public.rate_vehicle_categories set rcm_export_name = 'Toyota Vellfire 8 Seats' where ota_group_id = '37658' and rcm_category_code = 'GVAV';
+update public.rate_vehicle_categories set rcm_export_name = 'Toyota Vellfire 7 Seats' where ota_group_id = '1003' and rcm_category_code = 'UVAR';
 
 -- Master rates (matched RCM prices → OTA categories)
 insert into public.rate_master_rates (category_id, season_id, price_1_3, price_4_6, price_7_plus, currency) select c.id, s.id, 160, 140, 120, 'NZD' from public.rate_vehicle_categories c, public.rate_seasons s where c.ota_group_id='41357' and s.date_from='2026-05-26' and s.date_to='2026-07-01' on conflict (category_id, season_id) do update set price_1_3=excluded.price_1_3, price_4_6=excluded.price_4_6, price_7_plus=excluded.price_7_plus;

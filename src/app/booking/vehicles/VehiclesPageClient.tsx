@@ -342,22 +342,23 @@ function getVehiclePricing(vehicle: RCMVehicle, days: number) {
     const baseTotal = roundMoney(baseRatePerDay * safeDays)
 
     let promoDiscount = 0
+    let partnerDiscount = 0
     // RCM can return an old total-rate field on short-notice fallback rows.
     // It is not a promo discount, so local request quotes must use the full
     // cached daily price multiplied by the rental days.
     if (vehicle.localFallback) {
         promoDiscount = 0
     } else if (vehicle.partnerDiscountPercent && vehicle.partnerDiscountPercent > 0) {
-        promoDiscount = roundMoney(baseTotal * vehicle.partnerDiscountPercent / 100)
+        partnerDiscount = roundMoney(baseTotal * vehicle.partnerDiscountPercent / 100)
     } else if (vehicle.totaldiscountamount > 0) {
         promoDiscount = roundMoney(vehicle.totaldiscountamount)
     } else if (vehicle.totalrateafterdiscount > 0 && vehicle.totalrateafterdiscount < baseTotal) {
         promoDiscount = roundMoney(baseTotal - vehicle.totalrateafterdiscount)
     }
 
-    const discountedTotal = roundMoney(baseTotal - promoDiscount)
+    const discountedTotal = roundMoney(baseTotal - promoDiscount - partnerDiscount)
     const effectivePerDay = roundMoney(discountedTotal / safeDays)
-    return { baseTotal, promoDiscount, discountedTotal, effectivePerDay }
+    return { baseTotal, promoDiscount, partnerDiscount, discountedTotal, effectivePerDay }
 }
 
 function VehicleSearchCard({
@@ -870,18 +871,21 @@ export default function VehiclesPage() {
             vehicleId: String(vehicle.vehiclecategoryid),
             vehicleCategoryTypeId: vehicle.vehiclecategorytypeid,
             vehicleName: vehicle.categoryfriendlydescription || vehicle.vehiclecategory,
-            basePricePerDay: vehicle.avgrate,
+            basePricePerDay: vehicle.partnerOriginalPrice || vehicle.avgrate,
             pricePerDay: pricing.effectivePerDay,
             days,
             promoCode: appliedPromoCode,
             promoDiscountType: '',
             promoDiscountValue: 0,
             promoDiscountAmount: pricing.promoDiscount,
+            partnerDiscountPercent: vehicle.partnerDiscountPercent || 0,
+            partnerDiscountAmount: pricing.partnerDiscount,
             insuranceOptions: vehicleInsurance,
             selectedInsuranceId: vehicleInsurance.find((item: any) => item.isdefault)?.id ?? null,
         }))
 
-        router.push(`/${locale}/booking/extras`)
+        const partnerQuery = params.get('partner') === '1' ? '?partner=1' : ''
+        router.push(`/${locale}/booking/extras${partnerQuery}`)
     }
 
     function openManualRequest(vehicle: RCMVehicle) {

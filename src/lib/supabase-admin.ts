@@ -8,5 +8,9 @@ export function getSupabaseAdmin() {
     throw new Error('Supabase admin credentials are not configured.')
   }
 
-  return createClient(url, key)
+  return createClient(url, key, {
+    // Next.js caches fetch() GETs in its data cache; supabase-js reads go through fetch, so a
+    // read made while a table was empty kept being served (e.g. rcm_sync_state). Always hit the DB.
+    global: { fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }) },
+  })
 }

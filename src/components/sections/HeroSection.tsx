@@ -4,8 +4,9 @@ import Image from 'next/image'
 import { ArrowRight, Play, MapPin, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import type { TouchEvent } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
+import { localizeDeal } from '@/lib/deal-locale'
 import faviconMark from '@/app/icon.png/android-chrome-512x512.png'
 
 // 10 px gray placeholder — shown while the first carousel image loads
@@ -21,8 +22,9 @@ interface BannerItem {
 }
 
 
-function dealsToAds(deals: any[]): BannerItem[] {
+function dealsToAds(deals: any[], locale: string): BannerItem[] {
   return deals
+    .map((d) => localizeDeal(d, locale))
     .filter((d) => Boolean(d.image_url || d.image))
     .map((d) => ({
       id: `deal-${d.id || d.slug || d.title}`,
@@ -35,8 +37,9 @@ function dealsToAds(deals: any[]): BannerItem[] {
 
 export default function HeroSection({ initialDeals }: { initialDeals?: any[] }) {
   const t = useTranslations()
+  const locale = useLocale()
   const [ads, setAds] = useState<BannerItem[]>(() =>
-    initialDeals && initialDeals.length > 0 ? dealsToAds(initialDeals) : []
+    initialDeals && initialDeals.length > 0 ? dealsToAds(initialDeals, locale) : []
   )
   const [current, setCurrent] = useState(0)
   const [paused, setPaused] = useState(false)
@@ -85,7 +88,7 @@ export default function HeroSection({ initialDeals }: { initialDeals?: any[] }) 
     if (ads.length > 0) return
     fetch('/api/public/deals')
       .then(r => r.json())
-      .then((data: any[]) => { if (data.length > 0) setAds(dealsToAds(data)) })
+      .then((data: any[]) => { if (data.length > 0) setAds(dealsToAds(data, locale)) })
       .catch(() => {})
   }, [])
 

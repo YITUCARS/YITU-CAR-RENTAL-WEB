@@ -28,6 +28,11 @@ async function postToRCM(bodyObj: Record<string, any>, apiKey?: string) {
     if (!res.ok) throw new Error(`RCM API call failed: ${res.status}`)
     const data = await res.json()
     if (data.status === 'ERR') throw new Error(`RCM error: ${data.error}`)
+    // A recorded payment turns a website quote into a booking: refresh the YITU Lite mirror
+    // right away so staff get the new-booking push (every payment path goes through here).
+    if (bodyObj.method === 'confirmpayment') {
+        import('@/lib/rcm-sync').then(sync => sync.syncSoon()).catch(() => {})
+    }
     return data.results
 }
 

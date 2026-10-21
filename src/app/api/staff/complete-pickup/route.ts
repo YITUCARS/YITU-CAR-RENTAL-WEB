@@ -5,7 +5,7 @@ import { rcmCall } from '@/lib/rcm'
 import { requireStaff } from '@/lib/staff-api'
 
 export async function POST(req: NextRequest) {
-  const auth = requireStaff(req)
+  const auth = await requireStaff(req, 'pickup.manage')
   if (auth.response) return auth.response
 
   try {

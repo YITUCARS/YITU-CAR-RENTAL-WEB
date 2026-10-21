@@ -2,11 +2,15 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { rcmCall } from '@/lib/rcm'
+import { requireStaff } from '@/lib/staff-api'
 
 // POST /api/staff/booking
 // Body: { reservationRef: string } | { reservationNo: number }
 // Returns full booking detail from RCM bookinginfo
 export async function POST(req: NextRequest) {
+  const auth = await requireStaff(req, 'bookings.read')
+  if (auth.response) return auth.response
+
   try {
     const { reservationRef, reservationNo } = await req.json()
 

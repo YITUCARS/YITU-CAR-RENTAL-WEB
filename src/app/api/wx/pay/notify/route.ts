@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import { decryptWechatPayResource } from '@/lib/wechat-pay'
 import { rcmConfirmPayment } from '@/lib/rcm'
 import { notifyWebsitePaymentReceived } from '@/lib/rcm-telegram'
+import { settleTicketTransaction, ticketAttach } from '@/lib/vantu-tickets'
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -64,6 +65,13 @@ export async function POST(req: NextRequest) {
 
     if (eventType !== 'TRANSACTION.SUCCESS' || transaction.trade_state !== 'SUCCESS') {
       console.warn('[wx/pay/notify] ignored event:', eventType, transaction.trade_state)
+      return success()
+    }
+
+    // Vantu ticket bought in the mini program: have Vantu issue it. A failure
+    // answers FAIL so WeChat retries the notification.
+    if (ticketAttach(transaction)) {
+      await settleTicketTransaction(transaction)
       return success()
     }
 

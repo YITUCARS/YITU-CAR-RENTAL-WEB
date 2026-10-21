@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { User, Mail, Phone, Plane, MessageSquare, ChevronDown } from 'lucide-react'
 import { useBooking } from '@/lib/booking-context'
 import BookingFlowHeader from '@/components/booking/BookingFlowHeader'
@@ -122,6 +122,7 @@ function Field({ label, icon: Icon, value, onChange, error, type = 'text', place
 
 export default function DetailsPage() {
     const router = useRouter()
+    const searchParams = useSearchParams()
     const { booking, setBooking, isHydrated } = useBooking()
     const [form, setForm] = useState({
         firstName: booking.firstName,
@@ -137,10 +138,44 @@ export default function DetailsPage() {
         return DIAL_CODES.find(c => c.dial === dc)?.key || 'NZ'
     })
     const formRef = useRef(form)
+    const partnerRedirected = useRef(false)
+    const [partnerRedirecting, setPartnerRedirecting] = useState(false)
+    const [partnerChecking, setPartnerChecking] = useState(true)
     const [errors, setErrors] = useState<Record<string, string>>({})
 
     useEffect(() => {
         if (!isHydrated) return
+        if (partnerRedirected.current) return
+        fetch('/api/partner/session').then(r => r.ok ? r.json() : null).then(data => {
+            const account = data?.success ? data.account : null
+            const partnerMode = searchParams.get('partner') === '1' || Boolean(account)
+            if (!partnerMode || !account) {
+                setPartnerChecking(false)
+                return
+            }
+            if (!account.contactEmail || !account.contactPhone) {
+                window.location.href = '/en/partner?profile=required'
+                return
+            }
+            partnerRedirected.current = true
+            setPartnerRedirecting(true)
+            const partnerForm = {
+                firstName: account.displayName || 'Corporate',
+                lastName: 'Account',
+                email: account.contactEmail,
+                phone: account.contactPhone,
+                phoneDialCode: account.contactPhone.startsWith('+') ? '' : '+64',
+                flightNumber: booking.flightNumber,
+                notes: booking.notes,
+            }
+            try {
+                const raw = sessionStorage.getItem('yitu-booking')
+                const current = raw ? JSON.parse(raw) : {}
+                sessionStorage.setItem('yitu-booking', JSON.stringify({ ...current, ...partnerForm }))
+            } catch {}
+            setBooking(b => ({ ...b, ...partnerForm }))
+            router.push(`/booking/payment?total=${grandTotal}&days=${booking.days}&pricePerDay=${booking.pricePerDay}&partner=1`)
+        }).catch(() => setPartnerChecking(false))
         setForm({
             firstName: booking.firstName,
             lastName: booking.lastName,
@@ -152,7 +187,7 @@ export default function DetailsPage() {
         })
         const dc = booking.phoneDialCode || '+64'
         setPhoneDialKey(DIAL_CODES.find(c => c.dial === dc)?.key || 'NZ')
-    }, [booking, isHydrated])
+    }, [booking, isHydrated, searchParams])
     useEffect(() => {
         formRef.current = form
     }, [form])
@@ -187,7 +222,7 @@ export default function DetailsPage() {
         } catch {}
 
         setBooking(b => ({ ...b, ...latestForm }))
-        router.push(`/booking/payment?total=${grandTotal}&days=${booking.days}&pricePerDay=${booking.pricePerDay}`)
+        router.push(`/booking/payment?total=${grandTotal}&days=${booking.days}&pricePerDay=${booking.pricePerDay}${searchParams.get('partner') === '1' ? '&partner=1' : ''}`)
     }
 
     // Use the full total (vehicle + extras + insurance) saved from the extras page.
@@ -195,8 +230,12 @@ export default function DetailsPage() {
     const baseVehicleTotal = (booking.basePricePerDay || booking.pricePerDay) * booking.days
     const vehicleTotal = Math.max(0, baseVehicleTotal - booking.promoDiscountAmount)
     const grandTotal = booking.totalAmount > 0 ? booking.totalAmount : vehicleTotal
+    const summaryInsurance = booking.insuranceOptions.find(item => item.id === booking.selectedInsuranceId)
+        || booking.insuranceOptions.find(item => item.isdefault)
+        || booking.insuranceOptions[0]
+    const insuranceIncluded = !summaryInsurance || !summaryInsurance.fees
 
-    if (!isHydrated) {
+    if (!isHydrated || partnerChecking) {
         return (
             <>
                 <Navbar onManageBooking={() => {}} />
@@ -208,6 +247,10 @@ export default function DetailsPage() {
                 </main>
             </>
         )
+    }
+
+    if (partnerRedirecting) {
+        return <main className="min-h-screen bg-off-white px-5 py-24 text-center text-navy"><div className="mx-auto max-w-md rounded-2xl bg-white p-8 shadow-sm"><div className="font-syne text-xl font-extrabold">正在进入企业确认</div><p className="mt-2 text-sm text-muted">企业账号资料已自动带入，不需要重复填写。</p></div></main>
     }
 
     return (
@@ -239,6 +282,15 @@ export default function DetailsPage() {
                             <span>Duration</span>
                             <span className="font-semibold text-orange">{booking.days} days</span>
                         </div>
+                        <div className="flex justify-between gap-3">
+                            <span>Location</span>
+                            <span className="max-w-[210px] text-right font-medium text-navy">{booking.pickupLocation || '—'}{booking.dropoffLocation && booking.dropoffLocation !== booking.pickupLocation ? ` → ${booking.dropoffLocation}` : ''}</span>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                            <span>{summaryInsurance?.name || 'Basic Insurance'}</span>
+                            <span className={insuranceIncluded ? 'font-medium text-green-700' : 'font-medium text-orange'}>{insuranceIncluded ? 'Included' : `+$${(summaryInsurance.fees * booking.days).toLocaleString()}`}</span>
+                        </div>
+                        <div className="text-right text-[11px] text-muted/80">{insuranceIncluded ? 'NZD $4,500 excess fee' : 'Selected cover option'}</div>
                     </div>
                 </MobileBookingSummary>
                 <div className="flex gap-8 items-start flex-col lg:flex-row">
@@ -321,7 +373,14 @@ export default function DetailsPage() {
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Location</span>
-                                    <span className="text-navy font-medium">{booking.pickupLocation}</span>
+                                    <span className="max-w-[145px] text-right text-navy font-medium">{booking.pickupLocation || '—'}{booking.dropoffLocation && booking.dropoffLocation !== booking.pickupLocation ? ` → ${booking.dropoffLocation}` : ''}</span>
+                                </div>
+                                <div className="flex justify-between gap-2">
+                                    <span>{summaryInsurance?.name || 'Basic Insurance'}</span>
+                                    <span className={insuranceIncluded ? 'font-medium text-green-700' : 'font-medium text-orange'}>{insuranceIncluded ? 'Included' : `+$${(summaryInsurance.fees * booking.days).toLocaleString()}`}</span>
+                                </div>
+                                <div className="text-right text-[11px] text-muted/80">
+                                    {insuranceIncluded ? 'NZD $4,500 excess fee' : 'Selected cover option'}
                                 </div>
                             </div>
                             <div className="border-t border-black/10 pt-3 space-y-1.5">

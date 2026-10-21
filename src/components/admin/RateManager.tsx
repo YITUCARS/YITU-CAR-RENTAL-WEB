@@ -86,6 +86,17 @@ export default function RateManager({ token, showToast }: { token: string; showT
         catch (e: any) { showToast('⚠️ ' + e.message) }
     }
 
+    async function deleteSeason(season: Season) {
+        if (!confirm(`删除价格区间「${season.name}」？该区间下的所有车型价格也会被删除。`)) return
+        try {
+            await api(`/seasons?id=${encodeURIComponent(season.id)}`, { method: 'DELETE' })
+            const nextSeasons = await api('/seasons')
+            setSeasons(nextSeasons)
+            setSeasonId((current: string) => current === season.id ? (nextSeasons[0]?.id || '') : current)
+            showToast('✅ 价格区间已删除')
+        } catch (e: any) { showToast('⚠️ ' + e.message) }
+    }
+
     // ───────────────────────── Seasons + rates ─────────────────────────
     const [seasonId, setSeasonId] = useState<string>('')
     useEffect(() => { if (!seasonId && seasons.length) setSeasonId(seasons[0].id) }, [seasons, seasonId])
@@ -94,6 +105,15 @@ export default function RateManager({ token, showToast }: { token: string; showT
         api(`/rates?season_id=${seasonId}`).then(setRates).catch((e: any) => showToast('⚠️ ' + e.message))
     }, [seasonId]) // eslint-disable-line react-hooks/exhaustive-deps
     const rateByCat = useMemo(() => new Map(rates.map(r => [r.category_id, r])), [rates])
+    const rateCategories = useMemo(() => [...categories].sort((a, b) => {
+        const rank = (category: VehicleCategory) => {
+            const rate = rateByCat.get(category.id)
+            if (!rate || [rate.price_1_3, rate.price_4_6, rate.price_7_plus].every(value => value == null)) return 0
+            if ([rate.price_1_3, rate.price_4_6, rate.price_7_plus].some(value => value == null)) return 1
+            return 2
+        }
+        return rank(a) - rank(b) || a.name.localeCompare(b.name)
+    }), [categories, rateByCat])
 
     // bulk set form
     const [newSeason, setNewSeason] = useState({ name: '', date_from: '', date_to: '' })
@@ -279,6 +299,10 @@ export default function RateManager({ token, showToast }: { token: string; showT
                             {seasons.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                             <option value="__new">＋ 新建价格区间…</option>
                         </select>
+                        {!creatingSeason && seasonId && <button type="button" onClick={() => { const selected = seasons.find(s => s.id === seasonId); if (selected) deleteSeason(selected) }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-[12px] font-bold text-red-600 transition hover:bg-red-50">
+                            <Trash2 size={13} /> 删除区间
+                        </button>}
                         {creatingSeason && (
                             <div className="flex items-center gap-2">
                                 <input placeholder="区间名称" value={newSeason.name} onChange={e => setNewSeason(p => ({ ...p, name: e.target.value }))}
@@ -351,7 +375,7 @@ export default function RateManager({ token, showToast }: { token: string; showT
                                 </tr>
                             </thead>
                             <tbody>
-                                {categories.map(c => {
+                                {rateCategories.map(c => {
                                     const rate = rateByCat.get(c.id) || null
                                     const checked = bulkCats.has(c.id)
                                     const comp = marginChannel ? computeRate(c, marginChannel, rate as any) : null
@@ -543,7 +567,7 @@ export default function RateManager({ token, showToast }: { token: string; showT
                         </div>
                         <p className="text-[12px] text-muted mb-4">
                             在 RCM 调好价后导出 <code className="bg-black/5 px-1 rounded">Rate Export.xlsx</code>，在此上传即可自动更新主价格。
-                            系统按车型组绑定的 <b>RCM 导出名称</b> 精确匹配；没匹配上的会列在下方，绑定一次以后永久自动匹配。
+                            系统优先按 <b>OTA Group ID</b>、RCM Code 匹配，其次使用 RCM 导出名称；没有 ID 的旧表也会兼容名称匹配。
                         </p>
                         <input ref={rcmFileRef} type="file" accept=".xlsx" className="hidden"
                             onChange={e => e.target.files?.[0] && importRcm(e.target.files[0])} />

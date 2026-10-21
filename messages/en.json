@@ -224,6 +224,7 @@
     "titlePrefix": "All",
     "titleAccent": "Vehicles",
     "available": "{count} vehicles available — unlimited kilometres, comprehensive insurance included.",
+    "loading": "Loading our fleet...",
     "searchPlaceholder": "Search brand or model...",
     "vehiclesCount": "{count} vehicles",
     "noVehiclesFound": "No vehicles found."

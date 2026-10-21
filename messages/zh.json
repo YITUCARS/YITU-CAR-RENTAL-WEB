@@ -224,6 +224,7 @@
     "titlePrefix": "全部",
     "titleAccent": "车辆",
     "available": "共 {count} 台可选车辆，包含不限公里与全面保险。",
+    "loading": "正在加载车辆...",
     "searchPlaceholder": "搜索品牌或车型…",
     "vehiclesCount": "{count} 台车辆",
     "noVehiclesFound": "未找到符合条件的车辆。"

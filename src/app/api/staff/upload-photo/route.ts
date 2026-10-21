@@ -1,175 +1,139 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { rcmCall } from '@/lib/rcm'
+import { rcmPostBooking } from '@/lib/rcm-post'
 import { requireStaff } from '@/lib/staff-api'
 
-type StoredPhoto = {
-  url: string
-  storageProvider?: string
-  resultsProvider?: string
+// POST /api/staff/upload-photo
+// Body: { reservationRef, photoType, imageBase64, fileName? }
+//
+// RCM Post Booking document upload (support.rentalcarmanager.com → "Post Booking API Process"):
+//   1. documentlist  → which document types (documentlinksetupid) the booking accepts
+//   2. signupload    → RCM signs the Cloudinary upload params
+//   3. upload to RCM's Cloudinary account
+//   4. storeupload   → records the Cloudinary URL against the reservation
+//
+// Driver licence / passport photos use the "checkin" workflow's licence slot from documentlist.
+// Vehicle and damage photos need a Document Link Setup ID configured by RCM support, mapped in
+// RCM_DOCUMENT_LINK_SETUP_IDS by photo-type prefix, e.g.
+//   {"pickup-vehicle":5,"dropoff-vehicle":6,"pickup-damage":7,"dropoff-damage":8}
+
+// RCM's shared Cloudinary account, from RCM's sample widget code. Uploads must be signed by RCM.
+const CLOUDINARY = {
+  cloudName: process.env.RCM_CLOUDINARY_CLOUD_NAME || 'rentalcarmanager',
+  apiKey: process.env.RCM_CLOUDINARY_API_KEY || '128229988586749',
+  uploadPreset: process.env.RCM_CLOUDINARY_UPLOAD_PRESET || 'hsfepzh0',
+  // RCM tags uploads with the company's database name (see bookinginfo.urlpathfordocuments).
+  tag: process.env.RCM_CLOUDINARY_TAG || 'nzyitucarrentallimited838',
 }
 
-function safeFileName(fileName: string) {
-  return fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
-}
+type UploadTarget = { documentlinksetupid: number; customerid?: number }
 
 function cleanBase64(value: string) {
   return value.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '')
 }
 
-function firstString(source: any, keys: string[]) {
-  for (const key of keys) {
-    const value = source?.[key]
-    if (value !== undefined && value !== null && `${value}`.trim() !== '') return `${value}`
-  }
-  return ''
-}
-
-function parseDocumentLinkSetupIds() {
-  if (!process.env.RCM_DOCUMENT_LINK_SETUP_IDS) return {}
-
-  try {
-    const parsed = JSON.parse(process.env.RCM_DOCUMENT_LINK_SETUP_IDS)
-    return typeof parsed === 'object' && parsed !== null ? parsed as Record<string, number | string> : {}
-  } catch {
-    console.warn('Invalid RCM_DOCUMENT_LINK_SETUP_IDS JSON; falling back to RCM_DOCUMENT_LINK_SETUP_ID')
-    return {}
-  }
-}
-
-function documentLinkSetupIdFor(photoType: string) {
-  const ids = parseDocumentLinkSetupIds()
-  const value = ids[photoType] ?? process.env.RCM_DOCUMENT_LINK_SETUP_ID
-  const numeric = Number(value)
-  return Number.isFinite(numeric) && numeric > 0 ? numeric : null
+function isDriverDocument(photoType: string) {
+  return /licen[cs]e|passport|document/i.test(photoType)
 }
 
 function doctypeFor(photoType: string) {
   const type = photoType.toLowerCase()
-  if (type.includes('dropoff') || type.includes('return')) return 'DropOff'
+  if (isDriverDocument(type)) return 'DriverLicense'
   if (type.includes('damage')) return 'Damage'
-  if (type.includes('license') || type.includes('document') || type.includes('passport')) return 'DriverLicense'
+  if (type.includes('dropoff') || type.includes('return')) return 'DropOff'
   return 'PickUp'
 }
 
-function normalizeSignUploadResult(result: any) {
-  const row = Array.isArray(result) ? result[0] : result
-  return {
-    signature: firstString(row, ['signature', 'Signature']),
-    apiKey: firstString(row, ['api_key', 'apikey', 'apiKey', 'APIKey']) || process.env.RCM_CLOUDINARY_API_KEY || process.env.CLOUDINARY_API_KEY || '',
+function configuredSetupIds(): Record<string, number> {
+  try {
+    const parsed = JSON.parse(process.env.RCM_DOCUMENT_LINK_SETUP_IDS || '{}')
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    console.warn('[staff/upload-photo] invalid RCM_DOCUMENT_LINK_SETUP_IDS JSON')
+    return {}
   }
 }
 
-async function uploadToCloudinaryViaRCM(params: {
-  reservationRef: string
-  photoType: string
-  imageBase64: string
-  fileName: string
-}): Promise<StoredPhoto | null> {
-  const cloudName = process.env.RCM_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME
-  if (!cloudName) return null
+async function resolveTarget(reservationRef: string, photoType: string): Promise<UploadTarget | null> {
+  if (isDriverDocument(photoType)) {
+    // Primary driver's licence slot from the online check-in workflow.
+    const docs = await rcmPostBooking('documentlist', { reservationref: reservationRef, workflowcode: 'checkin' })
+    const rows: any[] = Array.isArray(docs) ? docs : []
+    const slot = rows.find(row => row.isprimary && !row.isvehicleupload) || rows.find(row => !row.isvehicleupload)
+    return slot ? { documentlinksetupid: Number(slot.documentlinksetupid), customerid: Number(slot.customerid) } : null
+  }
 
-  const bytes = Uint8Array.from(Buffer.from(cleanBase64(params.imageBase64), 'base64'))
+  const ids = configuredSetupIds()
+  const prefix = Object.keys(ids)
+    .sort((a, b) => b.length - a.length)
+    .find(key => photoType.startsWith(key))
+  const id = prefix ? Number(ids[prefix]) : NaN
+  return Number.isFinite(id) && id > 0 ? { documentlinksetupid: id } : null
+}
+
+async function uploadToRcmCloudinary(imageBase64: string, fileName: string) {
+  const params = {
+    timestamp: Math.floor(Date.now() / 1000),
+    upload_preset: CLOUDINARY.uploadPreset,
+    tags: CLOUDINARY.tag,
+  }
+  const signed = await rcmPostBooking('signupload', { params })
+  const signature = signed?.signature
+  if (!signature) throw new Error('RCM signupload did not return a signature.')
+
   const form = new FormData()
-  form.append('file', new Blob([bytes], { type: 'image/jpeg' }), params.fileName)
+  form.append('file', new Blob([Buffer.from(cleanBase64(imageBase64), 'base64')], { type: 'image/jpeg' }), fileName)
+  Object.entries(params).forEach(([key, value]) => form.append(key, String(value)))
+  form.append('api_key', CLOUDINARY.apiKey)
+  form.append('signature', signature)
 
-  const uploadPreset = process.env.RCM_CLOUDINARY_UPLOAD_PRESET || process.env.CLOUDINARY_UPLOAD_PRESET
-  const folder = process.env.RCM_CLOUDINARY_FOLDER || 'yitu-lite'
-  const publicId = `${params.reservationRef}/${Date.now()}-${safeFileName(params.photoType)}`
-
-  if (uploadPreset) {
-    form.append('upload_preset', uploadPreset)
-    form.append('folder', folder)
-    form.append('public_id', publicId)
-  } else {
-    const signedParams = {
-      timestamp: `${Math.floor(Date.now() / 1000)}`,
-      folder,
-      public_id: publicId,
-    }
-    const signatureResult = await rcmCall('signupload', { params: JSON.stringify(signedParams) })
-    const signature = normalizeSignUploadResult(signatureResult)
-
-    if (!signature.signature || !signature.apiKey) {
-      throw new Error('RCM signupload did not return a Cloudinary signature/api key. Configure RCM_CLOUDINARY_UPLOAD_PRESET or RCM_CLOUDINARY_API_KEY.')
-    }
-
-    Object.entries(signedParams).forEach(([key, value]) => form.append(key, value))
-    form.append('api_key', signature.apiKey)
-    form.append('signature', signature.signature)
-  }
-
-  const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-    method: 'POST',
-    body: form,
-  })
-  const uploadJson = await uploadRes.json()
-
-  if (!uploadRes.ok) {
-    throw new Error(`Cloudinary upload failed: ${uploadJson?.error?.message || uploadRes.status}`)
-  }
-
-  const url = firstString(uploadJson, ['secure_url', 'url'])
-  if (!url) throw new Error('Cloudinary upload did not return a URL')
-
-  return {
-    url,
-    storageProvider: 'cloudinary.com',
-    resultsProvider: JSON.stringify(uploadJson),
-  }
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY.cloudName}/image/upload`, { method: 'POST', body: form })
+  const json = await res.json()
+  if (!res.ok || !json.secure_url) throw new Error(`Cloudinary upload failed: ${json?.error?.message || res.status}`)
+  return json
 }
 
 export async function POST(req: NextRequest) {
-  const auth = requireStaff(req)
+  const auth = await requireStaff(req, 'photos.upload')
   if (auth.response) return auth.response
 
   try {
-    const body = await req.json()
-    const { reservationRef, photoType, imageBase64, photoUrl } = body
-    const fileName = body.fileName || `${photoType || 'photo'}.jpg`
+    const { reservationRef, photoType, imageBase64 } = await req.json()
+    const fileName = `${reservationRef}-${photoType}.jpg`.replace(/[^a-zA-Z0-9._-]/g, '_')
 
-    if (!reservationRef || !photoType || (!imageBase64 && !photoUrl)) {
-      return NextResponse.json({ success: false, error: 'reservationRef, photoType and either imageBase64 or photoUrl are required' }, { status: 400 })
+    if (!reservationRef || !photoType || !imageBase64) {
+      return NextResponse.json({ success: false, error: 'reservationRef, photoType and imageBase64 are required.' }, { status: 400 })
     }
 
-    const documentlinksetupid = documentLinkSetupIdFor(photoType)
-    if (!documentlinksetupid) {
+    // Resolve the RCM document slot first so nothing is uploaded that RCM can't link.
+    const target = await resolveTarget(reservationRef, photoType)
+    if (!target) {
       return NextResponse.json({
         success: false,
-        error: 'RCM_DOCUMENT_LINK_SETUP_ID is not configured. RCM storeupload requires a Document Link Setup ID from RCM System Configuration.',
-      }, { status: 500 })
+        error: `No RCM document type is configured for "${photoType}". Ask RCM support for a Document Link Setup ID and add it to RCM_DOCUMENT_LINK_SETUP_IDS.`,
+      }, { status: 501 })
     }
 
-    const storedPhoto = photoUrl
-      ? { url: photoUrl, storageProvider: body.storageProvider, resultsProvider: body.resultsProvider }
-      : await uploadToCloudinaryViaRCM({ reservationRef, photoType, imageBase64, fileName })
+    const uploaded = await uploadToRcmCloudinary(imageBase64, fileName)
 
-    if (!storedPhoto?.url) {
-      return NextResponse.json({
-        success: false,
-        error: 'RCM storeupload requires a public document URL. Configure RCM Cloudinary settings or send photoUrl from an external storage provider.',
-      }, { status: 500 })
-    }
-
-    const result = await rcmCall(process.env.RCM_PHOTO_UPLOAD_METHOD || 'storeupload', {
-      documentlinksetupid,
-      url: storedPhoto.url,
-      doctype: body.doctype || doctypeFor(photoType),
+    const result = await rcmPostBooking('storeupload', {
+      documentlinksetupid: target.documentlinksetupid,
+      url: uploaded.secure_url,
+      doctype: doctypeFor(photoType),
       source: 'YITU Lite',
       reservationref: reservationRef,
-      description: body.description || photoType,
-      notes: body.notes || `Uploaded by ${auth.payload?.staffId || 'staff'} from YITU Lite`,
+      ...(target.customerid ? { customerid: target.customerid } : {}),
       originalname: fileName,
-      storageprovider: storedPhoto.storageProvider || body.storageProvider || '',
-      resultsprovider: storedPhoto.resultsProvider || body.resultsProvider || '',
-      istaggedincloudinary: storedPhoto.storageProvider === 'cloudinary.com',
+      storageprovider: 'cloudinary.com',
+      resultsprovider: JSON.stringify(uploaded),
+      notes: `Uploaded by ${auth.payload?.staffId || 'staff'} from YITU Lite (${photoType})`,
     })
 
     return NextResponse.json({
       success: true,
-      photoId: `${reservationRef}-${photoType}-${Date.now()}`,
-      url: storedPhoto.url,
+      photoId: uploaded.public_id,
+      url: uploaded.secure_url,
       data: result,
     })
   } catch (err: any) {

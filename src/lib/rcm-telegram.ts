@@ -2,6 +2,7 @@ import { rcmCall, rcmCallWithApiKey, toRCMDate } from '@/lib/rcm'
 import { normalizeBooking, pickString } from '@/lib/staff-api'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { escapeTelegramHtml, sendTelegramMessage } from '@/lib/telegram'
+import { sendWeComMessageSafely } from '@/lib/wecom'
 
 const DEFAULT_SYNC_DAYS_AHEAD = 180
 
@@ -87,7 +88,9 @@ function pickFirst(...values: unknown[]) {
 function normalizeSourceLabel(body: any) {
   const raw = String(body?.source || body?.bookingSource || body?.paymentChannel || '').toLowerCase()
   if (raw.includes('wechat') || raw.includes('wx') || raw.includes('mini')) return 'YITU WeChat Mini Program'
-  if (raw.includes('vantu')) return 'Vantu App'
+  // Kivio is what the app is called now; `vantu` is the same app under its
+  // old name, still sent by builds already on people's phones.
+  if (raw.includes('kivio') || raw.includes('vantu')) return 'Kivio App'
   return 'YITU Website'
 }
 
@@ -148,6 +151,7 @@ export async function notifyWebsiteBookingCreated(params: { body: any; result: a
 
   const customerName = `${pickFirst(body?.firstName)} ${pickFirst(body?.lastName)}`.trim()
   const sourceLabel = normalizeSourceLabel(body)
+  const isPartnerBooking = String(body?.source || '').toLowerCase() === 'partner_portal'
 
   // Prefer whatever the caller sent, but fall back to the supplier rather than
   // announcing NZD 0.00 when the caller used a field name we do not know.
@@ -179,7 +183,7 @@ export async function notifyWebsiteBookingCreated(params: { body: any; result: a
     dropoffLocation: pickFirst(body?.dropoffLocation, body?.dropoffLocationName, body?.dropoffLocationId),
     vehicleModel: pickFirst(body?.vehicleName, body?.vehicleCategoryName, body?.vehicleCategoryId),
     total: totalAmount,
-    status: 'awaiting_payment',
+    status: isPartnerBooking ? 'reserved' : 'awaiting_payment',
     raw: {
       ...result,
       bookedby: sourceLabel,
@@ -206,10 +210,9 @@ export async function notifyWebsiteBookingCreated(params: { body: any; result: a
     console.warn('[rcm-telegram] Supabase dedupe read failed:', error instanceof Error ? error.message : error)
   }
 
-  await sendTelegramMessage({
-    text: [
-      '<b>New Website Booking</b>',
-      '<b>Status: Awaiting payment</b>',
+  const notificationText = [
+      isPartnerBooking ? '<b>New Corporate Booking</b>' : '<b>New Website Booking</b>',
+      isPartnerBooking ? '<b>Status: Reserved · Monthly statement</b>' : '<b>Status: Awaiting payment</b>',
       `Ref: <b>${escapeTelegramHtml(booking.bookingRef)}</b>`,
       reservationNo ? `Reservation No: ${escapeTelegramHtml(reservationNo)}` : '',
       `Customer: ${escapeTelegramHtml(customerName || '—')}`,
@@ -219,11 +222,12 @@ export async function notifyWebsiteBookingCreated(params: { body: any; result: a
       `Dropoff: ${escapeTelegramHtml(`${booking.dropoffDate || '—'} ${booking.dropoffTime || ''}`.trim())} · ${escapeTelegramHtml(booking.dropoffLocation)}`,
       `Vehicle: ${escapeTelegramHtml(booking.vehicleModel)}`,
       `Total: NZD ${formatMoney(booking.total)}`,
-      `Payment: ${escapeTelegramHtml(body?.paymentType || 'selected, not paid yet')}`,
+      isPartnerBooking ? 'Payment: Corporate account · no online payment' : `Payment: ${escapeTelegramHtml(body?.paymentType || 'selected, not paid yet')}`,
       body?.promoCode ? `Promo: ${escapeTelegramHtml(body.promoCode)}` : '',
       `Source: ${escapeTelegramHtml(sourceLabel)}`,
-    ].filter(Boolean).join('\n'),
-  })
+    ].filter(Boolean).join('\n')
+  await sendTelegramMessage({ text: notificationText })
+  await sendWeComMessageSafely(notificationText)
 
   const now = new Date().toISOString()
   try {
@@ -291,8 +295,7 @@ export async function notifyWebsitePaymentReceived(params: {
   const title = isWechat ? '<b>WeChat Mini Program Payment Received</b>' : '<b>Website Payment Received</b>'
   const transactionLabel = isWechat ? 'WeChat Trade No' : 'Stripe PI'
 
-  await sendTelegramMessage({
-    text: [
+  const notificationText = [
       title,
       '<b>Status: Paid</b>',
       `Ref: <b>${escapeTelegramHtml(key)}</b>`,
@@ -305,8 +308,9 @@ export async function notifyWebsitePaymentReceived(params: {
       params.paymentChannel ? `Channel: ${escapeTelegramHtml(params.paymentChannel)}` : '',
       `${transactionLabel}: ${escapeTelegramHtml(params.paymentIntentId)}`,
       params.chargeId ? `Charge: ${escapeTelegramHtml(params.chargeId)}` : '',
-    ].filter(Boolean).join('\n'),
-  })
+    ].filter(Boolean).join('\n')
+  await sendTelegramMessage({ text: notificationText })
+  await sendWeComMessageSafely(notificationText)
 
   try {
     const supabase = getSupabaseAdmin()

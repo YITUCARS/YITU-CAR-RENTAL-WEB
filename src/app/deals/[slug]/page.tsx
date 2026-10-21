@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, ArrowRight, Tag } from 'lucide-react'
 import { DEALS } from '@/lib/data'
+import { dealOverlay, dealTextScale, localizeDeal } from '@/lib/deal-locale'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import ManageBookingModal from '@/components/ui/ManageBookingModal'
@@ -19,6 +20,34 @@ interface Deal {
     image_url?: string
     image?: string
     content?: string
+    tag_zh?: string
+    badge_zh?: string
+    title_zh?: string
+    subtitle_zh?: string
+    detail_zh?: string
+    overlay?: number | null
+    text_scale?: number | null
+}
+
+const COPY = {
+    en: {
+        notFound: 'Deal not found',
+        backToDeals: '← Back to Hot Deals',
+        back: 'Back',
+        noContent: 'Check back for full terms and conditions.',
+        terms: 'Terms and conditions apply. Offer subject to availability.',
+        bookNow: 'Book Now',
+        allDeals: 'All Deals',
+    },
+    zh: {
+        notFound: '未找到该优惠活动',
+        backToDeals: '← 返回优惠活动',
+        back: '返回',
+        noContent: '活动详情即将更新，敬请关注。',
+        terms: '活动须遵守相关条款，优惠视车辆供应情况而定。',
+        bookNow: '立即预订',
+        allDeals: '全部优惠',
+    },
 }
 
 // Hardcoded content fallback for the two existing deals
@@ -27,8 +56,12 @@ const FALLBACK_CONTENT: Record<string, string> = {
     autumn: `Save 10% across our entire fleet this autumn. From compact sedans to spacious MPVs, every vehicle category is included.\n\nThe discount is applied automatically at checkout. Combine with our unlimited kilometre policy for total peace of mind on longer road trips.\n\nOffer valid for pickups between 1 March and 31 May. Cannot be combined with other promotions.`,
 }
 
-export default function DealPage({ params }: { params: { slug: string } }) {
+export default function DealPage({ params }: { params: { slug: string; locale?: string } }) {
     const router = useRouter()
+    const locale = params.locale === 'zh' ? 'zh' : 'en'
+    const copy = COPY[locale]
+    // Opened directly (e.g. from the WeChat mini program) there is no page to go back to.
+    const goBack = () => (window.history.length > 1 ? router.back() : router.push(`/${locale}#deals`))
     const [deal, setDeal] = useState<Deal | null>(null)
     const [loading, setLoading] = useState(true)
     const [modalOpen, setModalOpen] = useState(false)
@@ -42,7 +75,7 @@ export default function DealPage({ params }: { params: { slug: string } }) {
                     ? data.find(d => (d.slug && d.slug === params.slug) || d.id === params.slug)
                     : null
                 if (found) {
-                    setDeal(found)
+                    setDeal(localizeDeal(found, locale))
                 } else {
                     // Fall back to hardcoded DEALS by id
                     const hc = DEALS.find(d => d.id === params.slug)
@@ -76,7 +109,7 @@ export default function DealPage({ params }: { params: { slug: string } }) {
                 }
             })
             .finally(() => setLoading(false))
-    }, [params.slug])
+    }, [params.slug, locale])
 
     if (loading) {
         return (
@@ -97,9 +130,9 @@ export default function DealPage({ params }: { params: { slug: string } }) {
                 <Navbar onManageBooking={() => setModalOpen(true)} />
                 <ManageBookingModal open={modalOpen} onClose={() => setModalOpen(false)} />
                 <div className="min-h-screen flex flex-col items-center justify-center gap-4 pt-[120px]">
-                    <div className="text-navy font-syne font-bold text-2xl">Deal not found</div>
-                    <button onClick={() => router.push('/#deals')} className="text-orange hover:underline text-sm">
-                        ← Back to Hot Deals
+                    <div className="text-navy font-syne font-bold text-2xl">{copy.notFound}</div>
+                    <button onClick={() => router.push(`/${locale}#deals`)} className="text-orange hover:underline text-sm">
+                        {copy.backToDeals}
                     </button>
                 </div>
                 <Footer onManageBooking={() => setModalOpen(true)} />
@@ -109,6 +142,8 @@ export default function DealPage({ params }: { params: { slug: string } }) {
 
     const imageUrl = deal.image_url || deal.image || ''
     const paragraphs = (deal.content ?? '').split('\n').filter(Boolean)
+    const scale = dealTextScale(deal) / 100
+    const shadow = { textShadow: '0 2px 6px rgba(0,0,0,0.6)' }
 
     return (
         <>
@@ -123,14 +158,15 @@ export default function DealPage({ params }: { params: { slug: string } }) {
                     <div className="w-full h-full bg-navy" />
                 )}
                 {/* Overlay */}
+                <div className="absolute inset-0 bg-black" style={{ opacity: dealOverlay(deal) / 100 }} />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/20" />
 
                 {/* Back button */}
                 <button
-                    onClick={() => router.back()}
+                    onClick={goBack}
                     className="absolute top-6 left-6 flex items-center gap-2 bg-white/15 hover:bg-white/25 backdrop-blur-sm border border-white/25 text-white text-sm font-medium px-4 py-2 rounded-full transition-all"
                 >
-                    <ArrowLeft size={14} /> Back
+                    <ArrowLeft size={14} /> {copy.back}
                 </button>
 
                 {/* Deal info */}
@@ -140,14 +176,14 @@ export default function DealPage({ params }: { params: { slug: string } }) {
                             <Tag size={10} /> {deal.badge}
                         </span>
                     </div>
-                    <div className="font-syne font-extrabold text-orange text-[4rem] leading-none mb-2">
+                    <div className="font-syne font-extrabold text-orange leading-none mb-2" style={{ fontSize: `${4 * scale}rem`, ...shadow }}>
                         {deal.value}
                         {deal.unit && <span className="text-[1.8rem]">{deal.unit}</span>}
                     </div>
-                    <h1 className="font-syne font-extrabold text-white text-[clamp(1.6rem,3vw,2.8rem)] leading-tight mb-2">
+                    <h1 className="font-syne font-extrabold text-white leading-tight mb-2" style={{ fontSize: `calc(clamp(1.6rem,3vw,2.8rem) * ${scale})`, ...shadow }}>
                         {deal.title}
                     </h1>
-                    <p className="text-white/70 text-[15px] max-w-[540px]">{deal.description}</p>
+                    <p className="text-white/90 max-w-[540px]" style={{ fontSize: `${15 * scale}px`, ...shadow }}>{deal.description}</p>
                 </div>
             </div>
 
@@ -160,26 +196,26 @@ export default function DealPage({ params }: { params: { slug: string } }) {
                         ))}
                     </div>
                 ) : (
-                    <p className="text-muted text-[14px]">Check back for full terms and conditions.</p>
+                    <p className="text-muted text-[14px]">{copy.noContent}</p>
                 )}
 
                 <div className="mt-6 pt-6 border-t border-black/10">
-                    <p className="text-[12px] text-muted">Terms and conditions apply. Offer subject to availability.</p>
+                    <p className="text-[12px] text-muted">{copy.terms}</p>
                 </div>
 
                 {/* CTA */}
                 <div className="mt-12 flex flex-wrap gap-3">
                     <button
-                        onClick={() => router.push('/#booking')}
+                        onClick={() => router.push(`/${locale}#booking`)}
                         className="flex items-center gap-2 bg-orange hover:bg-orange-dark text-white font-syne font-bold text-[15px] px-8 py-3.5 rounded-full shadow-orange-glow transition-all hover:-translate-y-0.5"
                     >
-                        Book Now <ArrowRight size={16} />
+                        {copy.bookNow} <ArrowRight size={16} />
                     </button>
                     <button
-                        onClick={() => router.back()}
+                        onClick={goBack}
                         className="flex items-center gap-2 bg-transparent border-[1.5px] border-black/15 text-navy font-syne font-bold text-[15px] px-7 py-3.5 rounded-full transition-all hover:border-navy/30"
                     >
-                        <ArrowLeft size={15} /> All Deals
+                        <ArrowLeft size={15} /> {copy.allDeals}
                     </button>
                 </div>
             </div>

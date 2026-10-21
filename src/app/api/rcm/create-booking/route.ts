@@ -37,6 +37,9 @@ export async function POST(req: NextRequest) {
       driverAge,
       promoCode,
       mandatoryFeeIds,
+      partnerDiscountPercent,
+      partnerDiscountAmount,
+      originalVehicleTotal,
     } = body
 
 
@@ -123,7 +126,13 @@ export async function POST(req: NextRequest) {
         address: '',
       },
       flightin: flightNumber || '',
-      remark: [customerPhone.numeric ? `Phone: ${customerPhone.numeric}` : '', notes || ''].filter(Boolean).join(' | '),
+      remark: [
+        customerPhone.numeric ? `Phone: ${customerPhone.numeric}` : '',
+        notes || '',
+        Number(partnerDiscountPercent) > 0
+          ? `Partner discount: ${Number(partnerDiscountPercent)}% | Original vehicle total: NZD ${Number(originalVehicleTotal || 0).toFixed(2)} | Discount: NZD ${Number(partnerDiscountAmount || 0).toFixed(2)} | Partner vehicle total: NZD ${(Number(originalVehicleTotal || 0) - Number(partnerDiscountAmount || 0)).toFixed(2)}`
+          : '',
+      ].filter(Boolean).join(' | '),
       })
     } catch (bookingErr) {
       // Free the key so the customer can genuinely try again.

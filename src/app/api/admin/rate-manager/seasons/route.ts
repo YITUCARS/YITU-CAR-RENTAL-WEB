@@ -24,3 +24,12 @@ export async function POST(req: NextRequest) {
     if (error) return fail(error.message)
     return NextResponse.json(data)
 }
+
+export async function DELETE(req: NextRequest) {
+    if (!isAuthed(req)) return unauthorized()
+    const id = new URL(req.url).searchParams.get('id')
+    if (!id) return fail('season id is required', 400)
+    const { error } = await getSupabase().from('rate_seasons').delete().eq('id', id)
+    if (error) return fail(error.message)
+    return NextResponse.json({ ok: true })
+}

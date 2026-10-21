@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { ArrowRight, Check, Minus, Plus, AlertCircle, Package } from 'lucide-react'
+import { ArrowRight, Check, Minus, Plus, AlertCircle, Package, X } from 'lucide-react'
 import { useBooking, calcAfterHourBreakdown, splitMandatoryFees, formatAfterHourFeeLabel, isAfterHourMandatoryFee } from '@/lib/booking-context'
 import BookingFlowHeader from '@/components/booking/BookingFlowHeader'
 import Navbar from '@/components/layout/Navbar'
@@ -36,13 +36,34 @@ export default function ExtrasPage() {
     const [optionalFees, setOptionalFees] = useState<any[]>([])
     const [mandatoryFees, setMandatoryFees] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const [partnerAccount, setPartnerAccount] = useState<any>(null)
+    const [confirmOpen, setConfirmOpen] = useState(false)
+    const [confirmLoading, setConfirmLoading] = useState(false)
+    const [confirmError, setConfirmError] = useState('')
+    const [uiLocale, setUiLocale] = useState<'en' | 'zh'>('en')
+    const zh = uiLocale === 'zh'
+    const text = (cn: string, en: string) => zh ? cn : en
+
+    useEffect(() => {
+        try {
+            const saved = window.localStorage.getItem('yitu-partner-locale')
+            if (saved === 'zh' || saved === 'en') setUiLocale(saved)
+            else if (navigator.language.toLowerCase().startsWith('zh')) setUiLocale('zh')
+        } catch {}
+    }, [])
+
+    useEffect(() => {
+        fetch('/api/partner/session').then(r => r.ok ? r.json() : null).then(data => {
+            if (data?.success) setPartnerAccount(data.account)
+        }).catch(() => {})
+    }, [])
 
     const isUnder26 = booking.driverAge === 'under26'
 
     useEffect(() => {
         if (!isHydrated) return
         setExtras(booking.extras || {})
-        setSelectedInsuranceId(booking.selectedInsuranceId)
+        setSelectedInsuranceId(booking.selectedInsuranceId ?? booking.insuranceOptions.find(item => item.isdefault)?.id ?? booking.insuranceOptions[0]?.id ?? null)
     }, [isHydrated, booking.extras, booking.selectedInsuranceId])
 
     useEffect(() => {
@@ -124,7 +145,9 @@ export default function ExtrasPage() {
     }
 
     const baseVehicleTotal = (booking.basePricePerDay || booking.pricePerDay) * booking.days
-    const vehicleTotal = Math.max(0, baseVehicleTotal - booking.promoDiscountAmount)
+    const effectivePartnerDiscountPercent = Number(booking.partnerDiscountPercent || partnerAccount?.discountPercent || 0)
+    const effectivePartnerDiscountTotal = Math.round(baseVehicleTotal * effectivePartnerDiscountPercent / 100 * 100) / 100
+    const vehicleTotal = Math.max(0, baseVehicleTotal - booking.promoDiscountAmount - effectivePartnerDiscountTotal)
     const insuranceTotal = calcInsuranceTotal()
     const extrasTotal = calcExtrasTotal()
     const calculatedAfterHour = calcAfterHourBreakdown(booking.pickupTime, booking.dropoffTime)
@@ -134,11 +157,13 @@ export default function ExtrasPage() {
         : calculatedAfterHour.total
     const relocationTotal = nonAfterHourMandatoryFees.reduce((sum, fee) => sum + (fee.fees || 0), 0)
     const grandTotal = vehicleTotal + insuranceTotal + extrasTotal + youngDriverTotal + afterHourTotal + relocationTotal
+    const summaryInsurance = booking.insuranceOptions.find(item => item.id === selectedInsuranceId)
+        || booking.insuranceOptions.find(item => item.isdefault)
+        || booking.insuranceOptions[0]
 
-    function proceed() {
-        setBooking(b => {
-            const nextBooking = {
-                ...b,
+    function getNextBooking() {
+        return {
+                ...booking,
                 extras,
                 selectedInsuranceId,
                 afterHourFee: afterHourTotal,
@@ -146,6 +171,29 @@ export default function ExtrasPage() {
                 mandatoryFeeIds: mandatoryFees.map((f: any) => f.id),
                 totalAmount: grandTotal,
             }
+    }
+
+    async function proceed() {
+        let currentPartner = partnerAccount
+        if (!currentPartner) {
+            try {
+                const response = await fetch('/api/partner/session', { cache: 'no-store' })
+                const data = await response.json()
+                if (data?.success) {
+                    currentPartner = data.account
+                    setPartnerAccount(currentPartner)
+                }
+            } catch {}
+        }
+        const nextBooking = getNextBooking()
+        if (currentPartner) {
+            setBooking(() => nextBooking)
+            try { sessionStorage.setItem('yitu-booking', JSON.stringify(nextBooking)) } catch {}
+            setConfirmError('')
+            setConfirmOpen(true)
+            return
+        }
+        setBooking(() => {
 
             try {
                 sessionStorage.setItem('yitu-booking', JSON.stringify(nextBooking))
@@ -153,7 +201,70 @@ export default function ExtrasPage() {
 
             return nextBooking
         })
-        router.push('/booking/details')
+        // Preserve the corporate flow marker. The details page also validates
+        // the signed partner session, so ordinary users cannot enter this mode.
+        router.push('/booking/details?partner=1')
+    }
+
+    async function confirmPartnerBooking() {
+        if (!partnerAccount || confirmLoading) return
+        setConfirmLoading(true)
+        setConfirmError('')
+        try {
+            const phone = String(partnerAccount.contactPhone || '').replace(/\s+/g, '')
+            const rcmRes = await fetch('/api/rcm/create-booking', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    pickupDate: booking.pickupDate, pickupTime: booking.pickupTime,
+                    dropoffDate: booking.dropoffDate, dropoffTime: booking.dropoffTime,
+                    pickupLocationId: booking.pickupLocationId, dropoffLocationId: booking.dropoffLocationId,
+                    vehicleCategoryId: Number(booking.vehicleId), vehicleCategoryTypeId: booking.vehicleCategoryTypeId,
+                    pickupLocation: booking.pickupLocation, dropoffLocation: booking.dropoffLocation,
+                    vehicleName: booking.vehicleName,
+                    firstName: partnerAccount.displayName || 'Corporate', lastName: 'Account',
+                    email: partnerAccount.contactEmail, phone, driverAge: booking.driverAge,
+                    selectedInsuranceId, extras, promoCode: booking.promoCode,
+                    mandatoryFeeIds: mandatoryFees.map((f: any) => f.id), notes: booking.notes,
+                    source: 'partner_portal', totalAmount: grandTotal,
+                    partnerDiscountPercent: effectivePartnerDiscountPercent,
+                    partnerDiscountAmount: effectivePartnerDiscountTotal,
+                    originalVehicleTotal: baseVehicleTotal,
+                }),
+            })
+            const rcmData = await rcmRes.json()
+            if (!rcmRes.ok || !rcmData.success) throw new Error(rcmData.error || text('企业预订创建失败', 'Unable to create the corporate booking'))
+            const partnerRes = await fetch('/api/partner/bookings', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    pickupDate: booking.pickupDate, pickupTime: booking.pickupTime,
+                    dropoffDate: booking.dropoffDate, dropoffTime: booking.dropoffTime,
+                    pickupLocation: booking.pickupLocation, dropoffLocation: booking.dropoffLocation,
+                    vehicleId: booking.vehicleId, vehicleName: booking.vehicleName,
+                    customerEmail: partnerAccount.contactEmail, customerPhone: phone,
+                    originalTotal: grandTotal + effectivePartnerDiscountTotal, partnerTotal: grandTotal,
+                    rcmReservationRef: rcmData.reservationRef, rcmReservationNo: rcmData.reservationNo,
+                    pricingBreakdown: {
+                        vehicle: vehicleTotal,
+                        originalVehicle: baseVehicleTotal,
+                        partnerDiscount: effectivePartnerDiscountTotal,
+                        insurance: insuranceTotal,
+                        mandatoryFees: afterHourTotal + relocationTotal,
+                        youngDriver: youngDriverTotal,
+                        optionalExtras: extrasTotal,
+                        promoDiscount: booking.promoDiscountAmount || 0,
+                        total: grandTotal,
+                    },
+                    notes: booking.notes,
+                }),
+            })
+            const partnerData = await partnerRes.json()
+            if (!partnerRes.ok || !partnerData.success) throw new Error(partnerData.error || text('企业账单保存失败', 'Unable to save the corporate statement'))
+            window.location.href = `/${uiLocale}/partner?booking=${encodeURIComponent(partnerData.booking.reference)}`
+        } catch (error: any) {
+            setConfirmError(error?.message || text('企业预订失败，请稍后重试', 'The booking could not be completed. Please try again.'))
+        } finally {
+            setConfirmLoading(false)
+        }
     }
 
     return (
@@ -348,6 +459,13 @@ export default function ExtrasPage() {
                             <h3 className="font-syne font-bold text-navy text-[15px] mb-4">Order Summary</h3>
                             <div className="space-y-2 text-[13px]">
 
+                                <div className="rounded-xl bg-off-white p-3 text-[12px]">
+                                    <div className="flex justify-between gap-3"><span className="text-muted">Pick-up</span><strong className="text-right">{booking.pickupDate} {booking.pickupTime}</strong></div>
+                                    <div className="mt-1 flex justify-between gap-3"><span className="text-muted">Drop-off</span><strong className="text-right">{booking.dropoffDate} {booking.dropoffTime}</strong></div>
+                                    <div className="mt-1 flex justify-between gap-3"><span className="text-muted">Duration</span><strong>{booking.days} day{booking.days !== 1 ? 's' : ''}</strong></div>
+                                    <div className="mt-1 flex justify-between gap-3"><span className="text-muted">Location</span><strong className="max-w-[170px] text-right">{booking.pickupLocation || '—'}{booking.dropoffLocation && booking.dropoffLocation !== booking.pickupLocation ? ` → ${booking.dropoffLocation}` : ''}</strong></div>
+                                </div>
+
                                 {/* Vehicle */}
                                 <div className="flex justify-between items-start gap-2">
                                     <span className="text-navy font-semibold truncate">{booking.vehicleName}</span>
@@ -362,6 +480,18 @@ export default function ExtrasPage() {
                                         <span>- ${booking.promoDiscountAmount.toLocaleString()}</span>
                                     </div>
                                 )}
+                                {effectivePartnerDiscountPercent > 0 && (
+                                    <div className="flex justify-between text-green-700 text-[12px]">
+                                        <span>Partner discount ({effectivePartnerDiscountPercent}%)</span>
+                                        <span>- ${effectivePartnerDiscountTotal.toLocaleString()}</span>
+                                    </div>
+                                )}
+
+                                <div className="flex items-start justify-between gap-3 text-muted">
+                                    <span className="truncate">{summaryInsurance?.name || 'Basic Insurance'}</span>
+                                    <span className={`flex-shrink-0 ${summaryInsurance?.fees ? 'text-orange' : 'text-green-700'}`}>{summaryInsurance?.fees ? `+$${insuranceTotal}` : 'Included'}</span>
+                                </div>
+                                <div className="text-[11px] text-muted/80">{summaryInsurance?.fees ? 'Selected cover option' : 'NZD $4,500 excess fee'}</div>
 
                                 <div className="border-t border-black/[0.07] my-1" />
 
@@ -449,6 +579,16 @@ export default function ExtrasPage() {
                     </div>
                 </div>
             </main>
+            {confirmOpen && partnerAccount && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-navy/50 px-4 py-6" role="dialog" aria-modal="true">
+                    <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-7">
+                        <div className="flex items-start justify-between gap-4"><div><div className="text-[11px] font-bold uppercase tracking-[2px] text-orange">{text('企业账期预订', 'Corporate booking')}</div><h2 className="mt-1 font-syne text-2xl font-extrabold text-navy">{text('确认预订信息', 'Review booking')}</h2><p className="mt-2 text-sm text-muted">{text('此预订无需在线付款，确认后会直接提交并计入企业月度账单。', 'No online payment is required. Confirm to submit this booking to your monthly statement.')}</p></div><button onClick={() => setConfirmOpen(false)} disabled={confirmLoading} className="rounded-full p-2 text-muted hover:bg-black/5"><X size={20} /></button></div>
+                        <div className="mt-5 space-y-3 rounded-xl bg-off-white p-4 text-sm"><div className="flex justify-between gap-4"><span className="text-muted">{text('企业', 'Company')}</span><strong>{partnerAccount.displayName}</strong></div><div className="flex justify-between gap-4"><span className="text-muted">{text('车辆', 'Vehicle')}</span><strong className="text-right">{booking.vehicleName}</strong></div><div className="flex justify-between gap-4"><span className="text-muted">{text('取车', 'Pick-up')}</span><strong className="text-right">{booking.pickupDate} {booking.pickupTime}<br />{booking.pickupLocation}</strong></div><div className="flex justify-between gap-4"><span className="text-muted">{text('还车', 'Drop-off')}</span><strong className="text-right">{booking.dropoffDate} {booking.dropoffTime}<br />{booking.dropoffLocation}</strong></div><div className="border-t border-black/10 pt-3"><div className="flex justify-between text-xs text-muted"><span>{text('车辆原价', 'Original vehicle price')}</span><span>NZD ${baseVehicleTotal.toLocaleString()}</span></div>{effectivePartnerDiscountPercent > 0 && <div className="mt-1 flex justify-between text-xs font-semibold text-green-700"><span>{text(`企业优惠 ${effectivePartnerDiscountPercent}%`, `Partner discount ${effectivePartnerDiscountPercent}%`)}</span><span>- NZD ${effectivePartnerDiscountTotal.toLocaleString()}</span></div>}</div><div className="flex justify-between text-base"><span className="font-bold">{text('账单金额', 'Statement total')}</span><strong className="text-orange">NZD ${grandTotal.toLocaleString()}</strong></div></div>
+                        {confirmError && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{confirmError}</p>}
+                        <button onClick={confirmPartnerBooking} disabled={confirmLoading} className="mt-5 w-full rounded-xl bg-orange py-3.5 font-syne text-sm font-bold text-white disabled:opacity-60">{confirmLoading ? text('正在提交预订…', 'Submitting booking…') : text('确认预订，无需付款', 'Confirm booking, no payment required')}</button>
+                    </div>
+                </div>
+            )}
         </>
     )
 }

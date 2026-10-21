@@ -43,6 +43,8 @@ export interface BookingState {
     promoDiscountType: 'percent' | 'fixed' | ''
     promoDiscountValue: number
     promoDiscountAmount: number
+    partnerDiscountPercent: number
+    partnerDiscountAmount: number
     extras: Record<string, number>
     selectedInsuranceId: number | null
     insuranceOptions: InsuranceOption[]
@@ -81,6 +83,8 @@ const defaultState: BookingState = {
     promoDiscountType: '',
     promoDiscountValue: 0,
     promoDiscountAmount: 0,
+    partnerDiscountPercent: 0,
+    partnerDiscountAmount: 0,
     extras: {},
     selectedInsuranceId: null,
     insuranceOptions: [],

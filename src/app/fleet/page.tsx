@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, Search } from 'lucide-react'
-import { vehicleRepo } from '@/lib/db'
 import type { VehicleRecord } from '@/lib/db'
 import { VEHICLE_CATEGORIES } from '@/lib/data'
 import { cn } from '@/lib/utils'
@@ -17,12 +16,17 @@ export default function FleetPage() {
     const t = useTranslations()
     const router = useRouter()
     const [vehicles, setVehicles] = useState<VehicleRecord[]>([])
+    const [vehiclesLoaded, setVehiclesLoaded] = useState(false)
     const [activeCategory, setActiveCategory] = useState('all')
     const [search, setSearch] = useState('')
     const [modalOpen, setModalOpen] = useState(false)
 
     useEffect(() => {
-        vehicleRepo.getActive().then(setVehicles)
+        fetch('/api/public/fleet', { cache: 'no-store' })
+            .then((response) => response.json())
+            .then((data) => setVehicles(data.vehicles || []))
+            .catch(() => setVehicles([]))
+            .finally(() => setVehiclesLoaded(true))
     }, [])
 
     const filtered = vehicles
@@ -58,7 +62,7 @@ export default function FleetPage() {
                         {t('FleetPage.titlePrefix')} <span className="text-orange">{t('FleetPage.titleAccent')}</span>
                     </h1>
                     <p className="text-white/60 text-[15px] max-w-[500px]">
-                        {t('FleetPage.available', {count: vehicles.length})}
+                        {vehiclesLoaded ? t('FleetPage.available', {count: vehicles.length}) : t('FleetPage.loading')}
                     </p>
                 </div>
             </div>
@@ -103,7 +107,11 @@ export default function FleetPage() {
 
             {/* Grid */}
             <main className="max-w-[1100px] mx-auto px-10 py-12">
-                {filtered.length > 0 ? (
+                {!vehiclesLoaded ? (
+                    <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 lg:grid-cols-3" aria-label="Loading vehicle fleet">
+                        {[1, 2, 3].map((item) => <div key={item} className="h-80 animate-pulse rounded-card bg-black/5" />)}
+                    </div>
+                ) : filtered.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[18px]">
                         {filtered.map((vehicle) => (
                             <VehicleCard

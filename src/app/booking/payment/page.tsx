@@ -31,6 +31,14 @@ function PaymentContent() {
     const [stage, setStage] = useState<'select' | 'pay'>('select')
     const [clientSecret, setClientSecret] = useState('')
     const [reservation, setReservation] = useState<{ ref: string; no: string }>({ ref: '', no: '' })
+    const [partnerAccount, setPartnerAccount] = useState<any>(null)
+    const [partnerChecking, setPartnerChecking] = useState(true)
+
+    useEffect(() => {
+        fetch('/api/partner/session').then(r => r.ok ? r.json() : null).then(data => {
+            if (data?.success) setPartnerAccount(data.account)
+        }).catch(() => {}).finally(() => setPartnerChecking(false))
+    }, [])
 
     const totalFromUrl = Number(params.get('total')) || 0
     const daysFromUrl = Number(params.get('days')) || booking.days
@@ -133,7 +141,7 @@ function PaymentContent() {
         [clientSecret, stripeLocale],
     )
 
-    if (!isHydrated) {
+    if (!isHydrated || partnerChecking) {
         return (
             <>
                 <Navbar onManageBooking={() => {}} />
@@ -164,6 +172,44 @@ function PaymentContent() {
                 }
             } catch {}
             console.log('[payment] freshBooking:', freshBooking)
+            if (partnerAccount) {
+                const phone = (() => {
+                    const raw = (freshBooking.phone || '').trim()
+                    if (raw.startsWith('+')) return raw.replace(/\s+/g, '')
+                    const dialCode = freshBooking.phoneDialCode || '+64'
+                    return `${dialCode}${raw.replace(/\D/g, '').replace(/^0+/, '')}`
+                })()
+                const rcmRes = await fetch('/api/rcm/create-booking', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pickupDate: freshBooking.pickupDate, pickupTime: freshBooking.pickupTime, dropoffDate: freshBooking.dropoffDate, dropoffTime: freshBooking.dropoffTime,
+                        pickupLocationId: freshBooking.pickupLocationId, dropoffLocationId: freshBooking.dropoffLocationId, vehicleCategoryId: Number(freshBooking.vehicleId), vehicleCategoryTypeId: freshBooking.vehicleCategoryTypeId,
+                        firstName: partnerAccount.displayName || 'Corporate', lastName: 'Account', email: freshBooking.email || partnerAccount.contactEmail, phone, driverAge: freshBooking.driverAge, selectedInsuranceId: freshBooking.selectedInsuranceId, extras: freshBooking.extras,
+                        promoCode: freshBooking.promoCode, mandatoryFeeIds: freshBooking.mandatoryFeeIds || [], notes: freshBooking.notes, source: 'partner_portal',
+                    }),
+                })
+                const rcmData = await rcmRes.json()
+                if (!rcmRes.ok || !rcmData.success) throw new Error(rcmData.error || 'Unable to create corporate reservation')
+                const partnerRes = await fetch('/api/partner/bookings', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pickupDate: freshBooking.pickupDate, pickupTime: freshBooking.pickupTime,
+                        dropoffDate: freshBooking.dropoffDate, dropoffTime: freshBooking.dropoffTime,
+                        pickupLocation: freshBooking.pickupLocation, dropoffLocation: freshBooking.dropoffLocation,
+                        vehicleId: freshBooking.vehicleId, vehicleName: freshBooking.vehicleName,
+                        customerEmail: freshBooking.email || partnerAccount.contactEmail,
+                        customerPhone: phone || partnerAccount.contactPhone,
+                        originalTotal: baseVehicleTotal + insuranceTotal + extrasTotal + youngDriverTotal + afterHourTotal + relocationTotal,
+                        partnerTotal: fullAmount,
+                        rcmReservationRef: rcmData.reservationRef, rcmReservationNo: rcmData.reservationNo,
+                        notes: [freshBooking.flightNumber, freshBooking.notes].filter(Boolean).join(' · '),
+                    }),
+                })
+                const partnerData = await partnerRes.json()
+                if (!partnerRes.ok) throw new Error(partnerData.error || 'Unable to submit corporate booking')
+                window.location.href = `/${locale}/partner?booking=${encodeURIComponent(partnerData.booking.reference)}`
+                return
+            }
             // ── Step 1: Always create a fresh booking so extras/insurance are
             //   correctly registered in RCM and the reservation total matches
             //   the payment amount charged via Stripe.

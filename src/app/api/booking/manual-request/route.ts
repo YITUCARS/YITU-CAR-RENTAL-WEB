@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { escapeTelegramHtml, sendTelegramMessage } from '@/lib/telegram'
+import { sendWeComMessageSafely } from '@/lib/wecom'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -23,8 +24,7 @@ export async function POST(request: NextRequest) {
         }
 
         const requestRef = `MR-${Date.now().toString(36).toUpperCase()}`
-        await sendTelegramMessage({
-            text: [
+        const notificationText = [
                 '<b>Manual Booking Request</b>',
                 `Request Ref: <b>${escapeTelegramHtml(requestRef)}</b>`,
                 `Customer: ${escapeTelegramHtml(`${firstName} ${lastName}`)}`,
@@ -41,8 +41,9 @@ export async function POST(request: NextRequest) {
                 `Estimated total: NZD ${escapeTelegramHtml(Number(body.total || 0).toFixed(2))}`,
                 'Status: Awaiting staff confirmation',
                 `Source: ${source}`,
-            ].filter(Boolean).join('\n'),
-        })
+            ].filter(Boolean).join('\n')
+        await sendTelegramMessage({ text: notificationText })
+        await sendWeComMessageSafely(notificationText)
 
         return NextResponse.json({ success: true, requestRef })
     } catch (error) {

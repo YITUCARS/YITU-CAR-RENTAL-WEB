@@ -1,18 +1,23 @@
 'use client'
 
 import React, { useEffect, useState, useRef } from 'react'
-import { Plus, Pencil, Trash2, Upload, X, Check, LogOut, FileText, RefreshCw, Star, Save, Tag, Copy, Image, ChevronUp, ChevronDown, ExternalLink, Ticket, MessageCircle, CreditCard, Menu, LayoutGrid, CarFront, Database, Megaphone, BookOpen, DollarSign, ArrowRight, LineChart, CalendarDays, Sparkles, UserRound } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload, X, Check, LogOut, FileText, RefreshCw, Star, Save, Tag, Copy, Image, ChevronUp, ChevronDown, ExternalLink, Ticket, MessageCircle, CreditCard, Menu, LayoutGrid, CarFront, Database, Megaphone, BookOpen, DollarSign, ArrowRight, LineChart, CalendarDays, Sparkles, UserRound, Users } from 'lucide-react'
 import type { VehicleRecord } from '@/lib/db/repository'
 import Papa from 'papaparse'
 import RateManager from '@/components/admin/RateManager'
 import MarketIntel from '@/components/admin/MarketIntel'
 import AvailabilityBoard from '@/components/admin/AvailabilityBoard'
 import PartnerAccounts from '@/components/admin/PartnerAccounts'
+import StaffAccounts from '@/components/admin/StaffAccounts'
+import DealCard from '@/components/sections/DealCard'
+import { DEAL_TEXT_SCALES, dealOverlay, dealTextScale, localizeDeal } from '@/lib/deal-locale'
 
+const ADMIN_TOKEN_KEY = 'yitu-admin-token'
+const REMEMBER_LOGIN_MS = 30 * 24 * 60 * 60 * 1000
 const CATEGORIES = ['sedan', 'suv', 'mpv', 'van']
 const FUELS = ['Petrol', 'Diesel', 'Hybrid', 'Electric']
 const DRIVES = ['FWD', 'AWD', 'RWD']
-type AdminTab = 'fleet' | 'rcm' | 'availability' | 'promo' | 'banners' | 'deals' | 'gallery' | 'blog' | 'tickets' | 'faq' | 'stripe' | 'rates' | 'market' | 'ai' | 'partners'
+type AdminTab = 'fleet' | 'rcm' | 'availability' | 'promo' | 'banners' | 'deals' | 'gallery' | 'blog' | 'tickets' | 'faq' | 'stripe' | 'rates' | 'market' | 'ai' | 'partners' | 'staff'
 
 interface GalleryImage {
     name: string
@@ -52,6 +57,7 @@ function AdminDashboard({ onSelect }: { onSelect: (tab: AdminTab) => void }) {
         { tab: 'faq', label: 'Live Support FAQ', description: '维护聊天机器人常见问题', detail: '设置用户在不同页面看到的帮助内容。', icon: MessageCircle, tone: 'bg-lime-50 text-lime-700' },
         { tab: 'stripe', label: 'Stripe 补扣款', description: '处理已保存卡的后续扣款', detail: '按订单处理授权范围内的后续扣款。', icon: CreditCard, tone: 'bg-slate-100 text-slate-700' },
         { tab: 'partners', label: '合作伙伴账号', description: '创建和管理 Partner Portal 登录', detail: '为旅行社、OTA 和企业合作伙伴分配账号。', icon: UserRound, tone: 'bg-orange/10 text-orange' },
+        { tab: 'staff', label: '员工账号', description: '管理 YITU Lite 员工登录', detail: '创建员工账号，分配角色和可见门店。', icon: Users, tone: 'bg-navy/10 text-navy' },
     ]
 
     return (
@@ -84,7 +90,9 @@ function AdminDashboard({ onSelect }: { onSelect: (tab: AdminTab) => void }) {
 export default function AdminPage() {
     const [token, setToken] = useState('')
     const [authed, setAuthed] = useState(false)
+    const [authReady, setAuthReady] = useState(false)
     const [pw, setPw] = useState('')
+    const [rememberLogin, setRememberLogin] = useState(true)
     const [vehicles, setVehicles] = useState<VehicleRecord[]>([])
     const [editing, setEditing] = useState<Partial<VehicleRecord> | null>(null)
     const [isNew, setIsNew] = useState(false)
@@ -121,6 +129,7 @@ export default function AdminPage() {
     const [deals, setDeals] = useState<any[]>([])
     const [dealsLoading, setDealsLoading] = useState(false)
     const [editingDeal, setEditingDeal] = useState<any | null>(null)
+    const [dealPreviewLocale, setDealPreviewLocale] = useState<'en' | 'zh'>('en')
     const [dealImgUploading, setDealImgUploading] = useState(false)
     const dealFileRef = useRef<HTMLInputElement>(null)
 
@@ -174,12 +183,38 @@ export default function AdminPage() {
         market: '竞品价格监控',
         ai: 'AI 管理助手',
         partners: '合作伙伴账号',
+        staff: '员工账号',
     }
 
+    // 保持登录 → localStorage for 30 days; otherwise sessionStorage (until the browser closes).
     useEffect(() => {
-        if (authed && token) window.sessionStorage.setItem('yitu-admin-token', token)
-        if (!authed) window.sessionStorage.removeItem('yitu-admin-token')
-    }, [authed, token])
+        let saved = ''
+        try {
+            saved = window.sessionStorage.getItem(ADMIN_TOKEN_KEY) || ''
+            const remembered = JSON.parse(window.localStorage.getItem(ADMIN_TOKEN_KEY) || 'null')
+            if (!saved && remembered && remembered.expires > Date.now()) saved = remembered.token
+        } catch {}
+        if (!saved) {
+            setAuthReady(true)
+            return
+        }
+        fetch('/api/admin/vehicles', { headers: { 'x-admin-token': saved } }).then(res => {
+            if (res.ok) {
+                setToken(saved)
+                setAuthed(true)
+                setShowAdminDashboard(true)
+            } else {
+                clearAdminToken()
+            }
+        }).catch(() => {}).finally(() => setAuthReady(true))
+    }, [])
+
+    function clearAdminToken() {
+        try {
+            window.sessionStorage.removeItem(ADMIN_TOKEN_KEY)
+            window.localStorage.removeItem(ADMIN_TOKEN_KEY)
+        } catch {}
+    }
 
     async function login() {
         const res = await fetch('/api/admin/vehicles', {
@@ -187,7 +222,12 @@ export default function AdminPage() {
         })
         if (res.ok) {
             setToken(pw)
-            window.sessionStorage.setItem('yitu-admin-token', pw)
+            try {
+                window.sessionStorage.setItem(ADMIN_TOKEN_KEY, pw)
+                if (rememberLogin) window.localStorage.setItem(ADMIN_TOKEN_KEY, JSON.stringify({ token: pw, expires: Date.now() + REMEMBER_LOGIN_MS }))
+                else window.localStorage.removeItem(ADMIN_TOKEN_KEY)
+            } catch {}
+            setAuthReady(true)
             setAuthed(true)
             setShowAdminDashboard(true)
         }
@@ -921,6 +961,15 @@ export default function AdminPage() {
         })
     }
 
+    if (!authReady) return (
+        <div className="min-h-screen bg-navy flex items-center justify-center">
+            <div className="text-center text-white/70">
+                <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-orange" />
+                <p className="text-sm">正在恢复登录状态…</p>
+            </div>
+        </div>
+    )
+
     // Login screen
     if (!authed) return (
         <div className="min-h-screen bg-navy flex items-center justify-center">
@@ -935,6 +984,10 @@ export default function AdminPage() {
                     onKeyDown={e => e.key === 'Enter' && login()}
                     className="w-full border border-black/10 rounded-lg px-4 py-3 text-sm mb-3 outline-none focus:border-orange"
                 />
+                <label className="flex items-center gap-2 text-sm text-navy mb-4 cursor-pointer select-none">
+                    <input type="checkbox" checked={rememberLogin} onChange={e => setRememberLogin(e.target.checked)} className="w-4 h-4 accent-orange" />
+                    保持登录（30 天，公用电脑请勿勾选）
+                </label>
                 <button
                     onClick={login}
                     className="w-full bg-orange hover:bg-orange-dark text-white font-syne font-bold py-3 rounded-lg transition-colors"
@@ -1020,7 +1073,7 @@ export default function AdminPage() {
                     )}
                     {!showAdminDashboard && activeTab === 'deals' && (
                         <button
-                            onClick={() => setEditingDeal({ slug: '', title: '', description: '', value: '', unit: '', badge: 'Get Offer', image_url: '', content: '', active: true })}
+                            onClick={() => setEditingDeal({ slug: '', title: '', description: '', value: '', unit: '', badge: 'Get Offer', image_url: '', content: '', tag_zh: '', badge_zh: '', title_zh: '', subtitle_zh: '', detail_zh: '', theme: 'navy', overlay: 0, text_scale: 100, active: true })}
                             className="flex items-center gap-1.5 bg-orange hover:bg-orange-dark text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors"
                         >
                             <Plus size={14} /> 新增活动
@@ -1078,7 +1131,7 @@ export default function AdminPage() {
                             </button>
                         </>
                     )}
-                    <button onClick={() => { window.sessionStorage.removeItem('yitu-admin-token'); setAuthed(false) }} className="text-white/50 hover:text-white">
+                    <button onClick={() => { clearAdminToken(); setToken(''); setPw(''); setAuthed(false) }} className="text-white/50 hover:text-white">
                         <LogOut size={18} />
                     </button>
                 </div>
@@ -1122,6 +1175,7 @@ export default function AdminPage() {
                                     { tab: 'faq', label: 'Live Support FAQ', description: '维护聊天机器人常见问题', icon: MessageCircle },
                                     { tab: 'stripe', label: 'Stripe 补扣款', description: '处理已保存卡的后续扣款', icon: CreditCard },
                                     { tab: 'partners', label: '合作伙伴账号', description: '创建和管理 Partner Portal 登录', icon: UserRound },
+                                    { tab: 'staff', label: '员工账号', description: '管理 YITU Lite 员工登录', icon: Users },
                                 ] as Array<{ tab: AdminTab; label: string; description: string; icon: React.ElementType }>).map(item => {
                                     const Icon = item.icon
                                     const selected = activeTab === item.tab
@@ -1202,6 +1256,7 @@ export default function AdminPage() {
                 </div>
             )}
             {activeTab === 'partners' && <PartnerAccounts token={token} showToast={showToast} />}
+            {activeTab === 'staff' && <StaffAccounts token={token} showToast={showToast} />}
             {/* ── Fleet tab ── */}
             {activeTab === 'fleet' && <>
             {/* CSV 格式提示 */}
@@ -1699,7 +1754,7 @@ export default function AdminPage() {
             {activeTab === 'deals' && (
                 <div className="px-8 py-6 space-y-4">
                     <div className="text-[12px] text-muted bg-navy/5 border border-black/10 rounded-xl px-4 py-3">
-                        管理主页 Hot Deals 活动卡片。每个活动对应一个独立文章页面（/deals/[slug]）。Slug 用于 URL，请使用英文字母和连字符，如 <code className="bg-black/5 px-1 rounded">easter-2025</code>。
+                        管理主页 Hot Deals 活动卡片。每个活动对应一个独立文章页面（/deals/[slug]），中文内容同时显示在官网中文页和微信小程序首页。Slug 用于 URL，请使用英文字母和连字符，如 <code className="bg-black/5 px-1 rounded">easter-2025</code>。
                     </div>
 
                     {dealsLoading ? (
@@ -1764,6 +1819,32 @@ export default function AdminPage() {
                                         </div>
                                         <input type="text" placeholder="或粘贴图片 URL" value={editingDeal.image_url || ''} onChange={e => setEditingDeal((d: any) => ({ ...d, image_url: e.target.value }))} className="mt-2 w-full text-[12px] border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-orange" />
                                     </div>
+                                    {/* Readability of the text over the image */}
+                                    <div className="rounded-xl border border-black/10 p-4 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <div className="text-xs font-bold text-navy">显示效果（文字看不清时调这里）</div>
+                                            <div className="flex rounded-lg border border-black/10 overflow-hidden text-[12px]">
+                                                {(['en', 'zh'] as const).map(l => (
+                                                    <button key={l} type="button" onClick={() => setDealPreviewLocale(l)} className={`px-3 py-1 ${dealPreviewLocale === l ? 'bg-navy text-white' : 'text-muted hover:text-navy'}`}>{l === 'en' ? '英文预览' : '中文预览'}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="max-w-[460px]">
+                                            <DealCard deal={localizeDeal(editingDeal, dealPreviewLocale)} viewLabel={dealPreviewLocale === 'zh' ? '查看优惠' : 'View Deal'} plainImage />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">图片蒙版（压暗）：{dealOverlay(editingDeal)}%</label>
+                                            <input type="range" min={0} max={80} step={5} value={dealOverlay(editingDeal)} onChange={e => setEditingDeal((d: any) => ({ ...d, overlay: Number(e.target.value) }))} className="w-full accent-orange" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">文字大小（标题、副标题、折扣）</label>
+                                            <div className="flex gap-2">
+                                                {DEAL_TEXT_SCALES.map(o => (
+                                                    <button key={o.value} type="button" onClick={() => setEditingDeal((d: any) => ({ ...d, text_scale: o.value }))} className={`px-4 py-1.5 rounded-lg border text-sm ${dealTextScale(editingDeal) === o.value ? 'border-orange bg-orange/10 text-orange font-bold' : 'border-black/10 text-navy hover:border-orange'}`}>{o.label}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
                                     {/* Slug */}
                                     <div>
                                         <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">URL Slug（英文，用于页面地址）</label>
@@ -1782,6 +1863,44 @@ export default function AdminPage() {
                                         <div>
                                             <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">副标题</label>
                                             <input type="text" value={editingDeal.description || ''} onChange={e => setEditingDeal((d: any) => ({ ...d, description: e.target.value }))} className="w-full border border-black/10 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-orange" placeholder="Fuel subsidy on every rental" />
+                                        </div>
+                                    </div>
+                                    {/* Chinese version: website /zh page + WeChat mini program */}
+                                    <div className="rounded-xl bg-orange/5 border border-orange/15 p-4 space-y-3">
+                                        <div>
+                                            <div className="text-xs font-bold text-orange">中文版（官网中文页 + 小程序首页同步）</div>
+                                            <div className="text-[11px] text-muted mt-1">保存后官网中文页和小程序首页自动更新。小程序卡片显示标签、角标、标题、副标题；用户点「查看详情」会打开官网中文页看正文全文。留空则用英文内容。</div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">中文标签</label>
+                                                <input type="text" value={editingDeal.tag_zh || ''} onChange={e => setEditingDeal((d: any) => ({ ...d, tag_zh: e.target.value }))} className="w-full border border-black/10 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-orange" placeholder="限时活动" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">中文折扣 / 角标</label>
+                                                <input type="text" value={editingDeal.badge_zh || ''} onChange={e => setEditingDeal((d: any) => ({ ...d, badge_zh: e.target.value }))} className="w-full border border-black/10 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-orange" placeholder="省 20%" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">中文标题</label>
+                                            <input type="text" value={editingDeal.title_zh || ''} onChange={e => setEditingDeal((d: any) => ({ ...d, title_zh: e.target.value }))} className="w-full border border-black/10 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-orange" placeholder="长租订阅特惠" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">中文副标题（一句话）</label>
+                                            <input type="text" value={editingDeal.subtitle_zh || ''} onChange={e => setEditingDeal((d: any) => ({ ...d, subtitle_zh: e.target.value }))} className="w-full border border-black/10 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-orange" placeholder="按月长租更划算，咨询专属报价" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">中文正文（官网中文页全文，换行分段）</label>
+                                            <textarea value={editingDeal.detail_zh || ''} onChange={e => setEditingDeal((d: any) => ({ ...d, detail_zh: e.target.value }))} rows={6} className="w-full border border-black/10 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-orange resize-none" placeholder="活动详情、参与方式、条款等..." />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">小程序卡片配色（无图片时使用）</label>
+                                            <select value={editingDeal.theme || 'navy'} onChange={e => setEditingDeal((d: any) => ({ ...d, theme: e.target.value }))} className="w-full border border-black/10 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-orange bg-white">
+                                                <option value="navy">深蓝</option>
+                                                <option value="teal">青绿</option>
+                                                <option value="orange">橙色</option>
+                                                <option value="purple">紫色</option>
+                                            </select>
                                         </div>
                                     </div>
                                     {/* Value + Unit + Badge */}

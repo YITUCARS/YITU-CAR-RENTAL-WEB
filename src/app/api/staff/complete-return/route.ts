@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { rcmCall } from '@/lib/rcm'
+import { requireStaff } from '@/lib/staff-api'
 
 // POST /api/staff/complete-return
 // Body: {
@@ -17,6 +18,9 @@ import { rcmCall } from '@/lib/rcm'
 // Calls RCM method "return" — verify exact method name against RCM docs.
 // Common alternatives: "completereturn", "checkout", "confirmreturn"
 export async function POST(req: NextRequest) {
+  const auth = await requireStaff(req, 'dropoff.manage')
+  if (auth.response) return auth.response
+
   try {
     const {
       reservationRef,

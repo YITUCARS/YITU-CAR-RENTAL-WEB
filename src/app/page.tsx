@@ -81,7 +81,7 @@ async function getDeals() {
     )
     const { data, error } = await supabase
       .from('deals')
-      .select('id, slug, title, description, value, unit, badge, image_url, content')
+      .select('id, slug, title, description, value, unit, badge, image_url, content, tag_zh, badge_zh, title_zh, subtitle_zh, detail_zh, overlay, text_scale')
       .eq('active', true)
       .order('display_order')
     if (error) console.error('[page] getDeals error:', error.message)

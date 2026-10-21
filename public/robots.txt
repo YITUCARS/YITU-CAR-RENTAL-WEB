@@ -1,4 +1,10 @@
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /booking/
+Disallow: /en/booking/
+Disallow: /zh/booking/
+Disallow: /*?*
 
 Sitemap: https://www.yiturentalcars.co.nz/sitemap.xml
