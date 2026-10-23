@@ -13,7 +13,8 @@ const ChatWidget = dynamic(() => import('@/components/ChatWidget'), { ssr: false
 // small screen, so they are left out there.
 export default function SiteOverlays() {
     const pathname = usePathname() || '/'
-    if (pathname.startsWith('/h5')) return null
+    // Online check-in is a focused form; the chat bubble would cover its submit button.
+    if (pathname.startsWith('/h5') || pathname.startsWith('/checkin')) return null
     return <>
         <ChatWidget />
         <CookieConsentBanner />

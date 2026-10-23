@@ -214,6 +214,42 @@ export async function rcmUpdateFlight(reservationRef: string, flightNumber: stri
     return saved
 }
 
+export type CheckinDetails = {
+    mobile: string
+    dateOfBirth: string    // YYYY-MM-DD
+    address: string
+    city: string
+    postcode: string
+    licenseNo: string
+    licenseIssued: string  // country / state that issued the licence
+    licenseExpires: string // YYYY-MM-DD
+    passport: string
+    flightIn: string
+}
+
+/** Writes what the hirer entered in online check-in to the booking, in one editbooking call. */
+export async function rcmApplyCheckin(reservationRef: string, details: CheckinDetails) {
+    const set = (key: string, value: string) => (value.trim() ? { [key]: value.trim() } : {})
+    const { after } = await editBookingKeepingFees(reservationRef, {
+        customer: {
+            ...set('mobile', details.mobile),
+            ...set('dateofbirth', rcmLongDate(details.dateOfBirth)),
+            ...set('address', details.address),
+            ...set('city', details.city),
+            ...set('postcode', details.postcode),
+            ...set('licenseno', details.licenseNo),
+            ...set('licenseissued', details.licenseIssued),
+            ...set('licenseexpires', rcmLongDate(details.licenseExpires)),
+            ...set('passport', details.passport),
+        },
+        booking: details.flightIn.trim() ? { flightin: details.flightIn.trim() } : {},
+    })
+    const saved = after?.customerinfo?.[0] || {}
+    if (details.licenseNo.trim() && String(saved.licenseno || '').trim() !== details.licenseNo.trim()) {
+        throw new Error('RCM did not store the licence number.')
+    }
+}
+
 export type ExtraDriverInput = {
     firstName: string
     lastName: string

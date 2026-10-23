@@ -5,5 +5,6 @@ export default createMiddleware(routing)
 
 export const config = {
   // /h5 pages are Chinese-only mobile pages shared in WeChat, outside the locale routes.
-  matcher: ['/((?!api|admin|h5|_next|_vercel|.*\\..*).*)'],
+  // /checkin is the hirer's emailed online check-in link (bilingual on its own).
+  matcher: ['/((?!api|admin|h5|checkin|_next|_vercel|.*\\..*).*)'],
 }
