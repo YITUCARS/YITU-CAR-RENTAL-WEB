@@ -13,9 +13,9 @@ import { requireStaff } from '@/lib/staff-api'
 //   3. upload to RCM's Cloudinary account
 //   4. storeupload   → records the Cloudinary URL against the reservation
 //
-// Driver licence / passport photos use the "checkin" workflow's licence slot from documentlist.
-// Vehicle and damage photos need a Document Link Setup ID configured by RCM support, mapped in
-// RCM_DOCUMENT_LINK_SETUP_IDS by photo-type prefix, e.g.
+// Every photo goes to the "checkin" workflow's document slot from documentlist (it accepts any
+// number of files; the file name says which photo it is). A dedicated Document Link Setup ID can
+// still be mapped per photo-type prefix in RCM_DOCUMENT_LINK_SETUP_IDS, e.g.
 //   {"pickup-vehicle":5,"dropoff-vehicle":6,"pickup-damage":7,"dropoff-damage":8}
 
 // RCM's shared Cloudinary account, from RCM's sample widget code. Uploads must be signed by RCM.
@@ -56,20 +56,20 @@ function configuredSetupIds(): Record<string, number> {
 }
 
 async function resolveTarget(reservationRef: string, photoType: string): Promise<UploadTarget | null> {
-  if (isDriverDocument(photoType)) {
-    // Primary driver's licence slot from the online check-in workflow.
-    const docs = await rcmPostBooking('documentlist', { reservationref: reservationRef, workflowcode: 'checkin' })
-    const rows: any[] = Array.isArray(docs) ? docs : []
-    const slot = rows.find(row => row.isprimary && !row.isvehicleupload) || rows.find(row => !row.isvehicleupload)
-    return slot ? { documentlinksetupid: Number(slot.documentlinksetupid), customerid: Number(slot.customerid) } : null
+  if (!isDriverDocument(photoType)) {
+    const ids = configuredSetupIds()
+    const prefix = Object.keys(ids)
+      .sort((a, b) => b.length - a.length)
+      .find(key => photoType.startsWith(key))
+    const id = prefix ? Number(ids[prefix]) : NaN
+    if (Number.isFinite(id) && id > 0) return { documentlinksetupid: id }
   }
 
-  const ids = configuredSetupIds()
-  const prefix = Object.keys(ids)
-    .sort((a, b) => b.length - a.length)
-    .find(key => photoType.startsWith(key))
-  const id = prefix ? Number(ids[prefix]) : NaN
-  return Number.isFinite(id) && id > 0 ? { documentlinksetupid: id } : null
+  // Primary driver's document slot from the online check-in workflow.
+  const docs = await rcmPostBooking('documentlist', { reservationref: reservationRef, workflowcode: 'checkin' })
+  const rows: any[] = Array.isArray(docs) ? docs : []
+  const slot = rows.find(row => row.isprimary && !row.isvehicleupload) || rows.find(row => !row.isvehicleupload)
+  return slot ? { documentlinksetupid: Number(slot.documentlinksetupid), customerid: Number(slot.customerid) } : null
 }
 
 async function uploadToRcmCloudinary(imageBase64: string, fileName: string) {
@@ -111,16 +111,16 @@ export async function POST(req: NextRequest) {
     if (!target) {
       return NextResponse.json({
         success: false,
-        error: `No RCM document type is configured for "${photoType}". Ask RCM support for a Document Link Setup ID and add it to RCM_DOCUMENT_LINK_SETUP_IDS.`,
+        error: `RCM has no document slot for this booking ("${photoType}").`,
       }, { status: 501 })
     }
 
     const uploaded = await uploadToRcmCloudinary(imageBase64, fileName)
 
-    const result = await rcmPostBooking('storeupload', {
+    const store = (doctype: string) => rcmPostBooking('storeupload', {
       documentlinksetupid: target.documentlinksetupid,
       url: uploaded.secure_url,
-      doctype: doctypeFor(photoType),
+      doctype,
       source: 'YITU Lite',
       reservationref: reservationRef,
       ...(target.customerid ? { customerid: target.customerid } : {}),
@@ -128,6 +128,13 @@ export async function POST(req: NextRequest) {
       storageprovider: 'cloudinary.com',
       resultsprovider: JSON.stringify(uploaded),
       notes: `Uploaded by ${auth.payload?.staffId || 'staff'} from YITU Lite (${photoType})`,
+    })
+    // The check-in slot is a licence slot; if RCM refuses another doc type there, store it as one.
+    const doctype = doctypeFor(photoType)
+    const result = await store(doctype).catch(err => {
+      if (doctype === 'DriverLicense') throw err
+      console.warn('[staff/upload-photo] storeupload as', doctype, 'failed, retrying as DriverLicense:', err.message)
+      return store('DriverLicense')
     })
 
     return NextResponse.json({

@@ -118,20 +118,17 @@ function feeSignature(results: any) {
 }
 
 /**
- * Writes the hirer's driver licence back to RCM so it shows on the rental agreement.
- *
- * RCM only updates customer details through `editbooking`, which also replaces the booking's
- * insurance, km option and optional fees with whatever is sent — anything omitted is removed.
- * So we resend the booking's current options unchanged, then re-read the booking and fail
- * loudly if the total or the fee list moved.
+ * RCM only updates customer / booking details through `editbooking`, which also replaces the
+ * booking's insurance, km option and optional fees with whatever is sent — anything omitted is
+ * removed. So the booking's current options and customer are resent unchanged with only
+ * [changes] applied, then the booking is re-read and this fails loudly if the total or the fee
+ * list moved.
  */
-export async function rcmUpdateDriverLicence(params: {
-    reservationRef: string
-    licenseNo: string
-    licenseExpires?: string // YYYY-MM-DD
-    licenseIssued?: string  // country / state that issued the licence
-}) {
-    const before = await rcmPostBooking('bookinginfo', { reservationref: params.reservationRef })
+async function editBookingKeepingFees(
+    reservationRef: string,
+    changes: { customer?: Record<string, any>; booking?: Record<string, any> },
+) {
+    const before = await rcmPostBooking('bookinginfo', { reservationref: reservationRef })
     const info = before?.bookinginfo?.[0]
     const customer = before?.customerinfo?.[0]
     if (!info || !customer) throw new Error('Booking not found in RCM.')
@@ -145,9 +142,8 @@ export async function rcmUpdateDriverLicence(params: {
         .filter(fee => !fee.isoptionalfee && !fee.isinsurancefee)
         .map(fee => ({ id: Number(fee.extrafeeid), qty: Number(fee.qty) || 1 }))
 
-    const expires = rcmLongDate(params.licenseExpires || '')
     await rcmPostBooking('editbooking', {
-        reservationref: params.reservationRef,
+        reservationref: reservationRef,
         bookingtype: info.isquotation ? 1 : 2,
         insuranceid: insurance ? Number(insurance.extrafeeid) : 0,
         extrakmsid: Number(info.kmcharges_id || 0),
@@ -155,6 +151,7 @@ export async function rcmUpdateDriverLicence(params: {
         optionalfees,
         mandatoryfees,
         UpdateMandatoryFees: 2, // leave mandatory fees exactly as they are
+        ...changes.booking,
         customer: {
             // Existing details are sent back unchanged so they aren't cleared.
             customerid: Number(customer.customerid),
@@ -170,17 +167,36 @@ export async function rcmUpdateDriverLicence(params: {
             postcode: customer.postcode || '',
             countryid: Number(customer.countryid || 0),
             passport: customer.passport || '',
-            licenseissued: params.licenseIssued?.trim() || customer.licenseissued || '',
-            licenseno: params.licenseNo,
-            licenseexpires: expires || customer.licenseexpires || '',
+            licenseissued: customer.licenseissued || '',
+            licenseno: customer.licenseno || '',
+            licenseexpires: customer.licenseexpires || '',
+            ...changes.customer,
         },
     })
 
-    const after = await rcmPostBooking('bookinginfo', { reservationref: params.reservationRef })
+    const after = await rcmPostBooking('bookinginfo', { reservationref: reservationRef })
     const was = feeSignature(before), now = feeSignature(after)
     if (was.total !== now.total || was.fees !== now.fees) {
-        throw new Error(`Licence saved, but RCM changed the booking (total ${was.total} → ${now.total}, fees ${was.fees} → ${now.fees}). Check the booking in RCM.`)
+        throw new Error(`Saved, but RCM changed the booking (total ${was.total} → ${now.total}, fees ${was.fees} → ${now.fees}). Check the booking in RCM.`)
     }
+    return { before, after }
+}
+
+/** Writes the hirer's driver licence back to RCM so it shows on the rental agreement. */
+export async function rcmUpdateDriverLicence(params: {
+    reservationRef: string
+    licenseNo: string
+    licenseExpires?: string // YYYY-MM-DD
+    licenseIssued?: string  // country / state that issued the licence
+}) {
+    const expires = rcmLongDate(params.licenseExpires || '')
+    const { after } = await editBookingKeepingFees(params.reservationRef, {
+        customer: {
+            licenseno: params.licenseNo,
+            ...(params.licenseIssued?.trim() ? { licenseissued: params.licenseIssued.trim() } : {}),
+            ...(expires ? { licenseexpires: expires } : {}),
+        },
+    })
     const saved = String(after?.customerinfo?.[0]?.licenseno || '').trim()
     if (saved !== params.licenseNo.trim()) throw new Error('RCM did not store the licence number.')
     return {
@@ -188,6 +204,14 @@ export async function rcmUpdateDriverLicence(params: {
         licenseExpires: after?.customerinfo?.[0]?.licenseexpires || '',
         licenseIssued: after?.customerinfo?.[0]?.licenseissued || '',
     }
+}
+
+/** Saves the customer's arrival flight number on the booking (RCM `flightin`). */
+export async function rcmUpdateFlight(reservationRef: string, flightNumber: string) {
+    const { after } = await editBookingKeepingFees(reservationRef, { booking: { flightin: flightNumber } })
+    const saved = String(after?.bookinginfo?.[0]?.flightin || '').trim()
+    if (saved.toUpperCase() !== flightNumber.toUpperCase()) throw new Error('RCM did not store the flight number.')
+    return saved
 }
 
 export type ExtraDriverInput = {

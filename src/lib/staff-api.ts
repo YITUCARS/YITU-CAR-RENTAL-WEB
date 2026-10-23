@@ -405,6 +405,9 @@ export function normalizeBookingInfo(results: any, type: 'pickup' | 'dropoff', l
     fuelPolicy: 'Full to Full',
     insuranceType: fees.find(fee => fee.isinsurancefee)?.name || 'Standard Cover',
     specialRequests: String(info.customerremark || '').trim() || 'None',
+    // Flights the customer entered when booking (arrival for pick-up, departure for return).
+    flightIn: String(info.flightin || '').trim(),
+    flightOut: String(info.flightout || '').trim(),
     agreementPage: info.agreementpage || '',
     // Odometer recorded in RCM at hire-out, if staff already entered it there.
     kmsOut: String(info.kmsout ?? '').trim(),
