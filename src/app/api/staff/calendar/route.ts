@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { ACTIVE_BOOKING_STATUSES, requireStaff, staffCanSeeBranch } from '@/lib/staff-api'
 
-// GET /api/staff/calendar?month=YYYY-MM
+// GET /api/staff/calendar?month=YYYY-MM[&branch=Christchurch]
 // → { days: [{ date, pickups, dropoffs, pendingPickups, pendingDropoffs }] } from the RCM mirror.
 // A pick-up is done once RCM shows Hired/Returned or staff finished it in YITU Lite;
 // a drop-off once RCM shows Returned or staff finished it.
@@ -15,7 +15,10 @@ export async function GET(req: NextRequest) {
   const auth = await requireStaff(req, 'bookings.read')
   if (auth.response) return auth.response
 
-  const month = new URL(req.url).searchParams.get('month') || ''
+  const params = new URL(req.url).searchParams
+  const month = params.get('month') || ''
+  /** Only this branch's pick-ups / drop-offs; all visible branches when empty. */
+  const branch = params.get('branch') || ''
   if (!/^\d{4}-\d{2}$/.test(month)) {
     return NextResponse.json({ success: false, error: 'month must be YYYY-MM.' }, { status: 400 })
   }
@@ -48,13 +51,15 @@ export async function GET(req: NextRequest) {
 
     for (const row of rows || []) {
       const status = String(row.status)
-      if (row.pickup_date >= first && row.pickup_date <= last && staffCanSeeBranch(auth.payload, row.pickup_branch)) {
+      if (row.pickup_date >= first && row.pickup_date <= last && staffCanSeeBranch(auth.payload, row.pickup_branch)
+          && (!branch || row.pickup_branch === branch)) {
         const stats = day(row.pickup_date)
         stats.pickups++
         const done = status === 'Hired' || status === 'Returned' || finished.has(`pickup:${row.reservation_ref}`)
         if (!done) stats.pendingPickups++
       }
-      if (row.dropoff_date >= first && row.dropoff_date <= last && staffCanSeeBranch(auth.payload, row.dropoff_branch)) {
+      if (row.dropoff_date >= first && row.dropoff_date <= last && staffCanSeeBranch(auth.payload, row.dropoff_branch)
+          && (!branch || row.dropoff_branch === branch)) {
         const stats = day(row.dropoff_date)
         stats.dropoffs++
         const done = status === 'Returned' || finished.has(`dropoff:${row.reservation_ref}`)
