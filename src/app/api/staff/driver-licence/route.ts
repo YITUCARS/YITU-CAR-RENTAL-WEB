@@ -12,8 +12,10 @@ export async function POST(req: NextRequest) {
   const auth = await requireStaff(req, 'pickup.manage')
   if (auth.response) return auth.response
 
+  let ref = ''
   try {
     const { reservationRef, licenseNo, licenseExpires, licenseIssued, dateOfBirth, phone, email } = await req.json()
+    ref = String(reservationRef || '')
     if (!reservationRef || !String(licenseNo || '').trim()) {
       return NextResponse.json({ success: false, error: 'reservationRef and licenseNo are required.' }, { status: 400 })
     }
@@ -29,7 +31,7 @@ export async function POST(req: NextRequest) {
     console.log('[staff/driver-licence]', reservationRef, 'updated by', auth.payload?.staffId)
     return NextResponse.json({ success: true, ...saved })
   } catch (err: any) {
-    console.error('[staff/driver-licence] error:', err.message)
+    console.error('[staff/driver-licence] error:', ref, err.message)
     return NextResponse.json({ success: false, error: err.message }, { status: 500 })
   }
 }

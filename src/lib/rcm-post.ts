@@ -117,6 +117,19 @@ function feeSignature(results: any) {
     }
 }
 
+/**
+ * bookinginfo returns the transmission as text once a vehicle is allocated ("Auto") but
+ * editbooking needs the number (the website books with 1 = Auto). Sending Number("Auto")
+ * — NaN, which JSON turns into null — made RCM reject the edit with an empty error.
+ */
+function transmissionCode(value: unknown) {
+    const text = String(value ?? '').trim().toLowerCase()
+    if (text.startsWith('auto')) return 1
+    if (text.startsWith('man')) return 2
+    const number = Number(text)
+    return Number.isFinite(number) ? number : 0
+}
+
 /** Shown in YITU Lite (translated there) when RCM won't take changes any more. */
 export const ON_HIRE_MESSAGE = 'This booking is already on hire (or returned) in RCM, which does not allow changes through the API. Please update it in RCM directly.'
 
@@ -152,7 +165,7 @@ async function editBookingKeepingFees(
         bookingtype: info.isquotation ? 1 : 2,
         insuranceid: insurance ? Number(insurance.extrafeeid) : 0,
         extrakmsid: Number(info.kmcharges_id || 0),
-        transmission: Number(info.transmission || 0),
+        transmission: transmissionCode(info.transmission),
         optionalfees,
         mandatoryfees,
         UpdateMandatoryFees: 2, // leave mandatory fees exactly as they are

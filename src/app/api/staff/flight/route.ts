@@ -12,8 +12,10 @@ export async function POST(req: NextRequest) {
   const auth = await requireStaff(req, 'pickup.manage')
   if (auth.response) return auth.response
 
+  let ref = ''
   try {
     const { reservationRef, flightNumber } = await req.json()
+    ref = String(reservationRef || '')
     const number = normalizeFlightNumber(flightNumber)
     if (!reservationRef || (number && !/^[A-Z0-9]{3,8}$/.test(number))) {
       return NextResponse.json({ success: false, error: 'Enter a flight number like NZ677.' }, { status: 400 })
@@ -31,7 +33,7 @@ export async function POST(req: NextRequest) {
     console.log('[staff/flight]', reservationRef, 'flight set by', auth.payload?.staffId)
     return NextResponse.json({ success: true, flightNumber: saved })
   } catch (err: any) {
-    console.error('[staff/flight] error:', err.message)
+    console.error('[staff/flight] error:', ref, err.message)
     return NextResponse.json({ success: false, error: err.message }, { status: 500 })
   }
 }
