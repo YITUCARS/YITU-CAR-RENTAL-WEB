@@ -117,6 +117,9 @@ function feeSignature(results: any) {
     }
 }
 
+/** Shown in YITU Lite (translated there) when RCM won't take changes any more. */
+export const ON_HIRE_MESSAGE = 'This booking is already on hire (or returned) in RCM, which does not allow changes through the API. Please update it in RCM directly.'
+
 /**
  * RCM only updates customer / booking details through `editbooking`, which also replaces the
  * booking's insurance, km option and optional fees with whatever is sent — anything omitted is
@@ -132,6 +135,8 @@ async function editBookingKeepingFees(
     const info = before?.bookinginfo?.[0]
     const customer = before?.customerinfo?.[0]
     if (!info || !customer) throw new Error('Booking not found in RCM.')
+    // RCM rejects editbooking (with an empty error) once a booking is on hire, overdue or returned.
+    if (/hired|overdue|returned/i.test(String(info.reservationstatus || ''))) throw new Error(ON_HIRE_MESSAGE)
 
     const fees: any[] = before.extrafees || []
     const insurance = fees.find(fee => fee.isinsurancefee)
@@ -182,19 +187,29 @@ async function editBookingKeepingFees(
     return { before, after }
 }
 
-/** Writes the hirer's driver licence back to RCM so it shows on the rental agreement. */
+/**
+ * Writes the hirer's driver licence back to RCM so it shows on the rental agreement, with the
+ * date of birth, phone and email staff checked at hand-over (each only when given).
+ */
 export async function rcmUpdateDriverLicence(params: {
     reservationRef: string
     licenseNo: string
     licenseExpires?: string // YYYY-MM-DD
     licenseIssued?: string  // country / state that issued the licence
+    dateOfBirth?: string    // YYYY-MM-DD
+    phone?: string
+    email?: string
 }) {
     const expires = rcmLongDate(params.licenseExpires || '')
+    const born = rcmLongDate(params.dateOfBirth || '')
     const { after } = await editBookingKeepingFees(params.reservationRef, {
         customer: {
             licenseno: params.licenseNo,
             ...(params.licenseIssued?.trim() ? { licenseissued: params.licenseIssued.trim() } : {}),
             ...(expires ? { licenseexpires: expires } : {}),
+            ...(born ? { dateofbirth: born } : {}),
+            ...(params.phone?.trim() ? { mobile: params.phone.trim() } : {}),
+            ...(params.email?.trim() ? { email: params.email.trim() } : {}),
         },
     })
     const saved = String(after?.customerinfo?.[0]?.licenseno || '').trim()

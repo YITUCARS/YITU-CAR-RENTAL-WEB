@@ -4,14 +4,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { rcmUpdateDriverLicence } from '@/lib/rcm-post'
 import { requireStaff } from '@/lib/staff-api'
 
-// POST /api/staff/driver-licence  Body: { reservationRef, licenseNo, licenseExpires? (YYYY-MM-DD) }
-// Saves the primary driver's licence in RCM so it appears on the rental agreement.
+// POST /api/staff/driver-licence
+// Body: { reservationRef, licenseNo, licenseExpires?, licenseIssued?, dateOfBirth?, phone?, email? }
+// Saves the primary driver's licence (and date of birth / contact details) in RCM so they appear
+// on the rental agreement. Dates are YYYY-MM-DD.
 export async function POST(req: NextRequest) {
   const auth = await requireStaff(req, 'pickup.manage')
   if (auth.response) return auth.response
 
   try {
-    const { reservationRef, licenseNo, licenseExpires, licenseIssued } = await req.json()
+    const { reservationRef, licenseNo, licenseExpires, licenseIssued, dateOfBirth, phone, email } = await req.json()
     if (!reservationRef || !String(licenseNo || '').trim()) {
       return NextResponse.json({ success: false, error: 'reservationRef and licenseNo are required.' }, { status: 400 })
     }
@@ -20,6 +22,9 @@ export async function POST(req: NextRequest) {
       licenseNo: String(licenseNo).trim(),
       licenseExpires: licenseExpires ? String(licenseExpires) : undefined,
       licenseIssued: licenseIssued ? String(licenseIssued) : undefined,
+      dateOfBirth: /^\d{4}-\d{2}-\d{2}$/.test(String(dateOfBirth || '')) ? String(dateOfBirth) : undefined,
+      phone: phone ? String(phone) : undefined,
+      email: email ? String(email) : undefined,
     })
     console.log('[staff/driver-licence]', reservationRef, 'updated by', auth.payload?.staffId)
     return NextResponse.json({ success: true, ...saved })
