@@ -3,7 +3,10 @@
 //
 // The plan's quota is small (Basic: 400 units/month, 2 units per lookup), so each flight is
 // looked up only a few times: once when first shown, again about an hour before landing, then
-// every 45 minutes until it lands; landed / cancelled flights aren't re-checked. On top of that
+// every 45 minutes until about 15 minutes after the expected arrival; landed / cancelled flights
+// aren't re-checked. Many flights only have schedule data (no live times ever appear), so once
+// the expected arrival is past and no live data says otherwise, the flight is taken as landed
+// at that time and not looked up again. On top of that
 // the calls per day are budgeted from RapidAPI's remaining-units header, spread evenly over the
 // days until the quota resets, so the month never runs dry.
 
@@ -31,9 +34,11 @@ export type FlightStatus = {
   terminal: string
   gate: string
   checkedAt: string
+  /** Landed is assumed (expected arrival passed, no live data), not reported. */
+  landedEstimated?: boolean
 }
 
-const cache = new Map<string, { until: number; value: FlightStatus }>()
+const cache = new Map<string, { until: number; value: FlightStatus; arrivalMs: number | null }>()
 const inflight = new Map<string, Promise<FlightStatus>>()
 /** Lookups made today (NZ date) and how many today's budget allows. */
 let usage = { day: '', calls: 0, budget: 0, fromQuota: false }
@@ -68,15 +73,34 @@ function shiftLocal(value: string | undefined, ms: number) {
   return { hhmm, ms: base.ms + ms }
 }
 
+const MINUTE = 60 * 1000
+
+function isFinal(status: FlightStatus) {
+  return !status.found || /landed|arrived|cancel|divert/.test(status.status.toLowerCase()) || Boolean(status.actualArrival)
+}
+
+/**
+ * Past its expected arrival with no live data saying it's still flying: report it as landed at
+ * that time. A flight that was in the air at the last look gets an hour's grace for a late landing.
+ */
+function settle(status: FlightStatus, arrivalMs: number | null): FlightStatus {
+  if (isFinal(status) || !arrivalMs) return status
+  const live = /enroute|approach|delay|depart/.test(status.status.toLowerCase())
+  const past = Date.now() - arrivalMs
+  if (past < 15 * MINUTE || (live && past < 75 * MINUTE)) return status
+  return { ...status, status: 'Landed', landedEstimated: true, expectedArrival: status.expectedArrival || status.scheduledArrival }
+}
+
 /** How long a result stays fresh. */
 function freshFor(status: FlightStatus, arrivalMs: number | null) {
-  const minute = 60 * 1000
-  const state = status.status.toLowerCase()
-  if (!status.found) return 6 * 60 * minute
-  if (/landed|arrived|cancel|divert/.test(state) || status.actualArrival) return 24 * 60 * minute
+  if (!status.found) return 6 * 60 * MINUTE
+  if (isFinal(status)) return 24 * 60 * MINUTE
+  if (!arrivalMs) return 45 * MINUTE
+  const until = arrivalMs - Date.now()
   // Far off: next look about an hour before landing.
-  if (arrivalMs && arrivalMs - Date.now() > 2 * 60 * minute) return arrivalMs - Date.now() - 60 * minute
-  return 45 * minute
+  if (until > 2 * 60 * MINUTE) return until - 60 * MINUTE
+  // Close: every 45 minutes, with one look just after the expected arrival for the landed time.
+  return Math.max(20 * MINUTE, Math.min(45 * MINUTE, until + 15 * MINUTE))
 }
 
 function empty(number: string, date: string): FlightStatus {
@@ -160,15 +184,26 @@ export async function getFlightStatus(flightNumber: string, date: string, airpor
   const number = normalizeFlightNumber(flightNumber)
   const key = `${number}|${date}|${airportIata || ''}`
   const hit = cache.get(key)
-  if (hit && Date.now() < hit.until) return hit.value
+  if (hit) {
+    // A flight past its arrival time with no live data is settled without spending a lookup.
+    const settled = settle(hit.value, hit.arrivalMs)
+    if (settled !== hit.value) cache.set(key, { ...hit, value: settled, until: Date.now() + 24 * 60 * MINUTE })
+    if (Date.now() < hit.until || isFinal(settled)) return settled
+  }
 
   let pending = inflight.get(key)
   if (!pending) {
     pending = fetchLegs(number, date)
       .then(legs => {
-        const { value, arrivalMs } = toStatus(number, date, legs, airportIata)
-        cache.set(key, { until: Date.now() + freshFor(value, arrivalMs), value })
+        const result = toStatus(number, date, legs, airportIata)
+        const value = settle(result.value, result.arrivalMs)
+        cache.set(key, { until: Date.now() + freshFor(value, result.arrivalMs), value, arrivalMs: result.arrivalMs })
         return value
+      })
+      .catch(err => {
+        // Out of today's budget or API down: the last known status beats none.
+        if (hit) return hit.value
+        throw err
       })
       .finally(() => inflight.delete(key))
     inflight.set(key, pending)
