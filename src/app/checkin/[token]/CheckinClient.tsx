@@ -59,7 +59,11 @@ const T = {
   agree: { en: 'I have read and agree to the', zh: '我已阅读并同意' },
   termsLink: { en: 'rental terms and conditions', zh: '租车条款' },
   signName: { en: 'Type your full name to sign', zh: '输入您的全名作为签名' },
-  takePhoto: { en: 'Add photo', zh: '拍照/上传' },
+  takePhoto: { en: 'Photo or PDF', zh: '拍照/上传' },
+  uploading: { en: 'Uploading…', zh: '上传中…' },
+  uploadFailed: { en: 'Not uploaded – tap to retry', zh: '上传失败，点此重试' },
+  tooLarge: { en: 'That file is larger than 10 MB.', zh: '文件超过 10MB，请换一个。' },
+  waitUploads: { en: 'Please wait for your files to finish uploading.', zh: '请等文件上传完成。' },
   retake: { en: 'Change', zh: '更换' },
   onFile: { en: 'Received', zh: '已收到' },
   submit: { en: 'Complete check-in', zh: '完成办理' },
@@ -82,6 +86,18 @@ const COUNTRIES = [
   { code: 'OTHER', en: 'Other', zh: '其他' },
 ]
 const AU_STATES = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT']
+
+type FileState = { name: string; preview?: string; status: 'uploading' | 'done' | 'error' }
+
+/** PDFs are sent as they are (up to 10 MB). */
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+}
 
 /** Shrinks a photo to at most 1600px and returns JPEG base64 (keeps uploads small on mobile data). */
 async function compress(file: File): Promise<string> {
@@ -111,7 +127,9 @@ export default function CheckinClient({ token }: { token: string }) {
   const [form, setForm] = useState<Record<string, string>>({})
   const [country, setCountry] = useState('')
   const [auState, setAuState] = useState('')
-  const [photos, setPhotos] = useState<Partial<Record<PhotoKey, string>>>({})
+  const [files, setFiles] = useState<Partial<Record<PhotoKey, FileState>>>({})
+  // Uploads run one after another (each is a separate request, kept small for mobile data).
+  const [queue] = useState(() => ({ last: Promise.resolve() as Promise<unknown> }))
   const [agreed, setAgreed] = useState(false)
   const [missing, setMissing] = useState<Set<string>>(new Set())
   const [submitting, setSubmitting] = useState(false)
@@ -141,13 +159,36 @@ export default function CheckinClient({ token }: { token: string }) {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
+    setError('')
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
+    if (isPdf && file.size > 10 * 1024 * 1024) { setError(t('tooLarge')); return }
+    let data: string
     try {
-      const data = await compress(file)
-      setPhotos(p => ({ ...p, [key]: data }))
-      setMissing(m => { const next = new Set(m); next.delete(key); return next })
+      data = isPdf ? await readAsDataUrl(file) : await compress(file)
     } catch {
-      setError(lang === 'zh' ? '这张照片无法读取，请换一张。' : 'That photo could not be read. Please try another.')
+      setError(lang === 'zh' ? '这个文件无法读取，请换一个。' : 'That file could not be read. Please try another.')
+      return
     }
+    setFiles(f => ({ ...f, [key]: { name: file.name, preview: isPdf ? undefined : data, status: 'uploading' } }))
+    setMissing(m => { const next = new Set(m); next.delete(key); return next })
+
+    const upload = async () => {
+      try {
+        const res = await fetch(`/api/checkin/${encodeURIComponent(token)}/file`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, data }),
+        })
+        const json = await res.json()
+        if (!json.success) throw new Error(json.error)
+        setLoaded(l => l && { ...l, photos: json.photos })
+        setFiles(f => ({ ...f, [key]: { ...f[key]!, status: 'done' } }))
+      } catch (err: any) {
+        setFiles(f => ({ ...f, [key]: { ...f[key]!, status: 'error' } }))
+        if (err?.message) setError(err.message)
+      }
+    }
+    queue.last = queue.last.then(upload)
   }
 
   const set = (key: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -163,10 +204,12 @@ export default function CheckinClient({ token }: { token: string }) {
     return form.licenseIssued || ''
   }, [country, auState, form.licenseIssued])
 
-  const has = (key: PhotoKey) => Boolean(photos[key]) || Boolean(loaded?.photos.includes(key))
+  const has = (key: PhotoKey) => Boolean(loaded?.photos.includes(key)) && files[key]?.status !== 'error'
+  const uploading = Object.values(files).some(f => f?.status === 'uploading')
 
   async function submit() {
     setError('')
+    if (uploading) { setError(t('waitUploads')); return }
     const need = new Set<string>()
     if (!form.mobile?.trim()) need.add('mobile')
     if (!form.dateOfBirth) need.add('dateOfBirth')
@@ -185,7 +228,7 @@ export default function CheckinClient({ token }: { token: string }) {
       const res = await fetch(`/api/checkin/${encodeURIComponent(token)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, licenseCountry: country, licenseIssued: issued, agreed, photos }),
+        body: JSON.stringify({ ...form, licenseCountry: country, licenseIssued: issued, agreed }),
       })
       const json = await res.json()
       if (!json.success) {
@@ -193,8 +236,7 @@ export default function CheckinClient({ token }: { token: string }) {
         setError(json.error || 'Something went wrong. Please try again.')
         return
       }
-      setLoaded(l => l && { ...l, submittedAt: json.submittedAt, photos: Array.from(new Set([...l.photos, ...Object.keys(photos)])) })
-      setPhotos({})
+      setLoaded(l => l && { ...l, submittedAt: json.submittedAt })
       setDone(true)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch {
@@ -322,12 +364,12 @@ export default function CheckinClient({ token }: { token: string }) {
         <Field label={t('expiry')} className={fieldClass('licenseExpires')}>
           <input type="date" value={form.licenseExpires || ''} onChange={set('licenseExpires')} className={inputClass} />
         </Field>
-        <Photo label={t('front')} photo={photos.licenseFront} onFile={has('licenseFront')} missing={missing.has('licenseFront')} onChange={onFile('licenseFront')} t={t} />
-        <Photo label={t('back')} photo={photos.licenseBack} onFile={has('licenseBack')} missing={missing.has('licenseBack')} onChange={onFile('licenseBack')} t={t} />
+        <Photo label={t('front')} file={files.licenseFront} onFile={has('licenseFront')} missing={missing.has('licenseFront')} onChange={onFile('licenseFront')} t={t} />
+        <Photo label={t('back')} file={files.licenseBack} onFile={has('licenseBack')} missing={missing.has('licenseBack')} onChange={onFile('licenseBack')} t={t} />
         {country === 'CN' && (
           <>
             <p className="py-3 text-xs leading-relaxed text-muted">{t('translationHint')}</p>
-            <Photo label={t('translation')} photo={photos.translation} onFile={has('translation')} missing={missing.has('translation')} onChange={onFile('translation')} t={t} />
+            <Photo label={t('translation')} file={files.translation} onFile={has('translation')} missing={missing.has('translation')} onChange={onFile('translation')} t={t} />
           </>
         )}
       </Section>
@@ -336,7 +378,7 @@ export default function CheckinClient({ token }: { token: string }) {
         <Field label={t('passportNo')} className="text-muted">
           <input value={form.passport || ''} onChange={set('passport')} autoCapitalize="characters" className={inputClass} />
         </Field>
-        <Photo label={t('passportPhoto')} photo={photos.passport} onFile={has('passport')} missing={false} onChange={onFile('passport')} t={t} />
+        <Photo label={t('passportPhoto')} file={files.passport} onFile={has('passport')} missing={false} onChange={onFile('passport')} t={t} />
       </Section>
 
       <Section title={t('flight')} note={t('optional')}>
@@ -403,21 +445,24 @@ function Field({ label, className, children }: { label: string; className: strin
   )
 }
 
-function Photo({ label, photo, onFile, missing, onChange, t }: {
-  label: string; photo?: string; onFile: boolean; missing: boolean
+function Photo({ label, file, onFile, missing, onChange, t }: {
+  label: string; file?: FileState; onFile: boolean; missing: boolean
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   t: (key: keyof typeof T) => string
 }) {
+  const status = file?.status === 'uploading' ? t('uploading') : file?.status === 'error' ? t('uploadFailed') : ''
   return (
     <label className="flex cursor-pointer items-center justify-between gap-4 py-3 text-sm">
-      <span className={missing ? 'text-orange' : 'text-muted'}>{label}</span>
-      <span className="flex items-center gap-3">
-        {photo
-          ? <img src={photo} alt="" className="h-12 w-16 rounded-md object-cover" />
-          : onFile && <span className="text-emerald-600">✓ {t('onFile')}</span>}
-        <span className="font-semibold text-orange">{photo || onFile ? t('retake') : t('takePhoto')}</span>
+      <span className={`shrink-0 ${missing || file?.status === 'error' ? 'text-orange' : 'text-muted'}`}>{label}</span>
+      <span className="flex min-w-0 items-center gap-3">
+        {file?.preview && <img src={file.preview} alt="" className="h-12 w-16 shrink-0 rounded-md object-cover" />}
+        {file && !file.preview && <span className="truncate text-navy">📄 {file.name}</span>}
+        {status
+          ? <span className={file?.status === 'error' ? 'text-orange' : 'text-muted'}>{status}</span>
+          : onFile && <span className="shrink-0 text-emerald-600">✓ {file ? '' : t('onFile')}</span>}
+        <span className="shrink-0 font-semibold text-orange">{file || onFile ? t('retake') : t('takePhoto')}</span>
       </span>
-      <input type="file" accept="image/*" onChange={onChange} className="hidden" />
+      <input type="file" accept="image/*,application/pdf" onChange={onChange} className="hidden" />
     </label>
   )
 }

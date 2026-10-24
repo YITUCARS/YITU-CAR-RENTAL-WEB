@@ -2,23 +2,12 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { findCheckin, updateCheckin } from '@/lib/online-checkin'
-import { NoDocumentSlotError, uploadDocumentToRcm } from '@/lib/rcm-documents'
 import { rcmApplyCheckin, rcmPostBooking } from '@/lib/rcm-post'
 import { getLocationNames, normalizeBookingInfo } from '@/lib/staff-api'
 
 // The hirer's online check-in (page: /checkin/[token]). The token in the emailed link is the
-// only credential, so responses carry just this booking's own details.
-
-const PHOTO_TYPES = {
-  licenseFront: 'document-checkin-license-front',
-  licenseBack: 'document-checkin-license-back',
-  passport: 'document-checkin-passport',
-  translation: 'document-checkin-translation',
-} as const
-type PhotoKey = keyof typeof PHOTO_TYPES
-
-/** Per photo, base64 characters (~6 MB of image). */
-const MAX_PHOTO_CHARS = 8_000_000
+// only credential, so responses carry just this booking's own details. Photos and PDFs are
+// uploaded one at a time beforehand (./file), so this only receives the typed details.
 
 const notFound = () => NextResponse.json(
   { success: false, error: 'This check-in link has expired or been replaced. Please contact YITU Car Rental.' },
@@ -99,13 +88,7 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
     flightIn: text(body.flightIn, 10).toUpperCase().replace(/[^A-Z0-9]/g, ''),
     agreedName: text(body.agreedName, 120),
   }
-  const photos: Partial<Record<PhotoKey, string>> = {}
-  for (const key of Object.keys(PHOTO_TYPES) as PhotoKey[]) {
-    const value = body.photos?.[key]
-    if (typeof value === 'string' && value) photos[key] = value
-  }
-
-  const have = new Set([...row.photos, ...Object.keys(photos)])
+  const have = new Set(row.photos)
   const problems: string[] = []
   if (!details.mobile) problems.push('mobile')
   if (!isDate(details.dateOfBirth)) problems.push('dateOfBirth')
@@ -117,30 +100,7 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
   if (!have.has('licenseBack')) problems.push('licenseBack')
   if (details.licenseCountry === 'CN' && !have.has('translation')) problems.push('translation')
   if (body.agreed !== true || !details.agreedName) problems.push('agreed')
-  if (Object.values(photos).some(value => value!.length > MAX_PHOTO_CHARS)) problems.push('photoSize')
   if (problems.length) return NextResponse.json({ success: false, error: 'Please complete the highlighted fields.', fields: problems }, { status: 400 })
-
-  // Photos first: if one fails the hirer can simply submit again.
-  const uploaded: string[] = []
-  try {
-    for (const [key, imageBase64] of Object.entries(photos) as [PhotoKey, string][]) {
-      await uploadDocumentToRcm({
-        reservationRef: row.booking_ref,
-        photoType: PHOTO_TYPES[key],
-        imageBase64,
-        source: 'YITU Online Check-in',
-        notes: `Uploaded by the hirer in online check-in (${key})`,
-      })
-      uploaded.push(key)
-    }
-  } catch (err: any) {
-    console.error('[checkin] photo upload failed:', row.booking_ref, err.message)
-    if (uploaded.length) await updateCheckin(row.id, { photos: Array.from(new Set([...row.photos, ...uploaded])) }).catch(() => {})
-    const message = err instanceof NoDocumentSlotError
-      ? 'We could not attach photos to this booking. Please bring your licence to the counter.'
-      : 'A photo could not be uploaded. Please check your connection and submit again.'
-    return NextResponse.json({ success: false, error: message }, { status: 502 })
-  }
 
   const now = new Date().toISOString()
   const { agreedName, ...forRcm } = details
@@ -158,10 +118,9 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
     status: 'submitted',
     submitted_at: now,
     data,
-    photos: Array.from(new Set([...row.photos, ...uploaded])),
     rcm_synced_at: rcmError ? null : now,
     rcm_error: rcmError || null,
   })
-  console.log('[checkin] submitted', row.booking_ref, 'photos', uploaded.length, rcmError ? 'rcm-error' : 'rcm-ok')
+  console.log('[checkin] submitted', row.booking_ref, 'files', row.photos.length, rcmError ? 'rcm-error' : 'rcm-ok')
   return NextResponse.json({ success: true, submittedAt: now })
 }

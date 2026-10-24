@@ -24,7 +24,14 @@ const CLOUDINARY = {
 type UploadTarget = { documentlinksetupid: number; customerid?: number }
 
 function cleanBase64(value: string) {
-  return value.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '')
+  return value.replace(/^data:[a-zA-Z0-9.+/-]+;base64,/, '')
+}
+
+/** JPEG unless the bytes are a PDF (scanned licences and licence translations often are). */
+export function fileKind(bytes: Buffer) {
+  return bytes.subarray(0, 5).toString('latin1') === '%PDF-'
+    ? { ext: 'pdf', mime: 'application/pdf' }
+    : { ext: 'jpg', mime: 'image/jpeg' }
 }
 
 function isDriverDocument(photoType: string) {
@@ -66,7 +73,7 @@ async function resolveTarget(reservationRef: string, photoType: string): Promise
   return slot ? { documentlinksetupid: Number(slot.documentlinksetupid), customerid: Number(slot.customerid) } : null
 }
 
-async function uploadToRcmCloudinary(imageBase64: string, fileName: string) {
+async function uploadToRcmCloudinary(bytes: Buffer, mime: string, fileName: string) {
   const params = {
     timestamp: Math.floor(Date.now() / 1000),
     upload_preset: CLOUDINARY.uploadPreset,
@@ -77,7 +84,7 @@ async function uploadToRcmCloudinary(imageBase64: string, fileName: string) {
   if (!signature) throw new Error('RCM signupload did not return a signature.')
 
   const form = new FormData()
-  form.append('file', new Blob([Buffer.from(cleanBase64(imageBase64), 'base64')], { type: 'image/jpeg' }), fileName)
+  form.append('file', new Blob([new Uint8Array(bytes)], { type: mime }), fileName)
   Object.entries(params).forEach(([key, value]) => form.append(key, String(value)))
   form.append('api_key', CLOUDINARY.apiKey)
   form.append('signature', signature)
@@ -89,7 +96,7 @@ async function uploadToRcmCloudinary(imageBase64: string, fileName: string) {
 }
 
 /**
- * Uploads one photo to the booking's RCM documents. Throws a NoDocumentSlotError when RCM has
+ * Uploads one photo or PDF to the booking's RCM documents. Throws a NoDocumentSlotError when RCM has
  * nowhere to link it (checked before anything is uploaded).
  */
 export async function uploadDocumentToRcm(params: {
@@ -100,13 +107,15 @@ export async function uploadDocumentToRcm(params: {
   notes: string
 }) {
   const { reservationRef, photoType, imageBase64 } = params
-  const fileName = `${reservationRef}-${photoType}.jpg`.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const bytes = Buffer.from(cleanBase64(imageBase64), 'base64')
+  const kind = fileKind(bytes)
+  const fileName = `${reservationRef}-${photoType}.${kind.ext}`.replace(/[^a-zA-Z0-9._-]/g, '_')
 
   // Resolve the RCM document slot first so nothing is uploaded that RCM can't link.
   const target = await resolveTarget(reservationRef, photoType)
   if (!target) throw new NoDocumentSlotError(`RCM has no document slot for this booking ("${photoType}").`)
 
-  const uploaded = await uploadToRcmCloudinary(imageBase64, fileName)
+  const uploaded = await uploadToRcmCloudinary(bytes, kind.mime, fileName)
 
   const store = (doctype: string) => rcmPostBooking('storeupload', {
     documentlinksetupid: target.documentlinksetupid,
